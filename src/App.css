@@ -22,8 +22,9 @@
 body { margin:0; background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans KR",sans-serif; }
 
 /* ===== Layout ===== */
-.appShell { min-height:100vh; background:var(--bg); }
-.appWrap  { max-width:1400px; margin:0 auto; padding-bottom:48px; }
+.appShell { min-height:100vh; background:#121212; width:100%; }
+.appWrap  { max-width:1400px; margin:0 auto; padding-bottom:48px; background:#121212; }
+#root { background:#121212; min-height:100vh; }
 .errorBox { border:1px solid rgba(255,50,50,.5); background:rgba(255,0,0,.08); padding:14px 16px; border-radius:12px; margin:12px 18px 0; display:flex; flex-direction:column; gap:6px; }
 .errorBoxTitle { font-weight:900; color:#fca5a5; font-size:14px; }
 .errorBoxDesc  { font-size:13px; color:rgba(255,200,200,.85); line-height:1.5; }
@@ -72,6 +73,38 @@ body { margin:0; background:var(--bg); color:var(--text); font-family:system-ui,
   color:var(--yellow);
   border-color:rgba(240,196,0,.45);
   background:rgba(240,196,0,.08);
+}
+/* 패치명 서브텍스트 */
+.topNavPatch {
+  font-size:clamp(10px,1.1vw,13px); font-weight:700;
+  color:rgba(240,196,0,.55); margin-left:6px; letter-spacing:0.01em;
+}
+/* 운용자 정보 버튼 */
+.infoBtn {
+  border-color:rgba(255,255,255,.18);
+  color:rgba(255,255,255,.70);
+}
+.infoBtn:hover { border-color:rgba(255,255,255,.40); color:#fff; }
+/* 튜토리얼 버튼 */
+.tutorialBtn {
+  border-color:rgba(96,165,250,.35);
+  color:rgba(96,165,250,.80);
+}
+.tutorialBtn:hover { border-color:rgba(96,165,250,.65); color:#93c5fd; background:rgba(96,165,250,.08); }
+
+/* ── 로딩 화면 ── */
+.loadingScreen {
+  display:flex; align-items:center; justify-content:center;
+  min-height:calc(100vh - 64px);
+}
+.loadingText {
+  color:rgba(240,196,0,.75); font-size:clamp(14px,2vw,18px);
+  font-weight:900; letter-spacing:0.05em;
+  animation: loadingPulse 1.4s ease-in-out infinite;
+}
+@keyframes loadingPulse {
+  0%,100% { opacity:0.5; }
+  50%      { opacity:1; }
 }
 
 /* ─────────────────────────────────────────────
@@ -415,18 +448,7 @@ body { margin:0; background:var(--bg); color:var(--text); font-family:system-ui,
   /* 개인장비와 동일한 최대 폭 */
   max-width: calc(var(--gear-base) + var(--gear-wide) + var(--gear-side) + var(--strat-gap)*2);
 }
-@media(max-width:760px) {
-  .stratRow {
-    grid-template-columns: repeat(4, 1fr);
-    max-width: 100%;
-  }
-}
-@media(max-width:480px) {
-  .stratRow {
-    grid-template-columns: repeat(2, 1fr);
-    max-width: 100%;
-  }
-}
+@media(max-width:760px) { .stratRow { grid-template-columns: repeat(2, 1fr); } }
 
 /* ===== 개인장비 레이아웃 =====
    [방어구 정사각] [주무기 와이드] [보조/투척 세로스택]
@@ -455,18 +477,8 @@ body { margin:0; background:var(--bg); color:var(--text); font-family:system-ui,
     --gear-wide: calc(var(--gear-base) * 2);
     --gear-side: clamp(100px, 28vw, 150px);
   }
-  .gearLayout {
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: auto auto;
-  }
-  .gearSideStack {
-    grid-column: 1 / -1;
-    flex-direction: row !important;
-  }
-}
-@media(max-width:380px) {
-  .gearLayout { grid-template-columns: 1fr; }
-  .gearSideStack { grid-column: 1; flex-direction: row !important; width:100%; }
+  .gearLayout { grid-template-columns: 1fr 1fr; }
+  .gearSideStack { grid-column: 1 / -1; }
 }
 
 /* 보조/투척 세로 스택 */
@@ -481,7 +493,7 @@ body { margin:0; background:var(--bg); color:var(--text); font-family:system-ui,
 
 /* ===== Slot Card ===== */
 .slotCard {
-  background:rgba(20,20,20,.55); border-radius:16px; cursor:pointer;
+  background:rgba(20,20,20,.92); border-radius:16px; cursor:pointer;
   box-shadow:0 10px 30px rgba(0,0,0,.35);
   transition:border-color .15s,box-shadow .15s;
   border:1px solid rgba(255,255,255,.22);
