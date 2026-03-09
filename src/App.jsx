@@ -562,6 +562,11 @@ const TUTORIAL_STEPS = [
     area:  "synergySectionItem",
   },
   {
+    title: "구성 요구 사항",
+    desc:  "이곳에서 로드아웃을 구성하는데 필요한 채권을 확인할 수 있습니다.\n또한 개인 장비 및 스트라타젬 선택 슬롯에서 필터 기능을 사용할 수 있습니다.",
+    area:  "reqSection",
+  },
+  {
     title: "로드아웃 관리 기능",
     desc:  "현재 구성한 로드아웃에 이름을 붙여 저장하고 불러올 수 있습니다. 로드아웃을 공유하고 싶다면 이미지로 내보낼 수도 있습니다.",
     area:  "loadoutMgmtBtns",
@@ -691,7 +696,7 @@ function TutorialOverlay({ step, onNext, onPrev, onClose }) {
         <div style={{ fontSize:17, fontWeight:700, color:"#fde047",
           textShadow:"0 0 12px rgba(253,224,71,.5)", lineHeight:1.3 }}>{title}</div>
         {/* 설명 */}
-        <div style={{ fontSize:13, color:"rgba(255,255,255,.82)", lineHeight:1.75 }}>{desc}</div>
+        <div style={{ fontSize:13, color:"rgba(255,255,255,.82)", lineHeight:1.75, whiteSpace:"pre-line" }}>{desc}</div>
         {/* 버튼 */}
         <div style={{ display:"flex", gap:8, justifyContent:"flex-end", marginTop:2 }}>
           {step > 0 && (
@@ -1684,10 +1689,10 @@ export default function App() {
           <div className="topNavTabs">
             <button className="topNavTab infoBtn" type="button"
               onClick={()=>setInfoModal(true)}
-            >ℹ️ 운용자 정보</button>
+            >운용자 정보</button>
             <button className="topNavTab tutorialBtn" type="button"
               onClick={()=>setTutorialStep(0)}
-            >📖 튜토리얼</button>
+            >튜토리얼</button>
           </div>
         </div>
       </nav>
@@ -1815,7 +1820,7 @@ export default function App() {
                     )}
 
                     {/* 로드아웃 구성 요구 사항 */}
-                    <div className="statItem">
+                    <div className="statItem reqSection">
                       <div className="statLabel">로드아웃 구성 요구 사항</div>
                       <div className="statTraitList" style={{ marginTop:5 }}>
                         {stats.wbSummary.length > 0

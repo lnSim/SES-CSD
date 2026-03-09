@@ -658,7 +658,7 @@ export default function PickerModal({
                       const active = pickedId!=null && String(it.id)===String(pickedId);
                       return (
                         <button key={it.id}
-                          className={`pickCard ${active?"active":""} ${isSuperStore(it)?"superItem":""}`}
+                          className={`pickCard ${active?"active":""} ${isSuperStore(it)?"superItem":""} ${isSuperCitizen(it)?"superCitizenItem":""}`}
                           onClick={()=>onPick(it)} type="button"
                         >
                           <div className="pickThumb">
