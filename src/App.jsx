@@ -51,11 +51,7 @@ const EMPTY_SELECTED = {
   armor:null, primary:null, secondary:null, throwable:null,
 };
 
-const PAGES = [
-  { id:"personal", label:"로드아웃 구성" },
-  { id:"squad",    label:"분대 로드아웃 시뮬레이팅" },
-  { id:"tutorial", label:"튜토리얼" },
-];
+
 
 /* ── PNG 출력: Canvas API 직접 구현 ──
    html2canvas 대신 selected 데이터를 직접 canvas에 렌더링
@@ -500,7 +496,7 @@ function sortByWbOrder(entries) {
 const WB_STYLES = {
   "헬다이버 출동!":        { color:"#f7f352", background:"#0e2c2e", borderColor:"rgba(247,243,82,.35)" },
   "결연한 베테랑":         { color:"#ffffff", background:"#ea630f", borderColor:"rgba(255,255,255,.3)" },
-  "최첨단":                { color:"#00b3ff", background:"#0044ab", borderColor:"rgba(0,179,255,.40)", textShadow:"0 0 8px #00f3ff" },
+  "최첨단":                { color:"#60d8ff", background:"#0044ab", borderColor:"rgba(96,216,255,.50)", textShadow:"0 0 10px #40efff" },
   "민주적 폭파":           { color:"#ef8f00", background:"#920f00", borderColor:"rgba(239,143,0,.35)"  },
   "극지의 애국자":         { color:"#ffffff", background:"#3eb0e8", borderColor:"rgba(255,255,255,.3)" },
   "독사 특공대":           { color:"#ffffff", background:"#103318", borderColor:"rgba(255,255,255,.2)" },
@@ -520,7 +516,7 @@ const WB_STYLES = {
   "민주적 궤도 강하 타격대":{ color:"#ffffff", background:"#081c28", borderColor:"#fbfbaa"              },
   "정의로운 망령":         { color:"#ffffff", background:"#1e1d1b", borderColor:"#fbee6b"              },
   "슈퍼시민권 업그레이드":  { color:"#fee800", background:"#000000", borderColor:"#fee800"              },
-  "슈퍼스토어 구매":        { color:"#00f6ff", background:"#001c2e", borderColor:"rgba(0,246,255,.60)", textShadow:"0 0 8px rgba(0,246,255,.5)" },
+  "슈퍼스토어 구매":        { color:"#00f6ff", background:"#001c2e", borderColor:"rgba(0,246,255,.65)", textShadow:"0 0 8px rgba(0,246,255,.5)" },
 };
 function getWbBadgeStyle(wb) {
   return WB_STYLES[wb] ?? { color:"rgba(255,255,255,.8)", background:"rgba(255,255,255,.07)", borderColor:"rgba(255,255,255,.18)" };
@@ -535,70 +531,276 @@ function getErgoBadgeStyle(ergo) {
   return null;
 }
 
+
+/* ─────────────────────────────────────────────
+   튜토리얼 오버레이
+   ───────────────────────────────────────────── */
+const TUTORIAL_STEPS = [
+  {
+    title: "스트라타젬 선택 영역",
+    desc:  "해당 슬롯을 선택하면 스트라타젬을 선택할 수 있습니다.",
+    area:  "stratRow",
+  },
+  {
+    title: "개인 장비 슬롯",
+    desc:  "이곳에서 방어구, 주무기, 보조무기, 투척무기를 선택할 수 있습니다.",
+    area:  "gearLayout",
+  },
+  {
+    title: "현재 선택 패널",
+    desc:  "현재 선택한 스트라타젬과 장비를 목록으로 보여줍니다. 태그에 커서를 올리면 태그의 설명을 확인 가능합니다.",
+    area:  "selectedPanel",
+  },
+  {
+    title: "역할 분류",
+    desc:  "선택한 구성에 따라 어떠한 적에게 유효한지, 팀에 어떻게 기여하는지를 표시합니다.",
+    area:  "roleTagsSection",
+  },
+  {
+    title: "로드아웃 분석",
+    desc:  "로드아웃의 화력 투사 방식과 방어구의 패시브가 어떻게 적용되는지 확인이 가능합니다.",
+    area:  "synergySectionItem",
+  },
+  {
+    title: "로드아웃 관리 기능",
+    desc:  "현재 구성한 로드아웃에 이름을 붙여 저장하고 불러올 수 있습니다. 로드아웃을 공유하고 싶다면 이미지로 내보낼 수도 있습니다.",
+    area:  "loadoutMgmtBtns",
+  },
+];
+
+function TutorialOverlay({ step, onNext, onPrev, onClose }) {
+  const [rect, setRect] = useState(null);
+  const PAD = 10;
+
+  useEffect(() => {
+    if (step < 0 || step >= TUTORIAL_STEPS.length) { setRect(null); return; }
+    const area = TUTORIAL_STEPS[step].area;
+    const el = document.querySelector(`.${area}`);
+    if (!el) { setRect(null); return; }
+
+    const calcRect = () => {
+      const r = el.getBoundingClientRect();
+      setRect({ top: r.top - PAD, left: r.left - PAD, width: r.width + PAD*2, height: r.height + PAD*2 });
+    };
+
+    // 먼저 스크롤해서 강조 영역을 화면 중앙으로 이동
+    el.scrollIntoView({ behavior:"smooth", block:"center" });
+    // 스크롤 완료 후 rect 재계산 (smooth 약 600ms)
+    const t1 = setTimeout(calcRect, 100);
+    const t2 = setTimeout(calcRect, 420);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [step]);
+
+  if (step < 0 || step >= TUTORIAL_STEPS.length) return null;
+  const { title, desc } = TUTORIAL_STEPS[step];
+  const isLast = step === TUTORIAL_STEPS.length - 1;
+
+  const W = window.innerWidth, H = window.innerHeight;
+  const CARD_W = 460, CARD_H = 260, MARGIN = 14;
+
+  const clipPath = rect
+    ? `polygon(0 0, ${W}px 0, ${W}px ${H}px, 0 ${H}px, 0 0, ${rect.left}px ${rect.top}px, ${rect.left}px ${rect.top+rect.height}px, ${rect.left+rect.width}px ${rect.top+rect.height}px, ${rect.left+rect.width}px ${rect.top}px, ${rect.left}px ${rect.top}px)`
+    : "none";
+
+  // 카드 위치 — 하이라이트 구역을 가리지 않는 방향 우선 선택
+  let cardTop, cardLeft;
+  if (rect) {
+    const spaceBelow  = H - (rect.top + rect.height);
+    const spaceAbove  = rect.top;
+    const spaceRight  = W - (rect.left + rect.width);
+    const spaceLeft   = rect.left;
+
+    if (spaceBelow >= CARD_H + MARGIN) {
+      // 아래
+      cardTop  = rect.top + rect.height + MARGIN;
+      cardLeft = Math.max(MARGIN, Math.min(rect.left, W - CARD_W - MARGIN));
+    } else if (spaceAbove >= CARD_H + MARGIN) {
+      // 위
+      cardTop  = rect.top - CARD_H - MARGIN;
+      cardLeft = Math.max(MARGIN, Math.min(rect.left, W - CARD_W - MARGIN));
+    } else if (spaceRight >= CARD_W + MARGIN) {
+      // 오른쪽
+      cardLeft = rect.left + rect.width + MARGIN;
+      cardTop  = Math.max(MARGIN, Math.min(rect.top, H - CARD_H - MARGIN));
+    } else if (spaceLeft >= CARD_W + MARGIN) {
+      // 왼쪽
+      cardLeft = rect.left - CARD_W - MARGIN;
+      cardTop  = Math.max(MARGIN, Math.min(rect.top, H - CARD_H - MARGIN));
+    } else {
+      // 공간 없으면 화면 하단 중앙
+      cardTop  = H - CARD_H - MARGIN * 2;
+      cardLeft = Math.max(MARGIN, (W - CARD_W) / 2);
+    }
+  }
+
+  return (
+    <div style={{ position:"fixed", inset:0, zIndex:2000, pointerEvents:"none" }}>
+      {/* 어두운 배경 */}
+      <div style={{
+        position:"absolute", inset:0, background:"rgba(0,0,0,.72)",
+        clipPath: rect ? clipPath : undefined,
+        transition:"clip-path 0.45s cubic-bezier(.4,0,.2,1)",
+        pointerEvents:"auto",
+      }} onClick={onClose} />
+
+      {/* 하이라이트 테두리 글로우 */}
+      {rect && (
+        <div style={{
+          position:"fixed",
+          top:rect.top, left:rect.left,
+          width:rect.width, height:rect.height,
+          borderRadius:12,
+          border:"2px solid rgba(253,224,71,.9)",
+          boxShadow:"0 0 0 4px rgba(253,224,71,.15), 0 0 24px rgba(253,224,71,.5), inset 0 0 16px rgba(253,224,71,.08)",
+          animation:"tutGlow 1.6s ease-in-out infinite",
+          transition:"top 0.45s cubic-bezier(.4,0,.2,1), left 0.45s cubic-bezier(.4,0,.2,1), width 0.45s cubic-bezier(.4,0,.2,1), height 0.45s cubic-bezier(.4,0,.2,1)",
+          pointerEvents:"none",
+        }} />
+      )}
+
+      {/* 카드 */}
+      <div onClick={e=>e.stopPropagation()} style={{
+        position:"fixed",
+        top:  rect ? cardTop  : "50%",
+        left: rect ? cardLeft : "50%",
+        transform: rect ? "none" : "translate(-50%,-50%)",
+        transition:"top 0.45s cubic-bezier(.4,0,.2,1), left 0.45s cubic-bezier(.4,0,.2,1)",
+        zIndex:2001, pointerEvents:"auto",
+        background:"#1a1a1a",
+        border:"1px solid rgba(253,224,71,.30)",
+        boxShadow:"0 0 32px rgba(253,224,71,.18), 0 8px 40px rgba(0,0,0,.7)",
+        borderRadius:16, padding:"26px 30px", width:460, maxWidth:"calc(100vw - 24px)",
+        display:"flex", flexDirection:"column", gap:16,
+      }}>
+        {/* 진행 바 */}
+        <div style={{ display:"flex", gap:5 }}>
+          {TUTORIAL_STEPS.map((_, i) => (
+            <div key={i} style={{
+              height:3, flex:1, borderRadius:99,
+              background: i < step ? "#fde047" : i === step ? "#fde047" : "rgba(255,255,255,.15)",
+              boxShadow: i === step ? "0 0 6px rgba(253,224,71,.7)" : "none",
+              transition:"background .25s, box-shadow .25s",
+            }} />
+          ))}
+        </div>
+        {/* 단계 */}
+        <div style={{ fontSize:11, fontWeight:700, color:"rgba(253,224,71,.65)", letterSpacing:".1em" }}>
+          STEP {step + 1} / {TUTORIAL_STEPS.length}
+        </div>
+        {/* 제목 */}
+        <div style={{ fontSize:17, fontWeight:700, color:"#fde047",
+          textShadow:"0 0 12px rgba(253,224,71,.5)", lineHeight:1.3 }}>{title}</div>
+        {/* 설명 */}
+        <div style={{ fontSize:13, color:"rgba(255,255,255,.82)", lineHeight:1.75 }}>{desc}</div>
+        {/* 버튼 */}
+        <div style={{ display:"flex", gap:8, justifyContent:"flex-end", marginTop:2 }}>
+          {step > 0 && (
+            <button type="button" onClick={onPrev} style={{
+              padding:"7px 16px", borderRadius:999,
+              border:"1px solid rgba(255,255,255,.18)", background:"rgba(255,255,255,.06)",
+              color:"rgba(255,255,255,.75)", fontWeight:700, fontSize:12, cursor:"pointer",
+            }}>이전</button>
+          )}
+          <button type="button" onClick={isLast ? onClose : onNext} style={{
+            padding:"7px 20px", borderRadius:999,
+            border:"1px solid rgba(253,224,71,.6)", background:"rgba(253,224,71,.13)",
+            color:"#fde047", fontWeight:700, fontSize:12, cursor:"pointer",
+            boxShadow:"0 0 10px rgba(253,224,71,.25)",
+            animation:"tutGlow 1.6s ease-in-out infinite",
+          }}>{isLast ? "완료" : "다음"}</button>
+        </div>
+        {/* 하단 안내 */}
+        <div style={{ fontSize:11, color:"rgba(255,255,255,.28)", textAlign:"center", marginTop:2 }}>
+          창 밖 영역을 클릭해 튜토리얼을 바로 종료할 수 있습니다.
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const ERGO_UPGRADE = { "낮음":"보통", "보통":"높음", "투척":"투척" };
+const ERGO_LABEL  = { "낮음":"핸들링 낮음", "보통":"핸들링 보통", "높음":"핸들링 높음", "투척":"투척" };
 const IDEAL_BLUE   = "#60a5fa";
 const IDEAL_BLUE_STYLE = {
   background:"rgba(96,165,250,.12)", borderColor:"rgba(96,165,250,.40)", color:IDEAL_BLUE,
 };
-const ERGO_COL_W = 34; // Ergo 배지 열 고정 너비(px)
+const ERGO_COL_W = 48; // Ergo 배지 열 고정 너비(px)
+
+// 라벨 색상: 주/보조/투척 노란색, 지원무기 지원색, 스트라타젬 대분류는 공격/방어 색
+const FIREFORM_LABEL_COLOR = (label) => {
+  if (["주무기","보조무기","투척무기"].includes(label)) return "#fde047";
+  if (label === "지원무기") return "#bfe1f6";
+  if (["이글","궤도"].includes(label))                 return "#fe5f47";
+  if (["센트리","거치포","배치형"].includes(label))     return "#d4edbc";
+  if (label === "탑승물") return "#93c5fd";
+  return "#bfe1f6"; // 배낭 등 나머지 지원 계열
+};
+
+const RESP_STYLE = {
+  "빠름": { label:"빠른 호출", bg:"rgba(134,239,172,.15)", border:"rgba(134,239,172,.40)", color:"#86efac" },
+  "보통": { label:"평균 호출", bg:"rgba(253,224,71,.12)",  border:"rgba(253,224,71,.35)",  color:"#fde047" },
+  "느림": { label:"느린 호출", bg:"rgba(248,113,113,.15)", border:"rgba(248,113,113,.40)", color:"#f87171" },
+};
 
 function FireformRow({ row, hasIdealBody }) {
   const f      = row.form    ?? "";
   const id     = row.id      ?? "";
   const isCqc  = id.includes("cqc");
-  const subNotes   = Array.isArray(row.subNotes) ? row.subNotes : [];
+  const subNotes     = Array.isArray(row.subNotes)     ? row.subNotes     : [];
+  const passiveNotes = Array.isArray(row.passiveNotes) ? row.passiveNotes : [];
+  const responseTime = row.responseTime ?? "";
 
-  // 이상적인 체형: 투척무기("투척" 태그)는 적용 제외
+  // 이상적인 체형: Ergo 업그레이드 (투척 제외)
   const isIdealTarget = hasIdealBody && row.ergo !== "투척";
   const ergo      = isIdealTarget ? (ERGO_UPGRADE[row.ergo] ?? row.ergo) : (row.ergo ?? "");
   const ergoStyle = isIdealTarget ? IDEAL_BLUE_STYLE : getErgoBadgeStyle(ergo);
   const nameColor = isIdealTarget ? IDEAL_BLUE : "rgba(255,255,255,.75)";
-  const bonusText = isIdealTarget ? (isCqc ? "+ 근접 공격력" : "+ 핸들링 향상") : null;
 
-  // 긍정(pos) → 부정(neg) 순 정렬
-  const posNotes = subNotes.filter(n => n.kind === "pos");
-  const negNotes = subNotes.filter(n => n.kind === "neg");
-  const orderedNotes = [...posNotes, ...negNotes];
+  // passiveNotes(pos) → subNotes(pos) → subNotes(neg) 순으로 표시
+  const allPos = [...passiveNotes.filter(n => n.kind === "pos"), ...subNotes.filter(n => n.kind === "pos")];
+  const allNeg = subNotes.filter(n => n.kind === "neg");
+  const orderedNotes = [...allPos, ...allNeg];
+
+  const respStyle = RESP_STYLE[responseTime] ?? null;
+
+  const fStyle = getFireformBadgeStyle(f);
 
   return (
-    <div style={{ display:"flex", alignItems:"center", gap:8, minWidth:0 }}>
-      {/* 라벨: 고정 너비(46px) + 세로 중앙 정렬 */}
+    <div style={{ display:"flex", alignItems:"flex-start", gap:8, minWidth:0 }}>
+      {/* 라벨 */}
       <span style={{
-        width:46, flexShrink:0,
-        fontSize:10, color:"rgba(255,255,255,.38)", fontWeight:900,
+        width:56, flexShrink:0,
+        fontSize:12, color:FIREFORM_LABEL_COLOR(row.label), fontWeight:700,
         whiteSpace:"nowrap", lineHeight:1,
-        display:"flex", alignItems:"center",
+        display:"flex", alignItems:"flex-start", paddingTop:2,
       }}>{row.label}</span>
-      {/* 명칭: 항상 같은 x위치에서 시작 */}
-      <div style={{ flex:1, minWidth:0, display:"flex", flexDirection:"column", justifyContent:"center", gap:2 }}>
-        <span style={{ fontSize:11, color:nameColor, fontWeight:800, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{row.name}</span>
-        {bonusText && <span style={{ fontSize:10, color:IDEAL_BLUE, fontWeight:900, opacity:.85 }}>+ {bonusText.replace(/^\+\s*/,"")}</span>}
+      {/* 명칭 + 노트 + 배지 */}
+      <div style={{ flex:1, minWidth:0, display:"flex", flexDirection:"column", gap:3 }}>
+        <span style={{ fontSize:13, color:nameColor, fontWeight:600, wordBreak:"keep-all", overflowWrap:"break-word" }}>{row.name}</span>
         {orderedNotes.map((n,i) => (
-          <span key={i} style={{ fontSize:10, fontWeight:900, opacity:.95,
+          <span key={i} style={{ fontSize:12, fontWeight:700, opacity:.95,
             color: n.kind === "pos" ? "#86efac" : "#f87171" }}>
             {n.kind === "neg" ? `- ${n.text}` : `+ ${n.text}`}
           </span>
         ))}
-      </div>
-      {/* 화력투사 배지 — gap으로 간격 제어, margin 제거 */}
-      <span className="statFireformBadge" style={{ ...getFireformBadgeStyle(f), margin:0 }}>{f}</span>
-      {/* Ergo 배지 열 — gap으로 간격 제어 */}
-      <div style={{ width:ERGO_COL_W, flexShrink:0, display:"flex", justifyContent:"center" }}>
-        {ergoStyle && <span className="statFireformBadge" style={{ ...ergoStyle, margin:0 }}>{ergo}</span>}
+        {/* 배지 행 */}
+        {(f || ergoStyle || respStyle) && (
+          <div style={{ display:"flex", gap:5, flexWrap:"wrap", marginTop:1 }}>
+            {f && <span className="statFireformBadge" style={{ ...fStyle, margin:0 }}>{f}</span>}
+            {respStyle && <span className="statFireformBadge" style={{ background:respStyle.bg, border:`1px solid ${respStyle.border}`, color:respStyle.color, margin:0 }}>{respStyle.label}</span>}
+            {!respStyle && ergoStyle && <span className="statFireformBadge" style={{ ...ergoStyle, margin:0 }}>{ERGO_LABEL[ergo] ?? ergo}</span>}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
 export default function App() {
-  // 페이지 타이틀 설정
-  useEffect(() => {
-    document.title = "SES 자기 결정의 전달자 — 로드아웃 빌더";
-  }, []);
-
-  const [activePage,   setActivePage]   = useState("personal");
+  const [tutorialStep, setTutorialStep] = useState(-1); // -1=숨김, 0~N=진행중
   const [items,        setItems]        = useState([]);
   const [err,          setErr]          = useState("");
+  const [isLoading,    setIsLoading]    = useState(true);
   const [selected,     setSelected]     = useState(EMPTY_SELECTED);
   const [picker,       setPicker]       = useState({ open:false, slotKey:"", slotKind:"", typeKey:"", pickedId:null });
 
@@ -607,6 +809,8 @@ export default function App() {
   const [saveModal,       setSaveModal]       = useState({ open:false, name:"" });
   const [manageModal,     setManageModal]     = useState(false);
   const [deleteConfirm,   setDeleteConfirm]   = useState(null);
+  const [resetConfirm,    setResetConfirm]    = useState(false);
+  const [infoModal,       setInfoModal]       = useState(false);
   const [editingId,       setEditingId]       = useState(null);   // 이름 편집 중인 로드아웃 id
   const [editingName,     setEditingName]     = useState("");
 
@@ -630,6 +834,7 @@ export default function App() {
         setErr("");
         const loaded=(Array.isArray(d?.items)?d.items:[]).map(normalizeItem);
         setItems(loaded);
+        setIsLoading(false);
 
         const stored=lsGet();
         const byId=new Map(loaded.map(it=>[it.id,it]));
@@ -672,7 +877,7 @@ export default function App() {
         });
         setActiveLoadoutId("__default__");
       })
-      .catch(e=>setErr(String(e)));
+      .catch(e=>{ setErr(String(e)); setIsLoading(false); });
   }, []);
 
   function persistList(list, lastId) {
@@ -745,11 +950,13 @@ export default function App() {
     const AT_SUPPORT_IDS = ["gr8","faf14","rr_","spear"];
 
     const FORCE_SMALL_IDS              = ["sw_flam","sp_flam","st_flam","p72"];
+    const ERGO_FORCE_THROW_IDS         = ["sw_c4"];  // 지원무기 중 "투척" ergo 강제 표시
     const ROLE_SUPPRESS_IDS            = ["tx41","bp_ax13"];
     const GRENADE_PARTIAL_MED_EXCLUDE  = ["k2"];
     const GRENADE_PARTIAL_MED_FORCE    = ["g142"];
     // 중형 태그 억제: m102, bp_l182, ep_arc3
-    const MED_SUPPRESS_IDS             = ["m102","bp_l182","ep_arc3"];
+    const MED_SUPPRESS_IDS             = ["m102","bp_l182","ep_arc3","bp_ax75"];
+    const PARTIAL_MED_SYNERGY_IDS = ["bp_ax75"];
 
     /* ─ 관통 등급 계산 ─ */
     let supportMaxPen = 0, hasDisposableAT = false, hasTrueATSupport = false;
@@ -759,6 +966,7 @@ export default function App() {
       const sub = getSubType(it);
       if (!SUPPORT_WEAPON_SUBTYPES.has(sub)) continue;
       if (AT_EXCLUDE_IDS.some(ex => id.includes(ex))) continue;
+      if (FORCE_SMALL_IDS.some(r => id.includes(r))) continue;
       const raw = s(it?.armorPen);
       if (!raw || raw==="비살상") continue;
       const n = Number(raw);
@@ -798,8 +1006,10 @@ export default function App() {
       const id  = s(it?.id).toLowerCase();
       const sub = getSubType(it);
       if (SUPPORT_WEAPON_SUBTYPES.has(sub)) continue;
+      if (sub === "배낭") continue;                                   // 배낭형 서포트 제외
+      if (AT_EXCLUDE_IDS.some(ex => id.includes(ex))) continue;      // 제외 목록 적용
       if (id.includes("st_orb") || id.includes("st_eag")) continue;
-      if (MED_SUPPRESS_IDS.some(r => id.includes(r))) continue;  // 중형 태그 억제 대상 제외
+      if (MED_SUPPRESS_IDS.some(r => id.includes(r))) continue;
       const raw = s(it?.armorPen);
       if (!raw || raw==="비살상") continue;
       const n = Number(raw);
@@ -888,6 +1098,13 @@ export default function App() {
       const it = selected[k]; if (!it) return false;
       return FORCE_SMALL_IDS.some(r => s(it?.id).toLowerCase().includes(r));
     });
+    const hasForceSmallSupport = selected.stratagem.some(it => {
+      if (!it) return false;
+      const id  = s(it?.id).toLowerCase();
+      const sub = getSubType(it);
+      return SUPPORT_WEAPON_SUBTYPES.has(sub) && FORCE_SMALL_IDS.some(r => id.includes(r));
+    });
+    const hasForceSmall = hasForceSmallPrimary || hasForceSmallSupport;
 
     let mainRoleTag = null;
     if (rolePen >= 6) {
@@ -898,7 +1115,7 @@ export default function App() {
       mainRoleTag = { label:"중형 적 대응", color:C_MED   };
     } else if (rolePen > 0) {
       mainRoleTag = { label:"소형 적 대응", color:C_SMALL };
-    } else if (hasForceSmallPrimary) {
+    } else if (hasForceSmall) {
       mainRoleTag = { label:"소형 적 대응", color:C_SMALL };
     }
     if (upgradedByOrbEag && mainRoleTag) mainRoleTag = { label:"대전차 전담", color:C_AT };
@@ -914,6 +1131,14 @@ export default function App() {
       ? { label:"부분적 중형 적 대응", color:C_MED }
       : null;
 
+    const hasPartialMedStrat = selected.stratagem.some(it => {
+      if (!it) return false;
+      return PARTIAL_MED_SYNERGY_IDS.some(r => s(it?.id).toLowerCase().includes(r));
+    });
+    const partialMedStratTag = hasPartialMedStrat
+      ? { label:"부분적 중형 적 대응", color:C_MED }
+      : null;
+
     const ROLE_ORDER = ["소형 적 대응","중형 적 대응","대전차 전담","부분적 중형 적 대응","부분적 대전차 가능","부분적 대전차(탑승물)"];
     const roleCandidates = [];
     if (extraWeaponTag)  roleCandidates.push(extraWeaponTag);
@@ -921,16 +1146,21 @@ export default function App() {
     if (grenadeTag) {
       if (!roleCandidates.some(t => t.label==="중형 적 대응")) roleCandidates.push(grenadeTag);
     }
+    if (partialMedStratTag) {
+      if (!roleCandidates.some(t => t.label === "부분적 중형 적 대응"))
+        roleCandidates.push(partialMedStratTag);
+    }
     if (loosePartialTag) roleCandidates.push(loosePartialTag);
 
     const suppressRole = allItems.some(it => {
       const id = s(it?.id).toLowerCase();
       return ROLE_SUPPRESS_IDS.some(r => id.includes(r));
     });
-    // m102 보유 시 중형 적 대응 태그 억제
+    // MED_SUPPRESS_IDS 중 bp_ax75 제외 항목이 있을 때만 중형 태그 억제
+    const MED_SUPPRESS_NON_PARTIAL = ["m102","ep_arc3"];
     const suppressMed = allItems.some(it => {
       const id = s(it?.id).toLowerCase();
-      return MED_SUPPRESS_IDS.some(r => id.includes(r));
+      return MED_SUPPRESS_NON_PARTIAL.some(r => id.includes(r));
     });
 
     const roleTags = [];
@@ -949,7 +1179,7 @@ export default function App() {
     }
     // 전투 보조 → 부분적 대전차(탑승물) → 탑승물 운용 (마지막)
     if (hasCombatSupport) roleTags.push({ label:"전투 보조",            color:C_SUPP    });
-    if (hasVehicleAT)     roleTags.push({ label:"부분적 대전차(탑승물)", color:C_PAT     });
+    if (hasVehicleAT)     roleTags.push({ label:"부분적 대전차(탑승물)", color:"#93c5fd" });
     if (hasVehicle)       roleTags.push({ label:"탑승물 운용",           color:C_VEHICLE });
 
     /* ════════════════════════════════════════════
@@ -967,9 +1197,8 @@ export default function App() {
     // 신규: 단일|탄막형
     const DUAL_BARRAGE_IDS  = ["sw_ac8"];
     // 탑승물 전용 (td220 제거 — 별도 PARTIAL_MED 처리)
-    const VEHICLE_SYNERGY   = { "exo45":"탄막 | 대전차" };
-    // bp_ax75, td220 → 부분적 중형 (구성 시너지 라벨 오버라이드)
-    const PARTIAL_MED_SYNERGY_IDS = ["bp_ax75","td220"];
+    const VEHICLE_SYNERGY   = { "exo45":"탄막 | 대전차", "td220":"범용 대전차" };
+    // bp_ax75 → 부분적 중형 (구성 시너지 라벨 오버라이드)
     // 포격/투사 태그
     const FORWARD_IDS       = ["eag_sr","eag_110mm","eag_500kg","orb_wb"];
     const LATERAL_IDS       = ["eag_as","eag_cb","eag_ns"];
@@ -1008,7 +1237,7 @@ export default function App() {
       if (CQC_IDS.some(r => id.includes(r)))          return "근접";
       if (AREA_CC_IDS.some(r => id.includes(r)))      return "범위 CC";
       if (STOP_IDS.some(r => id.includes(r)))         return "대상 저지";
-      if (SINGLE_ENTITY_IDS.some(r => id.includes(r))) return "단일 개체";
+      if (SINGLE_ENTITY_IDS.some(r => id.includes(r))) return "단일 대상";
       if (DUAL_BARRAGE_IDS.some(r => id.includes(r))) return "단일 | 탄막형";
       if (FORCE_RANGE_IDS.some(r => id.includes(r)))  return "범위형";
       if (FORCE_SINGLE_IDS.some(r => id.includes(r))) return "단일 대상";
@@ -1035,7 +1264,8 @@ export default function App() {
 
     const GEAR_LABELS = { primary:"주무기", secondary:"보조무기", throwable:"투척무기" };
     const ERGO_GEAR_KINDS = new Set(["primary","secondary","throwable"]);
-    const hasIdealBody = s(selected.armor?.passive) === "이상적인 체형";
+    const armorPassive = s(selected.armor?.passive);
+    const hasIdealBody = armorPassive === "이상적인 체형";
 
     const fireformGear = [];
     for (const k of ["primary","secondary","throwable"]) {
@@ -1047,7 +1277,17 @@ export default function App() {
         if (k === "throwable" && !ergo) ergo = "투척";
       }
       const id = s(it?.id ?? "").toLowerCase();
-      fireformGear.push({ label:GEAR_LABELS[k], name:s(it.name_ko||it.id), form, ergo, id });
+      const subNotes = [];
+      const traits = [s(it?.trait1),s(it?.trait2),s(it?.trait3)];
+      if (traits.some(t => t.includes("과열"))) {
+        subNotes.push({ text:"과열시 관통 등급 향상", kind:"pos" });
+        if (armorPassive === "인화성 물질") {
+          subNotes.push({ text:"과열 피해 감소", kind:"pos" });
+        } else {
+          subNotes.push({ text:"과열 피해", kind:"neg" });
+        }
+      }
+      fireformGear.push({ label:GEAR_LABELS[k], name:s(it.name_ko||it.id), form, ergo, id, subNotes, passiveNotes:[] });
     }
     // 지원무기가 스트라타젬에 있으면 지원무기 종류도 개인장비 열에 표시
     if (hasSupportWeaponInStrat) {
@@ -1056,14 +1296,26 @@ export default function App() {
         const sub = getSubType(it);
         if (!SUPPORT_WEAPON_SUBTYPES.has(sub)) continue;
         const form = resolveItemForm(it);
-        const ergo = s(it?.ergo ?? "");
         const id   = s(it?.id ?? "").toLowerCase();
+        const ergo = ERGO_FORCE_THROW_IDS.some(r => id.includes(r)) ? "투척" : s(it?.ergo ?? "");
         // subType 무관하게 라벨은 "지원무기"로 통일, subNotes 배열로 누적
         const subNotes = [];
-        if (sub === "지원배낭 무기")    subNotes.push({ text:"배낭 제한",     kind:"neg" });
-        if (sub === "일회용 지원무기")  subNotes.push({ text:"사용횟수 제한", kind:"neg" });
-        if (s(it?.sreload).toLowerCase() === "yes") subNotes.push({ text:"정지 재장전", kind:"neg" });
-        fireformGear.push({ label:"지원무기", name:s(it.name_ko||it.id), form, ergo, id, subNotes });
+        if (sub === "지원배낭 무기")    subNotes.push({ text:"배낭 제한",       kind:"neg" });
+        if (sub === "일회용 지원무기")  subNotes.push({ text:"사용후 폐기",     kind:"neg" });
+        if (s(it?.sreload).toLowerCase() === "yes") subNotes.push({ text:"정지 재장전",   kind:"neg" });
+        if (["orb_ls","vh_exo"].some(r => id.includes(r))) subNotes.push({ text:"사용횟수 제한", kind:"neg" });
+        if (id.includes("sw_m1000")) subNotes.push({ text:"이동사격 불가", kind:"neg" });
+        const supportTraits = [s(it?.trait1),s(it?.trait2),s(it?.trait3)];
+        if (supportTraits.some(t => t.includes("과열"))) {
+          subNotes.push({ text:"과열시 관통 등급 향상", kind:"pos" });
+          if (armorPassive === "인화성 물질") {
+            subNotes.push({ text:"과열 피해 감소", kind:"pos" });
+          } else {
+            subNotes.push({ text:"과열 피해", kind:"neg" });
+          }
+        }
+        // 민주주의의 가호 + bp_b100 → 특수 메시지 (스트라타젬 열에서 처리)
+        fireformGear.push({ label:"지원무기", name:s(it.name_ko||it.id), form, ergo, id, subNotes, passiveNotes:[] });
       }
     }
 
@@ -1074,8 +1326,230 @@ export default function App() {
       if (SUPPORT_WEAPON_SUBTYPES.has(getSubType(it))) continue;
       const form = resolveItemForm(it);
       if (!form) continue;
-      fireformStrat.push({ label:s(getSubType(it)||"스트라타젬"), name:s(it.name_ko||it.id), form, ergo:"" });
+      const id = s(it?.id ?? "").toLowerCase();
+      const subNotes = [];
+      if (s(it?.sreload).toLowerCase() === "yes") subNotes.push({ text:"정지 재장전",   kind:"neg" });
+      if (["orb_ls","vh_exo"].some(r => id.includes(r))) subNotes.push({ text:"사용횟수 제한", kind:"neg" });
+      if (id.includes("sw_m1000")) subNotes.push({ text:"이동사격 불가", kind:"neg" });
+      // 민주주의의 가호 + bp_b100 → 특수 메시지
+      if (id.includes("bp_b100") && armorPassive === "민주주의의 가호")
+        subNotes.push({ text:"당신은 민주주의를 믿나?", kind:"pos" });
+      // 호출 시간: stratType이 공격/방어 또는 subType이 탑승물인 경우
+      const stratType  = s(it?.stratType ?? "");
+      const stratSub   = s(it?.subType ?? it?.subtype ?? "");
+      const respTime   = s(it?.responseTime ?? "");
+      const showResp   = !!(respTime && (["공격","방어"].includes(stratType) || stratSub === "탑승물"));
+      fireformStrat.push({ label:s(getSubType(it)||"스트라타젬"), name:s(it.name_ko||it.id), form, ergo:"", id, subNotes, responseTime: showResp ? respTime : "" });
     }
+
+    /* ════════════════════════════════════════════
+       방어구 패시브 노트 계산
+    ════════════════════════════════════════════ */
+
+    // 아이템 trait 헬퍼
+    const hasTrait = (it, keyword) =>
+      [s(it?.trait1),s(it?.trait2),s(it?.trait3)].some(t => t.includes(keyword));
+
+    // 구성 시너지 fireform 태그 (지원무기 포함 전체)
+    const allFireformLabels = [
+      ...fireformGear.map(r => r.form),
+      ...fireformStrat.map(r => r.form),
+    ];
+    const hasFormLabel = (lbl) => allFireformLabels.some(f => s(f).includes(lbl));
+
+    // subType 헬퍼
+    const isBackpackWeapon  = (it) => getSubType(it) === "지원배낭 무기";
+    const isDisposable      = (it) => getSubType(it) === "일회용 지원무기";
+    const isSupportWeapon   = (it) => SUPPORT_WEAPON_SUBTYPES.has(getSubType(it));
+    const isSupportInStrat  = (it) => isSupportWeapon(it) &&
+      selected.stratagem.some(s2 => s2 && s(s2?.id)===s(it?.id));
+
+    // 지원무기 아이템 목록 (스트라타젬에서)
+    const supportItems = selected.stratagem.filter(it =>
+      it && SUPPORT_WEAPON_SUBTYPES.has(getSubType(it))
+    );
+
+    // 패시브 노트 계산 함수 (gear/strat 공용)
+    // 사격 가능한 무기 form 태그 집합 (스트라타젬 열에서 사격 관련 패시브 표시 여부 판단)
+    const SHOOTING_FORMS = new Set([
+      "단일 대상","범위형","단일 | 범위형","탄막형","단일 | 탄막형",
+      "저지형","정밀형","근접","전진형 화력투사","횡방향 화력투사","구역 화력투사",
+    ]);
+
+    function calcPassiveNotes(it, rowLabel, rowForm, rowErgo) {
+      if (!armorPassive || !it) return [];
+      const posNotes = [];
+      const itId        = s(it?.id).toLowerCase();
+      const isBpWeapon  = isBackpackWeapon(it);
+      const isDisp      = isDisposable(it);
+      const isPrimary   = rowLabel === "주무기";
+      const isSecondary = rowLabel === "보조무기";
+      const isThrowable = rowLabel === "투척무기";
+      const isSupportRow= rowLabel === "지원무기";
+      // 스트라타젬 열: form 태그가 실제 사격 가능한 무기인 경우만 사격 패시브 적용
+      const isStratRow  = !isPrimary && !isSecondary && !isThrowable && !isSupportRow;
+      const isShootingStrat = isStratRow && SHOOTING_FORMS.has(s(rowForm));
+
+      // ── 강화 → 반동 감소 (플라즈마 특성 보유 항목만 / 슬롯 무관)
+      if (armorPassive === "강화") {
+        if (hasTrait(it, "플라즈마"))
+          posNotes.push("반동 감소");
+      }
+      // ── 공병 키트 → 반동 감소 (주무기, 보조무기, 지원무기)
+      if (armorPassive === "공병 키트") {
+        if (isPrimary || isSecondary || isSupportRow)
+          posNotes.push("반동 감소");
+      }
+      // ── 공병 키트 / 통합 폭발물 → 투입시 추가 보유 + 최대 소지량 (투척무기)
+      if (["공병 키트","통합 폭발물"].includes(armorPassive)) {
+        if (isThrowable) posNotes.push("투입시 추가 보유", "최대 소지량");
+      }
+      // ── 서보 보조 / 사막 돌격대 → 투척 비거리
+      //    투척무기(type="투척무기") 또는 공격 스트라타젬(stratType="공격") 중 range="투척",
+      //    또는 ERGO_FORCE_THROW_IDS(sw_c4 등), sp_g50 제외
+      if (["서보 보조","사막 돌격대"].includes(armorPassive)) {
+        const isThrowRange = s(it?.range) === "투척" &&
+          (s(it?.type) === "투척무기" || s(it?.stratType) === "공격");
+        const isForceThrow = ERGO_FORCE_THROW_IDS.some(r => itId.includes(r));
+        if ((isThrowRange || isForceThrow) && !itId.includes("sp_g50"))
+          posNotes.push("투척 비거리");
+      }
+      // ── 이상적인 체형 / 강화된 견장 / 굳건한 바위 → 근접 공격 피해량 (cqc/총검)
+      if (["이상적인 체형","강화된 견장","굳건한 바위"].includes(armorPassive)) {
+        if (itId.includes("cqc") || hasTrait(it, "총검"))
+          posNotes.push("근접 공격 피해량");
+      }
+      // ── 포위 준비 완료 / 강화된 견장 → 재장전 속도 (주무기, 지원무기 / 스트라타젬 제외)
+      if (["포위 준비 완료","강화된 견장"].includes(armorPassive)) {
+        const excluded = ["en_arc","sw_arc","sw_las99","cqc"].some(ex => itId.includes(ex))
+          || isBpWeapon || isDisp;
+        if ((isPrimary || isSupportRow) && !excluded)
+          posNotes.push("재장전 속도");
+      }
+      // ── 강화 / 탄도 완충제 → 폭발 피해 감소 (폭발성 또는 플라즈마 특성)
+      if (["강화","탄도 완충제"].includes(armorPassive)) {
+        if (hasTrait(it, "폭발성") || hasTrait(it, "플라즈마")) posNotes.push("폭발 피해 감소");
+      }
+      // ── 이상적인 체형 → 핸들링 향상 (주무기, 보조무기, 지원무기 / 스트라타젬 제외)
+      if (armorPassive === "이상적인 체형") {
+        if ((isPrimary || isSecondary || isSupportRow) && rowErgo !== "투척")
+          posNotes.push("핸들링 향상");
+      }
+      // ── 인화성 물질 → 화염 피해 감소 (소이 특성 보유 + 해당 무기 자체가 소이 관련 form)
+      if (armorPassive === "인화성 물질") {
+        const soiForm = s(rowForm);
+        if (hasTrait(it, "소이") &&
+            (soiForm.includes("범위형") || soiForm.includes("횡방향 화력투사") || soiForm.includes("구역 화력투사")))
+          posNotes.push("화염 피해 감소");
+      }
+      // ── 고급 여과 → 가스 피해 감소 (특정 ID)
+      if (armorPassive === "고급 여과") {
+        const GAS_IDS = ["sp_g4","orb_gs","sw_tx41","bp_ax13","sw_s11","ep_md8"];
+        if (GAS_IDS.some(r => itId.includes(r))) posNotes.push("가스 피해 감소");
+      }
+      // ── 결연함 → 1인칭 피격 흔들림 감소 (주무기, 보조무기, 지원무기 / 스트라타젬 제외)
+      if (armorPassive === "결연함") {
+        if (isPrimary || isSecondary || isSupportRow)
+          posNotes.push("1인칭 피격 흔들림 감소");
+      }
+      // ── 포위 준비 완료 → 추가 탄약 (주무기, 지원무기 / 스트라타젬 제외)
+      if (armorPassive === "포위 준비 완료") {
+        const excAmmo =
+          itId.includes("sp_gp20") || itId.includes("sw_las99") ||
+          itId.includes("pr_arc")  || itId.includes("sw_arc") ||
+          (itId.includes("cqc") && !itId.includes("cqc20")) ||
+          isBpWeapon || isDisp || isThrowable;
+        if (!excAmmo && (isPrimary || isSupportRow))
+          posNotes.push("추가 탄약");
+      }
+      // ── 총잡이 → 재장전 속도, 전환 속도, 반동 감소 (보조무기)
+      if (armorPassive === "총잡이" && isSecondary)
+        posNotes.push("재장전 속도", "전환 속도", "반동 감소");
+      // ── 전도성 / 아드레노-제세동기 → 아크 피해 감소 (아크 특성, en_arc12·sw_arc 제외)
+      if (["전도성","아드레노-제세동기"].includes(armorPassive)) {
+        if (hasTrait(it, "아크") && !itId.includes("en_arc12") && !itId.includes("sw_arc")) posNotes.push("아크 피해 감소");
+      }
+      return posNotes.map(t => ({ text: t, kind:"pos" }));
+    }
+
+    // 각 fireformGear row에 passiveNotes 주입
+    for (const row of fireformGear) {
+      if (!armorPassive) { row.passiveNotes = []; continue; }
+      const it = (() => {
+        if (row.label === "주무기")   return selected.primary;
+        if (row.label === "보조무기") return selected.secondary;
+        if (row.label === "투척무기") return selected.throwable;
+        return supportItems.find(si => s(si?.id).toLowerCase() === row.id) ?? null;
+      })();
+      row.passiveNotes = calcPassiveNotes(it, row.label, row.form, row.ergo);
+    }
+
+    // 각 fireformStrat row에 passiveNotes 주입
+    for (const row of fireformStrat) {
+      if (!armorPassive) { row.passiveNotes = []; continue; }
+      const it = selected.stratagem.find(si => si && s(si?.id).toLowerCase() === row.id) ?? null;
+      row.passiveNotes = calcPassiveNotes(it, row.label, row.form, row.ergo);
+    }
+
+    /* ── "없음(개인 목록)" 패시브 — armorPersonalNotes ── */
+    const armorPersonalNotes = [];
+    if (armorPassive) {
+      // 구급 키트 / 아드레노-제세동기 → 각성제 지속시간
+      if (["구급 키트","아드레노-제세동기"].includes(armorPassive))
+        armorPersonalNotes.push("각성제 지속시간");
+      // 아드레노-제세동기 → 시한부 부활
+      if (armorPassive === "아드레노-제세동기")
+        armorPersonalNotes.push("신체가 온전한 상태로 사망시 시한부 부활");
+      // 구급 키트 → 투입시 각성제 추가 보유
+      if (armorPassive === "구급 키트")
+        armorPersonalNotes.push("투입시 각성제 추가 보유");
+      // 민주주의의 가호 / 탄도 완충제 → 출혈 피해 무효
+      if (["민주주의의 가호","탄도 완충제"].includes(armorPassive))
+        armorPersonalNotes.push("출혈 피해 무효");
+      // 민주주의의 가호 → 확률적 사망 방지
+      if (armorPassive === "민주주의의 가호")
+        armorPersonalNotes.push("확률적 사망 방지");
+      // 정찰 / 신호 감소 → 적 탐지 범위 감소
+      if (["정찰","신호 감소"].includes(armorPassive))
+        armorPersonalNotes.push("적 탐지 범위 감소");
+      // 정찰 / 결연함 → 위치 지정 탐지
+      if (["정찰","결연함"].includes(armorPassive))
+        armorPersonalNotes.push("위치 지정 탐지");
+      // 발 먼저 / 신호 감소 → 소음 범위 감소
+      if (["발 먼저","신호 감소"].includes(armorPassive))
+        armorPersonalNotes.push("소음 범위 감소");
+      // 서보 보조 → 사지 체력 증가
+      if (armorPassive === "서보 보조")
+        armorPersonalNotes.push("사지 체력 증가");
+      // 탄도 완충제 → 흉부 한정 피해감소
+      if (armorPassive === "탄도 완충제")
+        armorPersonalNotes.push("흉부 한정 피해감소");
+      // 통합 폭발물 → 사망시 시체 폭발 (neg)
+      if (armorPassive === "통합 폭발물")
+        armorPersonalNotes.push({ text:"사망시 시체 폭발", kind:"neg" });
+      // 발 먼저 → 관심 지역 탐지 범위, 다리 부상 면역
+      if (armorPassive === "발 먼저")
+        armorPersonalNotes.push("관심 지역 탐지 범위", "다리 부상 면역");
+      // 사막 돌격대 / 적응력 → 모든 상태이상 피해 감소
+      if (["사막 돌격대","적응력"].includes(armorPassive))
+        armorPersonalNotes.push("모든 상태이상 피해 감소");
+      // 굳건한 바위 → 레그돌 억제
+      if (armorPassive === "굳건한 바위")
+        armorPersonalNotes.push("레그돌 억제");
+      // 보급 아드레날린 → 피해를 받을때 스태미나 회복
+      if (armorPassive === "보급 아드레날린")
+        armorPersonalNotes.push("피해를 받을때 스태미나 회복");
+      // 추가 완충제 / 결연함 / 보급 아드레날린 → 받는 피해 감소
+      if (["추가 완충제","결연함","보급 아드레날린"].includes(armorPassive))
+        armorPersonalNotes.push("받는 피해 감소");
+      // 강화된 견장 → 확률적 사지 부상 방지
+      if (armorPassive === "강화된 견장")
+        armorPersonalNotes.push("확률적 사지 부상 방지");
+    }
+    // 문자열을 pos kind 객체로 정규화
+    const normalizedPersonalNotes = armorPersonalNotes.map(n =>
+      typeof n === "string" ? { text: n, kind:"pos" } : n
+    );
 
     return {
       uniqueTraits: [...new Set(allTraits)],
@@ -1084,6 +1558,8 @@ export default function App() {
       fireformGear,
       fireformStrat,
       hasIdealBody,
+      armorPassive,
+      armorPersonalNotes: normalizedPersonalNotes,
     };
   }, [selected]);
 
@@ -1163,6 +1639,18 @@ export default function App() {
   function cancelDelete() { setDeleteConfirm(null); }
   function handleResetSelected() { setSelected(EMPTY_SELECTED); setActiveLoadoutId(null); }
 
+  function handleContextMenu(e) {
+    e.preventDefault();
+    // 열린 것 순서대로 닫기: 피커 → 튜토리얼 → 저장모달 → 관리모달 → 초기화확인 → 삭제확인
+    if (picker.open)          { setPicker(p=>({...p,open:false})); return; }
+    if (tutorialStep >= 0)    { setTutorialStep(-1); return; }
+    if (saveModal.open)       { setSaveModal(p=>({...p,open:false})); return; }
+    if (manageModal)          { setManageModal(false); return; }
+    if (infoModal)            { setInfoModal(false); return; }
+    if (resetConfirm)         { setResetConfirm(false); return; }
+    if (deleteConfirm)        { setDeleteConfirm(null); return; }
+  }
+
   function startEdit(l) {
     setEditingId(l.id);
     setEditingName(l.name);
@@ -1188,43 +1676,34 @@ export default function App() {
   const deleteTarget   = deleteConfirm?savedLoadouts.find(l=>l.id===deleteConfirm):null;
 
   return (
-    <div className="appShell">
+    <div className="appShell" onContextMenu={handleContextMenu}>
       {/* 상단 네비 — appWrap 바깥, 화면 전체 폭 */}
       <nav className="topNav">
         <div className="topNavInner">
-          <div className="topNavTitle">SES 자기 결정의 전달자</div>
+          <div className="topNavTitle">SES 자기 결정의 전달자 <span className="topNavPatch">억압의 도구</span></div>
           <div className="topNavTabs">
-            {PAGES.map(p=>(
-              <button key={p.id}
-                className={`topNavTab ${activePage===p.id?"active":""}`}
-                onClick={()=>setActivePage(p.id)} type="button"
-              >{p.label}</button>
-            ))}
+            <button className="topNavTab infoBtn" type="button"
+              onClick={()=>setInfoModal(true)}
+            >ℹ️ 운용자 정보</button>
+            <button className="topNavTab tutorialBtn" type="button"
+              onClick={()=>setTutorialStep(0)}
+            >📖 튜토리얼</button>
           </div>
         </div>
       </nav>
 
       <div className="appWrap">
-        {err && (
-          <div className="errorBox">
-            <div className="errorBoxTitle">⚠️ 데이터를 불러올 수 없습니다</div>
-            <div className="errorBoxDesc">
-              {err.includes("401") || err.includes("403") || err.includes("expired") || err.includes("DEPLOYMENT_ID")
-                ? "Google Sheets 연결이 만료되었거나 설정이 올바르지 않습니다. 관리자에게 데이터 파일 재업로드를 요청해 주세요."
-                : err.includes("404") || err.includes("Not Found")
-                ? "데이터 파일을 찾을 수 없습니다. 관리자에게 파일 업로드를 요청해 주세요."
-                : err.includes("Not JSON") || err.includes("HTTP")
-                ? "서버 응답 오류가 발생했습니다. 잠시 후 다시 시도하거나 관리자에게 문의해 주세요."
-                : "데이터 로드 중 오류가 발생했습니다. 페이지를 새로고침하거나 관리자에게 문의해 주세요."
-              }
-            </div>
-            <div className="errorBoxDetail">상세: {err}</div>
+        {err && <div className="errorBox">에러: {err}</div>}
+
+        {/* ── 로딩 화면 ── */}
+        {isLoading && !err && (
+          <div className="loadingScreen">
+            <div className="loadingText">아군 구축함의 좌표 수신중...</div>
           </div>
         )}
 
         {/* ── 개인 로드아웃 ── */}
-        {activePage==="personal" && (
-          <div className="pagePersonal">
+        {!isLoading && <div className="pagePersonal">
             <div className="layout">
 
               {/* mainCol: 슬롯 영역 전체 — PNG 캡처 대상 */}
@@ -1271,7 +1750,7 @@ export default function App() {
                   <div className="statsGrid statsGridAnalysis">
 
                     {/* 역할 분류 */}
-                    <div className="statItem">
+                    <div className="statItem roleTagsSection">
                       <div className="statLabel">역할 분류</div>
                       <div className="statTraitList" style={{ marginTop:6, gap:8 }}>
                         {stats.roleTags.length > 0
@@ -1287,30 +1766,44 @@ export default function App() {
                     </div>
 
                     {/* 구성 시너지 — 개인장비 | 스트라타젬 2열 */}
-                    {(stats.fireformGear.length > 0 || stats.fireformStrat.length > 0) && (
-                      <div className="statItem">
+                    {(stats.fireformGear.length > 0 || stats.fireformStrat.length > 0 || stats.armorPersonalNotes?.length > 0) && (
+                      <div className="statItem synergySectionItem">
                         <div className="statLabel">구성 시너지</div>
                         <div className="fireformGrid">
 
                           {/* 개인 장비 열 */}
                           <div className="fireformCol">
-                            <div className="fireformColTitle" style={{ display:"flex", alignItems:"center", paddingLeft:46 }}>
-                              <span style={{ flex:1 }}>개인 장비</span>
-                              <div style={{ width:ERGO_COL_W, flexShrink:0, display:"flex", justifyContent:"center", marginLeft:6 }}>
-                                <span style={{ fontSize:9, fontWeight:900, color:"rgba(255,255,255,.30)", letterSpacing:"0.03em" }}>핸들링</span>
-                              </div>
+                            <div style={{ marginBottom:6 }}>
+                              <span className="fireformGroupTitle">개인 장비</span>
                             </div>
                             {stats.fireformGear.length > 0
                               ? stats.fireformGear.map((row, i) => <FireformRow key={i} row={row} hasIdealBody={stats.hasIdealBody} />)
                               : <span className="statEmpty">미선택</span>
                             }
+                            {/* 방어구 패시브 개인 효과 섹션 */}
+                            {stats.armorPersonalNotes?.length > 0 && (
+                              <>
+                                <div style={{ height:1, background:"rgba(255,255,255,.08)", margin:"6px 0 4px" }} />
+                                <div className="fireformColTitle" style={{ marginBottom:3 }}>개인</div>
+                                {stats.armorPersonalNotes.map((n, i) => (
+                                  <span key={i} style={{
+                                    fontSize:12, fontWeight:700, opacity:.95, lineHeight:1.4,
+                                    color: n.kind === "neg" ? "#f87171" : "#86efac",
+                                  }}>
+                                    {n.kind === "neg" ? `- ${n.text}` : `+ ${n.text}`}
+                                  </span>
+                                ))}
+                              </>
+                            )}
                           </div>
 
                           <div className="fireformDivider" />
 
                           {/* 스트라타젬 열 */}
                           <div className="fireformCol">
-                            <div className="fireformColTitle">스트라타젬</div>
+                            <div style={{ marginBottom:6 }}>
+                              <span className="fireformGroupTitle">스트라타젬</span>
+                            </div>
                             {stats.fireformStrat.length > 0
                               ? stats.fireformStrat.map((row, i) => <FireformRow key={i} row={row} />)
                               : <span className="statEmpty">미선택</span>
@@ -1345,15 +1838,7 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* 무기 특성 */}
-                    <div className="statItem">
-                      <div className="statLabel">무기 특성</div>
-                      <div className="statTraitList" style={{ marginTop:5 }}>
-                        {stats.uniqueTraits.length > 0
-                          ? stats.uniqueTraits.map(t => <span key={t} className="statTraitBadge">{t}</span>)
-                          : <span className="statEmpty">없음</span>}
-                      </div>
-                    </div>
+
 
                   </div>
                 </div>
@@ -1364,35 +1849,106 @@ export default function App() {
                 <SelectedPanel selected={selected} activeLoadoutName={activeLoadoutName} />
 
                 <div className="sideActions">
-                  <button className="lBtn lBtnSave"   onClick={handleSaveLoadout}                          type="button">현재 로드아웃 저장</button>
-                  <button className="lBtn lBtnManage" onClick={()=>setManageModal(true)}                   type="button">저장된 로드아웃 관리</button>
-                  <button className="lBtn lBtnExport" onClick={()=>exportLoadoutPng(captureRef,selected)}  type="button">로드아웃 내보내기</button>
-                  <button className="lBtn lBtnResetDanger" onClick={handleResetSelected} type="button">선택 사항 초기화</button>
+                  <div className="loadoutMgmtBtns">
+                    <button className="lBtn lBtnSave"       onClick={handleSaveLoadout}                         type="button">현재 로드아웃 저장</button>
+                    <button className="lBtn lBtnManage"     onClick={()=>setManageModal(true)}                  type="button">저장된 로드아웃 관리</button>
+                    <button className="lBtn lBtnExport"     onClick={()=>exportLoadoutPng(captureRef,selected)} type="button">로드아웃 내보내기</button>
+                  </div>
+                  <button className="lBtn lBtnResetDanger" onClick={()=>setResetConfirm(true)}                type="button">선택 사항 초기화</button>
                 </div>
               </div>
 
             </div>{/* /layout */}
-          </div>
-        )}
+        </div>}
 
-        {activePage==="squad" && (
-          <div className="pagePlaceholder">
-            <div className="pagePlaceholderIcon">👥</div>
-            <div className="pagePlaceholderTitle">분대 로드아웃 시뮬레이팅</div>
-            <div className="pagePlaceholderDesc">4명의 분대원 로드아웃을 구성하거나<br/>개인 로드아웃에서 저장한 로드아웃을 불러올 수 있습니다.</div>
-            <div className="pagePlaceholderBadge">준비 중</div>
-          </div>
-        )}
-
-        {activePage==="tutorial" && (
-          <div className="pagePlaceholder">
-            <div className="pagePlaceholderIcon">📖</div>
-            <div className="pagePlaceholderTitle">튜토리얼</div>
-            <div className="pagePlaceholderDesc">로드아웃 빌더 사용법을 안내합니다.</div>
-            <div className="pagePlaceholderBadge">준비 중</div>
-          </div>
-        )}
       </div>
+
+      {/* ── 튜토리얼 오버레이 ── */}
+      <TutorialOverlay
+        step={tutorialStep}
+        onNext={()=>setTutorialStep(s=>Math.min(s+1, TUTORIAL_STEPS.length-1))}
+        onPrev={()=>setTutorialStep(s=>Math.max(s-1, 0))}
+        onClose={()=>setTutorialStep(-1)}
+      />
+
+      {/* ── 운용자 정보 모달 ── */}
+      {infoModal && (
+        <div className="modalOverlay" onClick={()=>setInfoModal(false)}>
+          <div className="infoModalCard" onClick={e=>e.stopPropagation()}>
+            <div className="infoModalTitle">운용자 정보</div>
+            <div className="infoModalBody">
+
+              {/* 이미지 + 우측 섹션들 */}
+              <div className="infoTopRow">
+                <div className="infoCreatorImgWrap">
+                  <div className="infoCreatorImgLabel">컨셉 및 UI 구조 설정<br/>프롬프트 작성</div>
+                  <img src="/hgg.png" alt="Hell-GiGyeon" className="infoCreatorImg" />
+                  <div className="infoCreatorName">Hell-GiGyeon</div>
+
+                </div>
+
+                <div className="infoTopDivider" />
+
+                <div className="infoRightSections">
+                  <div className="infoSection">
+                    <div className="infoLabel">프로토타입 리소스 제작 및 전체 기능 구현</div>
+                    <div className="infoValue">ChatGPT, Claude.AI</div>
+                  </div>
+                  <div className="infoSection">
+                    <div className="infoLabel">스트라타젬 .svg 파일 출처</div>
+                    <div className="infoValue">Nicolas Vigneux</div>
+                    <a className="infoLink" href="https://github.com/nvigneux/Helldivers-2-Stratagems-icons-svg" target="_blank" rel="noreferrer">github.com/nvigneux/Helldivers-2-Stratagems-icons-svg</a>
+                  </div>
+                  <div className="infoSection">
+                    <div className="infoLabel">무기 및 방어구 이미지 출처</div>
+                    <div className="infoValue">헬다이버즈 위키</div>
+                    <a className="infoLink" href="https://helldivers.wiki.gg/wiki/Helldivers_Wiki" target="_blank" rel="noreferrer">helldivers.wiki.gg</a>
+                  </div>
+                  <div className="infoSection">
+                    <div className="infoLabel">버그 및 건의 사항</div>
+                    <div className="infoValue infoPending">추후 업데이트 예정</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="infoDivider" />
+
+              <div className="infoBuildRow">
+                <span className="infoBuildLabel">빌드 버전</span>
+                <span className="infoBuildValue">ver 26.03.09</span>
+              </div>
+              <div className="infoBuildRow">
+                <span className="infoBuildLabel">빌드 기준 최신 업데이트</span>
+                <span className="infoBuildValue">ver 01.006.003 " Machinery of Oppression " <span className="infoSub">(억압의 도구)</span></span>
+              </div>
+
+            </div>
+            <button className="lBtn lBtnManage" type="button"
+              onClick={()=>setInfoModal(false)}
+              style={{alignSelf:"flex-end", marginTop:4}}>닫기</button>
+          </div>
+        </div>
+      )}
+
+      {/* ── 초기화 확인 모달 ── */}
+      {resetConfirm && (
+        <div className="modalOverlay" onClick={()=>setResetConfirm(false)}>
+          <div className="saveModalCard" style={{gap:18}} onClick={e=>e.stopPropagation()}>
+            <div className="saveModalTitle" style={{color:"#fca5a5"}}>선택 사항 초기화</div>
+            <div style={{fontSize:14, color:"rgba(255,255,255,.70)", lineHeight:1.7}}>
+              현재 구성된 모든 장비 선택이 초기화됩니다.<br/>계속하시겠습니까?
+            </div>
+            <div className="saveModalActions">
+              <button className="lBtn lBtnResetDanger" type="button"
+                onClick={()=>{ handleResetSelected(); setResetConfirm(false); }}
+                style={{flex:1, justifyContent:"center", padding:"10px"}}>초기화</button>
+              <button className="lBtn lBtnManage" type="button"
+                onClick={()=>setResetConfirm(false)}
+                style={{flex:1, justifyContent:"center", padding:"10px"}}>취소</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── 저장 모달 ── */}
       {saveModal.open && (

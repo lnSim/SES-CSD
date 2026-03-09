@@ -415,7 +415,18 @@ body { margin:0; background:var(--bg); color:var(--text); font-family:system-ui,
   /* 개인장비와 동일한 최대 폭 */
   max-width: calc(var(--gear-base) + var(--gear-wide) + var(--gear-side) + var(--strat-gap)*2);
 }
-@media(max-width:760px) { .stratRow { grid-template-columns: repeat(2, 1fr); } }
+@media(max-width:760px) {
+  .stratRow {
+    grid-template-columns: repeat(4, 1fr);
+    max-width: 100%;
+  }
+}
+@media(max-width:480px) {
+  .stratRow {
+    grid-template-columns: repeat(2, 1fr);
+    max-width: 100%;
+  }
+}
 
 /* ===== 개인장비 레이아웃 =====
    [방어구 정사각] [주무기 와이드] [보조/투척 세로스택]
@@ -444,8 +455,18 @@ body { margin:0; background:var(--bg); color:var(--text); font-family:system-ui,
     --gear-wide: calc(var(--gear-base) * 2);
     --gear-side: clamp(100px, 28vw, 150px);
   }
-  .gearLayout { grid-template-columns: 1fr 1fr; }
-  .gearSideStack { grid-column: 1 / -1; }
+  .gearLayout {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+  }
+  .gearSideStack {
+    grid-column: 1 / -1;
+    flex-direction: row !important;
+  }
+}
+@media(max-width:380px) {
+  .gearLayout { grid-template-columns: 1fr; }
+  .gearSideStack { grid-column: 1; flex-direction: row !important; width:100%; }
 }
 
 /* 보조/투척 세로 스택 */
