@@ -537,39 +537,51 @@ function getErgoBadgeStyle(ergo) {
    ───────────────────────────────────────────── */
 const TUTORIAL_STEPS = [
   {
+    title: null, // 인트로 — 강조 없음, 중앙 표시
+    desc:  "반갑다! 헬다이버 제군.\n나는 브라쉬 장군이다, 헬다이버에게 끝없는 기개만큼이나 중요한 것은 자신만의 장비를 구성하는 것이다!",
+    area:  null,
+    image: "/brash.png",
+  },
+  {
     title: "스트라타젬 선택 영역",
-    desc:  "해당 슬롯을 선택하면 스트라타젬을 선택할 수 있습니다.",
+    desc:  "이곳은 자네가 임무를 진행하는 동안 사용할 스트라타젬을 구성할 수 있다! 다양한 상황에 대응할 수 있는 조합을 구성해라!",
     area:  "stratRow",
   },
   {
     title: "개인 장비 슬롯",
-    desc:  "이곳에서 방어구, 주무기, 보조무기, 투척무기를 선택할 수 있습니다.",
+    desc:  "이곳에서 자네가 투입되자마자 사용할 장비를 선택 가능하다! 스트라타젬 구성에 따라 부족한 점을 보완할 수 있게 하도록!",
     area:  "gearLayout",
   },
   {
     title: "현재 선택 패널",
-    desc:  "현재 선택한 스트라타젬과 장비를 목록으로 보여줍니다. 태그에 커서를 올리면 태그의 설명을 확인 가능합니다.",
+    desc:  "이곳에서 현재 자신이 선택한 장비와 스트라타젬을 확인 가능하다. 장비 구성에 부족한 부분이 없는지 다시 한번 확인하도록!\n태그 위에 커서를 올리면 태그의 설명을 보는 것이 가능하다. 참고해라!",
     area:  "selectedPanel",
   },
   {
     title: "역할 분류",
-    desc:  "선택한 구성에 따라 어떠한 적에게 유효한지, 팀에 어떻게 기여하는지를 표시합니다.",
+    desc:  "자네의 장비 구성에 따라 적합한 역할을 이곳에 표시한다. 팀에게 어떠한 방식으로 기여할 수 있는지 확인하도록!",
     area:  "roleTagsSection",
   },
   {
     title: "로드아웃 분석",
-    desc:  "로드아웃의 화력 투사 방식과 방어구의 패시브가 어떻게 적용되는지 확인이 가능합니다.",
+    desc:  "자네가 선택한 장비들이 어떤 식으로 상호작용 하는지 이곳에서 확인 가능하다. 부족한 부분은 어떻게 보완할지 항상 고민해라!",
     area:  "synergySectionItem",
   },
   {
     title: "구성 요구 사항",
-    desc:  "이곳에서 로드아웃을 구성하는데 필요한 채권을 확인할 수 있습니다.\n또한 개인 장비 및 스트라타젬 선택 슬롯에서 필터 기능을 사용할 수 있습니다.",
+    desc:  "이곳에서 구성하고자 하는 장비 구성을 위해 필요한 전쟁 채권을 확인 가능하다! 계획을 철저히 하는것 또한 헬다이버의 소양이지!",
     area:  "reqSection",
   },
   {
     title: "로드아웃 관리 기능",
-    desc:  "현재 구성한 로드아웃에 이름을 붙여 저장하고 불러올 수 있습니다. 로드아웃을 공유하고 싶다면 이미지로 내보낼 수도 있습니다.",
+    desc:  "이곳에서 자네가 구성한 장비 구성을 저장하고 불러올 수 있다! 제군의 민주주의를 전파하는 방식을 동료 헬다이버에게 공유하고 싶다면 이미지로 내보내는 것도 가능하다!",
     area:  "loadoutMgmtBtns",
+  },
+  {
+    title: null, // 아웃트로 — 강조 없음, 중앙 표시
+    desc:  "설명은 여기까지다. 제군만의 방법으로 민주주의를 은하계 전체에 전파하도록!\n브라쉬 장군, 통신 종료!",
+    area:  null,
+    image: "/brash.png",
   },
 ];
 
@@ -580,6 +592,7 @@ function TutorialOverlay({ step, onNext, onPrev, onClose }) {
   useEffect(() => {
     if (step < 0 || step >= TUTORIAL_STEPS.length) { setRect(null); return; }
     const area = TUTORIAL_STEPS[step].area;
+    if (!area) { setRect(null); return; } // 인트로/아웃트로: 강조 없음
     const el = document.querySelector(`.${area}`);
     if (!el) { setRect(null); return; }
 
@@ -588,9 +601,7 @@ function TutorialOverlay({ step, onNext, onPrev, onClose }) {
       setRect({ top: r.top - PAD, left: r.left - PAD, width: r.width + PAD*2, height: r.height + PAD*2 });
     };
 
-    // 먼저 스크롤해서 강조 영역을 화면 중앙으로 이동
     el.scrollIntoView({ behavior:"smooth", block:"center" });
-    // 스크롤 완료 후 rect 재계산 (smooth 약 600ms) — 모바일 대응 타이밍 추가
     const t1 = setTimeout(calcRect, 100);
     const t2 = setTimeout(calcRect, 420);
     const t3 = setTimeout(calcRect, 700);
@@ -598,42 +609,36 @@ function TutorialOverlay({ step, onNext, onPrev, onClose }) {
   }, [step]);
 
   if (step < 0 || step >= TUTORIAL_STEPS.length) return null;
-  const { title, desc } = TUTORIAL_STEPS[step];
+  const { title, desc, image } = TUTORIAL_STEPS[step];
   const isLast = step === TUTORIAL_STEPS.length - 1;
+  const isCenterMode = !TUTORIAL_STEPS[step].area; // 인트로/아웃트로
 
   const W = window.innerWidth, H = window.innerHeight;
-  const CARD_W = 460, CARD_H = 260, MARGIN = 14;
+  const CARD_W = 460, CARD_H = image ? 340 : 260, MARGIN = 14;
 
   const clipPath = rect
     ? `polygon(0 0, ${W}px 0, ${W}px ${H}px, 0 ${H}px, 0 0, ${rect.left}px ${rect.top}px, ${rect.left}px ${rect.top+rect.height}px, ${rect.left+rect.width}px ${rect.top+rect.height}px, ${rect.left+rect.width}px ${rect.top}px, ${rect.left}px ${rect.top}px)`
     : "none";
 
-  // 카드 위치 — 하이라이트 구역을 가리지 않는 방향 우선 선택
   let cardTop, cardLeft;
   if (rect) {
-    const spaceBelow  = H - (rect.top + rect.height);
-    const spaceAbove  = rect.top;
-    const spaceRight  = W - (rect.left + rect.width);
-    const spaceLeft   = rect.left;
-
+    const spaceBelow = H - (rect.top + rect.height);
+    const spaceAbove = rect.top;
+    const spaceRight = W - (rect.left + rect.width);
+    const spaceLeft  = rect.left;
     if (spaceBelow >= CARD_H + MARGIN) {
-      // 아래
       cardTop  = rect.top + rect.height + MARGIN;
       cardLeft = Math.max(MARGIN, Math.min(rect.left, W - CARD_W - MARGIN));
     } else if (spaceAbove >= CARD_H + MARGIN) {
-      // 위
       cardTop  = rect.top - CARD_H - MARGIN;
       cardLeft = Math.max(MARGIN, Math.min(rect.left, W - CARD_W - MARGIN));
     } else if (spaceRight >= CARD_W + MARGIN) {
-      // 오른쪽
       cardLeft = rect.left + rect.width + MARGIN;
       cardTop  = Math.max(MARGIN, Math.min(rect.top, H - CARD_H - MARGIN));
     } else if (spaceLeft >= CARD_W + MARGIN) {
-      // 왼쪽
       cardLeft = rect.left - CARD_W - MARGIN;
       cardTop  = Math.max(MARGIN, Math.min(rect.top, H - CARD_H - MARGIN));
     } else {
-      // 공간 없으면 화면 하단 중앙
       cardTop  = H - CARD_H - MARGIN * 2;
       cardLeft = Math.max(MARGIN, (W - CARD_W) / 2);
     }
@@ -667,15 +672,16 @@ function TutorialOverlay({ step, onNext, onPrev, onClose }) {
       {/* 카드 */}
       <div onClick={e=>e.stopPropagation()} style={{
         position:"fixed",
-        top:  rect ? cardTop  : "50%",
-        left: rect ? cardLeft : "50%",
-        transform: rect ? "none" : "translate(-50%,-50%)",
+        top:  isCenterMode ? "50%" : (rect ? cardTop  : "50%"),
+        left: isCenterMode ? "50%" : (rect ? cardLeft : "50%"),
+        transform: (isCenterMode || !rect) ? "translate(-50%,-50%)" : "none",
         transition:"top 0.45s cubic-bezier(.4,0,.2,1), left 0.45s cubic-bezier(.4,0,.2,1)",
         zIndex:2001, pointerEvents:"auto",
         background:"#1a1a1a",
         border:"1px solid rgba(253,224,71,.30)",
         boxShadow:"0 0 32px rgba(253,224,71,.18), 0 8px 40px rgba(0,0,0,.7)",
-        borderRadius:16, padding:"26px 30px", width:460, maxWidth:"calc(100vw - 24px)",
+        borderRadius:16, padding:"26px 30px",
+        width:460, maxWidth:"calc(100vw - 24px)",
         display:"flex", flexDirection:"column", gap:16,
       }}>
         {/* 진행 바 */}
@@ -683,7 +689,7 @@ function TutorialOverlay({ step, onNext, onPrev, onClose }) {
           {TUTORIAL_STEPS.map((_, i) => (
             <div key={i} style={{
               height:3, flex:1, borderRadius:99,
-              background: i < step ? "#fde047" : i === step ? "#fde047" : "rgba(255,255,255,.15)",
+              background: i <= step ? "#fde047" : "rgba(255,255,255,.15)",
               boxShadow: i === step ? "0 0 6px rgba(253,224,71,.7)" : "none",
               transition:"background .25s, box-shadow .25s",
             }} />
@@ -693,11 +699,27 @@ function TutorialOverlay({ step, onNext, onPrev, onClose }) {
         <div style={{ fontSize:11, fontWeight:700, color:"rgba(253,224,71,.65)", letterSpacing:".1em" }}>
           STEP {step + 1} / {TUTORIAL_STEPS.length}
         </div>
-        {/* 제목 */}
-        <div style={{ fontSize:17, fontWeight:700, color:"#fde047",
-          textShadow:"0 0 12px rgba(253,224,71,.5)", lineHeight:1.3 }}>{title}</div>
-        {/* 설명 */}
-        <div style={{ fontSize:13, color:"rgba(255,255,255,.82)", lineHeight:1.75, whiteSpace:"pre-line" }}>{desc}</div>
+
+        {/* 인트로/아웃트로: 이미지 + 메시지 */}
+        {isCenterMode && image && (
+          <div style={{ display:"flex", gap:16, alignItems:"center" }}>
+            <img src={image} alt="브라쉬 장군"
+              style={{ width:100, height:100, objectFit:"cover", borderRadius:12,
+                border:"1px solid rgba(253,224,71,.25)", flexShrink:0,
+                filter:"brightness(1.1) contrast(1.05)" }} />
+            <div style={{ fontSize:13, color:"rgba(255,255,255,.88)", lineHeight:1.8, whiteSpace:"pre-line" }}>{desc}</div>
+          </div>
+        )}
+
+        {/* 일반 페이지: 제목 + 설명 */}
+        {!isCenterMode && (<>
+          {title && (
+            <div style={{ fontSize:17, fontWeight:700, color:"#fde047",
+              textShadow:"0 0 12px rgba(253,224,71,.5)", lineHeight:1.3 }}>{title}</div>
+          )}
+          <div style={{ fontSize:13, color:"rgba(255,255,255,.82)", lineHeight:1.75, whiteSpace:"pre-line" }}>{desc}</div>
+        </>)}
+
         {/* 버튼 */}
         <div style={{ display:"flex", gap:8, justifyContent:"flex-end", marginTop:2 }}>
           {step > 0 && (
@@ -1850,8 +1872,6 @@ export default function App() {
 
               {/* sideCol: 현재 선택 + 버튼 */}
               <div className="sideCol">
-                <SelectedPanel selected={selected} activeLoadoutName={activeLoadoutName} />
-
                 <div className="sideActions">
                   <div className="loadoutMgmtBtns">
                     <button className="lBtn lBtnSave"       onClick={handleSaveLoadout}                         type="button">현재 로드아웃 저장</button>
@@ -1860,6 +1880,8 @@ export default function App() {
                   </div>
                   <button className="lBtn lBtnResetDanger" onClick={()=>setResetConfirm(true)}                type="button">선택 사항 초기화</button>
                 </div>
+
+                <SelectedPanel selected={selected} activeLoadoutName={activeLoadoutName} />
               </div>
 
             </div>{/* /layout */}
