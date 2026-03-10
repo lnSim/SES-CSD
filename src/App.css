@@ -954,6 +954,87 @@ body {
 /* 모바일 대응 */
 @media(max-width:500px) {
   .infoTopRow { flex-direction:column; }
-  .infoCreatorImgWrap { flex-direction:row; align-items:center; padding-right:0; padding-bottom:16px; min-width:unset; }
   .infoTopDivider { width:100%; height:1px; margin:0 0 16px 0; }
+  /* 이미지 위: 라벨, 이미지, 아래: 이름 — 세로 중앙 정렬 */
+  .infoCreatorImgWrap {
+    flex-direction:column; align-items:center;
+    padding-right:0; padding-bottom:16px; min-width:unset;
+    gap:8px;
+  }
+  .infoCreatorImgLabel { order:-1; } /* 이미지 위 */
+  .infoCreatorImg      { order:0;  }
+  .infoCreatorName     { order:1;  } /* 이미지 아래 */
+}
+
+/* ===== 모바일 피커 모달 — 필터 열렸을 때 목록 숨기기 ===== */
+@media(max-width:700px) {
+  /* 필터 패널이 열린 상태: 목록·힌트·스트라타젬 미리보기 숨김 */
+  .modalCard:has(.filterPanel) .pickGrid,
+  .modalCard:has(.filterPanel) .modalHint,
+  .modalCard:has(.filterPanel) .stratPreviewBar {
+    display:none;
+  }
+  /* 필터 패널 자체는 전체 높이 활용 */
+  .modalCard:has(.filterPanel) .filterPanel {
+    max-height:calc(90vh - 60px);
+    overflow-y:auto;
+  }
+}
+
+/* ===== 모바일 스트라타젬 미리보기 — 가로 스크롤 ===== */
+@media(max-width:700px) {
+  .stratPreviewBar { padding:10px 12px 8px; }
+  .stratPreviewSlots {
+    display:flex; gap:8px;
+    overflow-x:auto; width:100%;
+    scrollbar-width:none;
+  }
+  .stratPreviewSlots::-webkit-scrollbar { display:none; }
+  .stratPreviewSlot {
+    flex:0 0 auto; min-width:100px;
+  }
+}
+
+/* ===== 모바일 개인 장비 — 방어구/주무기 슬롯 크기 보정 ===== */
+@media(max-width:540px) {
+  .gearLayout {
+    grid-template-columns: 1fr 1fr !important;
+    grid-template-rows: auto auto;
+  }
+  /* 방어구: 1행 1열 */
+  .gearLayout > :nth-child(1) { grid-column:1; grid-row:1; }
+  /* 주무기: 1행 2열 */
+  .gearLayout > :nth-child(2) { grid-column:2; grid-row:1; }
+  /* 보조/투척 스택: 2행 전체 */
+  .gearLayout > :nth-child(3) {
+    grid-column:1 / -1; grid-row:2;
+    display:grid; grid-template-columns:1fr 1fr; gap:8px;
+  }
+}
+
+/* ===== 모바일 로드아웃 관리 — sideCol 순서 조정 ===== */
+@media(max-width:1100px) {
+  .mainCol { order:1; }
+  /* statsPanel을 mainCol 안에서 아래로 */
+  .statsPanel { order:3; }
+  .stratRow   { order:1; }
+  .sectionTitle { order:0; }
+  /* sideCol은 스트라타젬·개인장비 다음, 분석 이전 */
+  .sideCol { order:2; }
+}
+
+/* ===== 모바일 로드아웃 관리 — sideCol을 statsPanel 앞으로 ===== */
+@media(max-width:1100px) {
+  /* flex column으로 전환해 order 제어 */
+  .layout { display:flex !important; flex-direction:column; }
+  .mainCol { display:contents; } /* 자식이 .layout flex에 직접 참여 */
+  .stratRow   { order:2; }
+  .gearLayout { order:3; }
+  .sideCol    { order:4; }   /* 로드아웃 관리 — 3번째 */
+  .statsPanel { order:5; }   /* 로드아웃 분석 — 4번째 */
+}
+
+@media(max-width:1100px) {
+  .sectionTitleStrat { order:1; margin-top:0 !important; }
+  .sectionTitleGear  { order:2; margin-top:12px !important; }
 }

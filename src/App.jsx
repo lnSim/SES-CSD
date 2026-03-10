@@ -590,10 +590,11 @@ function TutorialOverlay({ step, onNext, onPrev, onClose }) {
 
     // 먼저 스크롤해서 강조 영역을 화면 중앙으로 이동
     el.scrollIntoView({ behavior:"smooth", block:"center" });
-    // 스크롤 완료 후 rect 재계산 (smooth 약 600ms)
+    // 스크롤 완료 후 rect 재계산 (smooth 약 600ms) — 모바일 대응 타이밍 추가
     const t1 = setTimeout(calcRect, 100);
     const t2 = setTimeout(calcRect, 420);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
+    const t3 = setTimeout(calcRect, 700);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
   }, [step]);
 
   if (step < 0 || step >= TUTORIAL_STEPS.length) return null;
@@ -1713,7 +1714,7 @@ export default function App() {
 
               {/* mainCol: 슬롯 영역 전체 — PNG 캡처 대상 */}
               <div className="mainCol" ref={captureRef}>
-                <div className="sectionTitle">스트라타젬</div>
+                <div className="sectionTitle sectionTitleStrat">스트라타젬</div>
                 <div className="stratRow">
                   {[0,1,2,3].map(i=>{
                     const item=selected.stratagem[i];
@@ -1731,7 +1732,7 @@ export default function App() {
                   })}
                 </div>
 
-                <div className="sectionTitle" style={{marginTop:18}}>개인 장비</div>
+                <div className="sectionTitle sectionTitleGear" style={{marginTop:18}}>개인 장비</div>
                 <div className="gearLayout">
                   <Slot kind="armor" def={{titleKo:"방어구"}} picked={selected.armor}
                     onClick={()=>openPickerFor("armor","armor",selected.armor?.id)}
@@ -1771,8 +1772,7 @@ export default function App() {
                     </div>
 
                     {/* 구성 시너지 — 개인장비 | 스트라타젬 2열 */}
-                    {(stats.fireformGear.length > 0 || stats.fireformStrat.length > 0 || stats.armorPersonalNotes?.length > 0) && (
-                      <div className="statItem synergySectionItem">
+                    <div className="statItem synergySectionItem">
                         <div className="statLabel">구성 시너지</div>
                         <div className="fireformGrid">
 
@@ -1816,8 +1816,7 @@ export default function App() {
                           </div>
 
                         </div>
-                      </div>
-                    )}
+                    </div>
 
                     {/* 로드아웃 구성 요구 사항 */}
                     <div className="statItem reqSection">
