@@ -983,13 +983,20 @@ body {
 
 /* ===== 모바일 스트라타젬 미리보기 — 가로 스크롤 ===== */
 @media(max-width:700px) {
-  .stratPreviewBar { padding:10px 12px 8px; }
-  .stratPreviewSlots {
-    display:flex; gap:8px;
-    overflow-x:auto; width:100%;
+  .stratPreviewBar {
+    padding:10px 12px 8px;
+    overflow-x:auto;
+    overflow-y:visible;
+    justify-content:flex-start;  /* center 해제 → 좌측부터 배치 */
     scrollbar-width:none;
   }
-  .stratPreviewSlots::-webkit-scrollbar { display:none; }
+  .stratPreviewBar::-webkit-scrollbar { display:none; }
+  .stratPreviewSlots {
+    display:flex; gap:8px;
+    flex-shrink:0;              /* 수축 금지 → 내용 폭 그대로 */
+    justify-content:flex-start;
+    width:max-content;          /* 내용 폭만큼 확장 */
+  }
   .stratPreviewSlot {
     flex:0 0 auto; min-width:100px;
   }
