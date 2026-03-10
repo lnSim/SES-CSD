@@ -1049,11 +1049,6 @@ body {
   .sideActions { width:100%; }
   .loadoutMgmtBtns { width:100%; }
   .lBtn { width:100%; box-sizing:border-box; }
-
-  /* 관리 버튼을 현재 선택 위로 (flex-direction:column이 기본) */
-  .sideCol { display:flex; flex-direction:column; gap:10px; }
-  .sideActions { order:1; }   /* 관리 버튼 먼저 */
-  /* SelectedPanel은 기본 order:0이지만 DOM 순서상 뒤에 있음 */
 }
 
 /* ===== 모달 배경 스크롤 방지 ===== */
@@ -1072,34 +1067,5 @@ body:has(.modalOverlay) {
     width:calc(100vw - 16px) !important;
     max-height:88vh !important;
     margin:0 auto;
-  }
-}
-
-/* ===== 현재 선택 — 모바일 스트라타젬 가로 스크롤 ===== */
-.selStratScroll {
-  display:flex;
-  flex-direction:column;
-  gap:4px;
-}
-.selStratCard { flex-shrink:0; }
-
-@media(max-width:700px) {
-  .selStratScroll {
-    flex-direction:row;
-    overflow-x:auto;
-    gap:8px;
-    padding-bottom:4px;
-    scrollbar-width:none;
-  }
-  .selStratScroll::-webkit-scrollbar { display:none; }
-  .selStratCard {
-    min-width:120px;
-    max-width:140px;
-    flex-direction:column !important;
-    align-items:flex-start !important;
-    background:rgba(255,255,255,.04);
-    border:1px solid rgba(255,255,255,.08);
-    border-radius:10px;
-    padding:8px;
   }
 }

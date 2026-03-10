@@ -158,9 +158,8 @@ export default function SelectedPanel({ selected, activeLoadoutName }) {
       {/* 스트라타젬 섹션 */}
       <div className="selSection">
         <div className="selSectionLabel">스트라타젬</div>
-        <div className="selStratScroll">
         {strat.map((it,i) => (
-          <div key={i} className="selRow selStratCard">
+          <div key={i} className="selRow">
             <span className="selRowNum">#{i+1}</span>
             <div className="selRowContent">
               {!it
@@ -173,7 +172,6 @@ export default function SelectedPanel({ selected, activeLoadoutName }) {
             </div>
           </div>
         ))}
-        </div>
       </div>
 
       <div className="selectedDivider" />

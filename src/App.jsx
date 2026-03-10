@@ -1872,6 +1872,8 @@ export default function App() {
 
               {/* sideCol: 현재 선택 + 버튼 */}
               <div className="sideCol">
+                <SelectedPanel selected={selected} activeLoadoutName={activeLoadoutName} />
+
                 <div className="sideActions">
                   <div className="loadoutMgmtBtns">
                     <button className="lBtn lBtnSave"       onClick={handleSaveLoadout}                         type="button">현재 로드아웃 저장</button>
@@ -1880,8 +1882,6 @@ export default function App() {
                   </div>
                   <button className="lBtn lBtnResetDanger" onClick={()=>setResetConfirm(true)}                type="button">선택 사항 초기화</button>
                 </div>
-
-                <SelectedPanel selected={selected} activeLoadoutName={activeLoadoutName} />
               </div>
 
             </div>{/* /layout */}
