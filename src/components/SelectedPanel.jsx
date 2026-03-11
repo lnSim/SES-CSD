@@ -104,14 +104,49 @@ function getWeaponTraits(it) {
   return [s(it?.trait1??""),s(it?.trait2??""),s(it?.trait3??"")].filter(Boolean);
 }
 
-/* ── 작은 뱃지 — 모바일 터치 툴팁 지원 ── */
+/* ── 툴팁 전역 닫기용 이벤트 버스 ── */
+let _badgeListeners = [];
+function notifyBadgeOpen(id) { _badgeListeners.forEach(fn => fn(id)); }
+function subscribeBadge(fn) { _badgeListeners.push(fn); return () => { _badgeListeners = _badgeListeners.filter(f => f !== fn); }; }
+let _badgeIdSeq = 0;
+
+/* ── 작은 뱃지 — 모바일 터치 툴팁 지원 (다른 툴팁 자동 닫기) ── */
 function Badge({ label, bg, color, title: tt }) {
   const [showTip, setShowTip] = useState(false);
-  const tooltip = tt || label;
+  const [myId]   = useState(() => ++_badgeIdSeq);
+  const tooltip  = tt || label;
+
+  // 다른 Badge가 열릴 때 내 툴팁 닫기
+  useEffect(() => {
+    const unsub = subscribeBadge(openedId => {
+      if (openedId !== myId) setShowTip(false);
+    });
+    return unsub;
+  }, [myId]);
+
+  // 바깥 터치 시 닫기
+  useEffect(() => {
+    if (!showTip) return;
+    const close = () => setShowTip(false);
+    document.addEventListener("touchstart", close, { passive:true });
+    document.addEventListener("mousedown",  close);
+    return () => {
+      document.removeEventListener("touchstart", close);
+      document.removeEventListener("mousedown",  close);
+    };
+  }, [showTip]);
+
+  const handleClick = e => {
+    e.stopPropagation();
+    const next = !showTip;
+    setShowTip(next);
+    if (next) notifyBadgeOpen(myId);
+  };
+
   return (
     <span
       title={tooltip}
-      onClick={e => { e.stopPropagation(); setShowTip(v => !v); }}
+      onClick={handleClick}
       style={{
         display:"inline-block", padding:"2px 7px", borderRadius:"999px",
         fontSize:11, fontWeight:500, whiteSpace:"nowrap", cursor:"pointer",
