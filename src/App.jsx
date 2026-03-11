@@ -1190,14 +1190,7 @@ export default function App() {
       return true;
     });
 
-    // bp_ax13(가스 유탄 발사기), sw_tx41(TX-13 독브레스)은 역할 분류 태그 전체 억제 (전투보조는 별도 추가)
-    const SUPPRESS_EXACT_IDS = ["bp_ax13", "sw_tx41"];
-    const hasSuppressItem = allItems.some(it => {
-      const id = s(it?.id).toLowerCase();
-      return SUPPRESS_EXACT_IDS.some(r => id === r || id.includes(r));
-    });
-
-    const suppressRole = hasSuppressItem || allItems.some(it => {
+    const suppressRole = allItems.some(it => {
       const id = s(it?.id).toLowerCase();
       return ROLE_SUPPRESS_IDS.some(r => id.includes(r));
     });
