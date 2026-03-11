@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const s = (v) => (v == null ? "" : String(v));
 
@@ -110,41 +110,48 @@ function notifyBadgeOpen(id) { _badgeListeners.forEach(fn => fn(id)); }
 function subscribeBadge(fn) { _badgeListeners.push(fn); return () => { _badgeListeners = _badgeListeners.filter(f => f !== fn); }; }
 let _badgeIdSeq = 0;
 
-/* ── 작은 뱃지 — 모바일 터치 툴팁 지원 (다른 툴팁 자동 닫기) ── */
+/* ── 작은 뱃지 — PC/모바일 툴팁 (다른 태그 클릭 시 자동 닫기) ── */
 function Badge({ label, bg, color, title: tt }) {
   const [showTip, setShowTip] = useState(false);
   const [myId]   = useState(() => ++_badgeIdSeq);
+  const spanRef  = useRef(null);
   const tooltip  = tt || label;
 
   // 다른 Badge가 열릴 때 내 툴팁 닫기
   useEffect(() => {
-    const unsub = subscribeBadge(openedId => {
+    return subscribeBadge(openedId => {
       if (openedId !== myId) setShowTip(false);
     });
-    return unsub;
   }, [myId]);
 
-  // 바깥 터치 시 닫기
+  // 바깥 클릭/터치 시 닫기 (capture phase → stopPropagation 무관)
   useEffect(() => {
     if (!showTip) return;
-    const close = () => setShowTip(false);
-    document.addEventListener("touchstart", close, { passive:true });
-    document.addEventListener("mousedown",  close);
+    const onOutside = e => {
+      if (spanRef.current && !spanRef.current.contains(e.target)) {
+        setShowTip(false);
+      }
+    };
+    document.addEventListener("mousedown",  onOutside, true);
+    document.addEventListener("touchstart", onOutside, { capture:true, passive:true });
     return () => {
-      document.removeEventListener("touchstart", close);
-      document.removeEventListener("mousedown",  close);
+      document.removeEventListener("mousedown",  onOutside, true);
+      document.removeEventListener("touchstart", onOutside, true);
     };
   }, [showTip]);
 
   const handleClick = e => {
     e.stopPropagation();
-    const next = !showTip;
-    setShowTip(next);
-    if (next) notifyBadgeOpen(myId);
+    setShowTip(prev => {
+      const next = !prev;
+      if (next) notifyBadgeOpen(myId);
+      return next;
+    });
   };
 
   return (
     <span
+      ref={spanRef}
       title={tooltip}
       onClick={handleClick}
       style={{

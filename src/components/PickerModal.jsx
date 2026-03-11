@@ -687,7 +687,7 @@ export default function PickerModal({
 
                       return (
                         <button key={id}
-                          className={`stratagemBtn ${isActive?"active":""} ${disabled?"disabled":""}`}
+                          className={`stratagemBtn ${isActive?"active":""} ${disabled?"disabled":""} ${id==="sm_mp98"?"glowItem":""}`}
                           type="button" disabled={disabled}
                           onClick={()=>{ if(!disabled) onPick(it); }}
                           title={s(it.name_ko)||id}

@@ -154,10 +154,6 @@ export default function Slot({
             {has && (
               <div className="slotPreview">
                 {warnBackpack && <div className="stratWarnDot" />}
-                {/* 장갑 등급 태그 — 이미지 우상단 */}
-                {armorTag && (
-                  <span className="slotArmorGradeBadge">{armorTag}</span>
-                )}
                 <div className="slotImageWrap">
                   <SlotImg className="slotImage slotImageArmor" src={picked.icon} alt={picked.name_ko||picked.id} />
                 </div>

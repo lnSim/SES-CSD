@@ -870,6 +870,21 @@ body {
 .stratagemBtn:hover  { border-color:rgba(240,196,0,.45); background:rgba(240,196,0,.10); }
 .stratagemBtn.active { border-color:rgba(240,196,0,.75); box-shadow:0 0 0 2px rgba(240,196,0,.18); background:rgba(240,196,0,.12); }
 .stratagemBtn.disabled,.stratagemBtn:disabled { opacity:.28; filter:grayscale(1); cursor:not-allowed; }
+/* sm_mp98 전용 글로우 */
+.stratagemBtn.glowItem {
+  border-color:rgba(255,80,80,.55);
+  background:rgba(255,40,40,.06);
+  box-shadow:0 0 8px rgba(255,80,80,.35), 0 0 18px rgba(255,80,80,.18);
+  animation:mp98Glow 2s ease-in-out infinite;
+}
+.stratagemBtn.glowItem:hover {
+  border-color:rgba(255,100,100,.80);
+  box-shadow:0 0 12px rgba(255,80,80,.55), 0 0 28px rgba(255,80,80,.28);
+}
+@keyframes mp98Glow {
+  0%,100% { box-shadow:0 0 8px rgba(255,80,80,.35), 0 0 18px rgba(255,80,80,.18); }
+  50%      { box-shadow:0 0 14px rgba(255,100,80,.60), 0 0 30px rgba(255,80,80,.30); }
+}
 
 /* ===== 경고 점 ===== */
 .stratWarnDot { position:absolute; top:6px; left:6px; width:8px; height:8px; border-radius:50%; background:#ff4310; box-shadow:0 0 4px rgba(255,67,16,.75),0 0 8px rgba(255,67,16,.4); z-index:10; pointer-events:none; }
