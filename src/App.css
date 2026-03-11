@@ -694,6 +694,10 @@ body {
   padding:0; border-radius:14px; aspect-ratio:1/1;
   position:relative; overflow:hidden; display:block;
   border-color:rgba(255,255,255,.22);
+  /* 이미지 내용에 의해 크기가 변하지 않도록 고정 */
+  contain:strict;
+  width:100%; height:auto;
+  min-width:0; min-height:0;
 }
 .slotCard.slotStratagem.picked       { border-color:rgba(255,210,0,.8); box-shadow:0 0 0 2px rgba(255,210,0,.12),0 12px 34px rgba(0,0,0,.45); }
 .slotCard.slotStratagem.pickerActive { border-color:rgba(100,200,255,.85); box-shadow:0 0 0 2px rgba(100,200,255,.18),0 0 24px rgba(100,200,255,.15); }
@@ -1017,6 +1021,11 @@ body {
     grid-column:1 / -1; grid-row:2;
     display:grid; grid-template-columns:1fr 1fr; gap:8px;
   }
+  /* 방어구 & 주무기 최소 높이 통일 — 미선택 시 짧아지는 문제 방지 */
+  .slotCard.slotArmor,
+  .slotCard.slotPrimary { min-height:180px; }
+  /* 방어구 이미지 영역 최소 높이 확보 */
+  .slotBodyArmor { min-height:100px; }
 }
 
 /* ===== 모바일 로드아웃 관리 — sideCol 순서 조정 ===== */
@@ -1076,3 +1085,29 @@ body:has(.modalOverlay) {
     margin:0 auto;
   }
 }
+
+/* ===== 모달 검색창 ===== */
+.modalSearchBar {
+  display:flex; align-items:center; gap:8px;
+  padding:8px 16px 0;
+  flex-shrink:0;
+}
+.modalSearchInput {
+  flex:1; height:36px; padding:0 12px;
+  background:rgba(255,255,255,.07);
+  border:1px solid rgba(255,255,255,.18);
+  border-radius:999px;
+  color:#fff; font-size:13px;
+  outline:none; transition:border-color .15s;
+}
+.modalSearchInput::placeholder { color:rgba(255,255,255,.35); }
+.modalSearchInput:focus { border-color:rgba(240,196,0,.55); background:rgba(255,255,255,.10); }
+.modalSearchClear {
+  width:28px; height:28px; border-radius:50%;
+  border:none; background:rgba(255,255,255,.12);
+  color:rgba(255,255,255,.65); font-size:13px;
+  cursor:pointer; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  transition:background .12s;
+}
+.modalSearchClear:hover { background:rgba(255,255,255,.22); }

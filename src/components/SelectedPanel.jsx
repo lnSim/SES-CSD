@@ -73,7 +73,9 @@ const TAG_TOOLTIP = {
   "레이저":"사격에 의해 발생한 열을 관리하면 무한히 발사가 가능합니다.",
   "플라즈마":"구조물 파괴가 불가능한 폭발 피해를 줍니다. 거리에 따라 투사체 속도가 느려집니다.",
   "아크":"제한된 사거리를 가진 아크를 무한히 발사할 수 있습니다.",
-  "가스":"가스 피해를 줘 적을 혼란 상태로 만듭니다.",
+  "가스":"대부분의 소형 및 중형 적에게 피해를 주는 부식성 가스로, 대상을 혼란 상태로 만듭니다.",
+  "방어막":"일시적인 방어막을 전개해 폭발과 고속 투사체를 방어합니다. 저속 물체는 막을 수 없습니다.",
+  "유도":"대상을 자동으로 추적합니다.",
   "기절":"기절 효과를 줘 적을 잠시 멈추게 만듭니다.",
   "치유":"피아식별 없이 대상을 치유합니다.",
   "한 손 파지":"한 손으로 물건을 운송하는 중에도 무기를 사용할 수 있습니다.",
@@ -91,8 +93,10 @@ function getTraitStyle(trait) {
 function getArmorPenInfo(it) {
   const raw=s(it?.armorPen??"");
   if (!raw) return null;
-  // sp_g4(가스 수류탄)는 관통 등급 태그 미표시
   const id=s(it?.id??"").toLowerCase();
+  // armorPen이 "가스"이면 관통 태그 미표시 — 단 sw_s11, sp_p35는 예외
+  if (raw==="가스" && !id.includes("sw_s11") && !id.includes("sp_p35")) return null;
+  // sp_g4(가스 수류탄)는 관통 등급 태그 미표시
   if (id.includes("sp_g4")) return null;
   return { label:ARMOR_PEN_LABEL[raw]||raw, ...(ARMOR_PEN_STYLE[raw]||{bg:"#333",color:"#fff"}) };
 }
@@ -100,18 +104,37 @@ function getWeaponTraits(it) {
   return [s(it?.trait1??""),s(it?.trait2??""),s(it?.trait3??"")].filter(Boolean);
 }
 
-/* ── 작은 뱃지 ── */
+/* ── 작은 뱃지 — 모바일 터치 툴팁 지원 ── */
 function Badge({ label, bg, color, title: tt }) {
+  const [showTip, setShowTip] = useState(false);
+  const tooltip = tt || label;
   return (
-    <span title={tt||label}
+    <span
+      title={tooltip}
+      onClick={e => { e.stopPropagation(); setShowTip(v => !v); }}
       style={{
         display:"inline-block", padding:"2px 7px", borderRadius:"999px",
-        fontSize:11, fontWeight:500, whiteSpace:"nowrap",
+        fontSize:11, fontWeight:500, whiteSpace:"nowrap", cursor:"pointer",
         background:bg||"rgba(255,255,255,0.08)",
         border:`1px solid ${bg||"rgba(255,255,255,0.14)"}`,
         color:color||"rgba(255,255,255,0.75)",
+        position:"relative",
       }}>
       {label}
+      {showTip && tooltip !== label && (
+        <span style={{
+          position:"absolute", bottom:"calc(100% + 6px)", left:"50%",
+          transform:"translateX(-50%)",
+          background:"rgba(20,20,20,.97)", color:"rgba(255,255,255,.9)",
+          border:"1px solid rgba(255,255,255,.15)", borderRadius:8,
+          padding:"6px 10px", fontSize:11, lineHeight:1.5,
+          whiteSpace:"normal", width:200, textAlign:"left",
+          zIndex:999, pointerEvents:"none",
+          boxShadow:"0 4px 16px rgba(0,0,0,.5)",
+        }}>
+          {tooltip}
+        </span>
+      )}
     </span>
   );
 }

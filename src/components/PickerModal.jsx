@@ -148,6 +148,44 @@ function uniqInOrder(arr) {
   return out;
 }
 
+/* ── 태그 툴팁 (SelectedPanel과 동일) — 검색 텍스트 소스로 사용 ── */
+const PICKER_TAG_TOOLTIP = {
+  "소이":"대상에게 유효한 사격을 가하면 불을 붙여 지속 피해를 줍니다.",
+  "폭발성":"구조물 파괴가 가능합니다.",
+  "레이저":"사격에 의해 발생한 열을 관리하면 무한히 발사가 가능합니다.",
+  "플라즈마":"구조물 파괴가 불가능한 폭발 피해를 줍니다.",
+  "아크":"제한된 사거리를 가진 아크를 무한히 발사할 수 있습니다.",
+  "가스":"대부분의 소형 및 중형 적에게 피해를 주는 부식성 가스로, 대상을 혼란 상태로 만듭니다.",
+  "기절":"기절 효과를 줘 적을 잠시 멈추게 만듭니다.",
+  "치유":"피아식별 없이 대상을 치유합니다.",
+  "한 손 파지":"한 손으로 물건을 운송하는 중에도 무기를 사용할 수 있습니다.",
+  "단발 장전":"무기를 한 발씩 장전합니다.",
+  "탄종/발사형식 변경":"무기에 발사형식이나 탄종을 변경하는 기능이 있습니다.",
+  "차지 업":"충전해서 발사할 수 있습니다.",
+  "과열":"사격시 무기가 과열되면 장갑 관통력이 상승합니다.",
+  "총검":"총검이 장착되어있어 근접 공격의 장갑 관통력과 피해량이 상승합니다.",
+  "소음기":"적이 가까운 거리에서도 격발 소음을 탐지할 수 없게 됩니다.",
+  "방어막":"일시적인 방어막을 전개해 폭발과 고속 투사체를 방어합니다. 저속 물체는 막을 수 없습니다.",
+  "유도":"대상을 자동으로 추적합니다.",
+};
+
+/* 아이템 한 개에서 검색 가능한 텍스트 모두 추출 */
+function getItemSearchText(it) {
+  const parts = [
+    s(it?.name_ko), s(it?.desc),
+    s(it?.trait1), s(it?.trait2), s(it?.trait3),
+    s(it?.specialtrait),
+    s(it?.armorValue), s(it?.passive),
+  ];
+  // 태그 툴팁도 포함
+  const traits = [s(it?.trait1), s(it?.trait2), s(it?.trait3), s(it?.specialtrait)].filter(Boolean);
+  for (const t of traits) {
+    const tip = PICKER_TAG_TOOLTIP[t];
+    if (tip) parts.push(tip);
+  }
+  return parts.filter(Boolean).join(" ").toLowerCase();
+}
+
 function lsGet(key) { try { const r=localStorage.getItem(key); return r?JSON.parse(r):null; } catch { return null; } }
 function lsSet(key, val) { try { localStorage.setItem(key,JSON.stringify(val)); } catch {} }
 
@@ -211,6 +249,7 @@ export default function PickerModal({
   stratagemSlots, activeSlotIndex, onPreviewSlotClick,
 }) {
   const [filterOpen, setFilterOpen] = useState(false);
+  const [searchText, setSearchText] = useState("");
   const isStratagemMode = slotKind === "stratagem";
   const isArmorMode     = slotKind === "armor";
   const isMergedPen     = slotKind === "secondary" || slotKind === "throwable";
@@ -239,7 +278,7 @@ export default function PickerModal({
   }, [open, wbOptions, storageKey]);
 
   useEffect(() => {
-    if (!open) { initializedForKey.current=""; setFilterOpen(false); }
+    if (!open) { initializedForKey.current=""; setFilterOpen(false); setSearchText(""); }
   }, [open]);
 
   useEffect(() => {
@@ -327,6 +366,7 @@ export default function PickerModal({
   }, [itemsByOwnership, filters.weaponType, filters.armorPen, filters.traits, isStratagemMode, isArmorMode, isMergedPen, slotKind, isWeapon]);
 
   const filteredItems = useMemo(() => {
+    const query = searchText.trim().toLowerCase();
     return itemsByOwnership.filter(it => {
       if (isArmorMode) {
         if (filters.armorValue.size>0 && !filters.armorValue.has(getArmorValue(it))) return false;
@@ -343,15 +383,18 @@ export default function PickerModal({
         }
       }
       if (isStratagemMode && filters.stratSubType.size > 0) {
-        // "배낭 지원무기" 필터 선택 시 DB subType "지원배낭 무기"와 매칭
         const itSub = getSubType(it);
         const filterSub = [...filters.stratSubType][0];
         const matchSub = filterSub === "배낭 지원무기" ? "지원배낭 무기" : filterSub;
         if (itSub !== matchSub) return false;
       }
+      // 텍스트 검색
+      if (query) {
+        if (!getItemSearchText(it).includes(query)) return false;
+      }
       return true;
     });
-  }, [itemsByOwnership, filters, isArmorMode, isWeapon, isMergedPen, slotKind, isStratagemMode]);
+  }, [itemsByOwnership, filters, isArmorMode, isWeapon, isMergedPen, slotKind, isStratagemMode, searchText]);
 
   /* 스트라타젬: 공격>지원>방어 순
      지원 그룹 내부:
@@ -463,6 +506,22 @@ export default function PickerModal({
             </button>
           </div>
           <button className="modalClose" onClick={onClose} type="button">닫기</button>
+        </div>
+
+        {/* 검색창 */}
+        <div className="modalSearchBar">
+          <input
+            className="modalSearchInput"
+            type="text"
+            placeholder="이름, 설명, 특성으로 검색…"
+            value={searchText}
+            onChange={e => setSearchText(e.target.value)}
+            autoComplete="off"
+            spellCheck={false}
+          />
+          {searchText && (
+            <button className="modalSearchClear" onClick={() => setSearchText("")} type="button">✕</button>
+          )}
         </div>
 
         {/* 필터 패널 */}

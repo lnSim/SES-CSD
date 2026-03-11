@@ -979,7 +979,7 @@ export default function App() {
 
     const FORCE_SMALL_IDS              = ["sw_flam","sp_flam","st_flam","p72"];
     const ERGO_FORCE_THROW_IDS         = ["sw_c4"];  // 지원무기 중 "투척" ergo 강제 표시
-    const ROLE_SUPPRESS_IDS            = ["tx41","bp_ax13"];
+    const ROLE_SUPPRESS_IDS            = ["tx41"];    // bp_ax13은 별도 처리
     const GRENADE_PARTIAL_MED_EXCLUDE  = ["k2"];
     const GRENADE_PARTIAL_MED_FORCE    = ["g142"];
     // 중형 태그 억제: m102, bp_l182, ep_arc3
@@ -1180,7 +1180,20 @@ export default function App() {
     }
     if (loosePartialTag) roleCandidates.push(loosePartialTag);
 
-    const suppressRole = allItems.some(it => {
+    // ── 상위 태그 우선: 부분적 < 전담 ──
+    // "대전차 전담"이 있으면 "부분적 대전차 가능" 제거
+    const hasFullAT  = roleCandidates.some(t => t.label === "대전차 전담");
+    const hasFullMed = roleCandidates.some(t => t.label === "중형 적 대응");
+    const filteredCandidates = roleCandidates.filter(t => {
+      if (hasFullAT  && t.label === "부분적 대전차 가능")   return false;
+      if (hasFullMed && t.label === "부분적 중형 적 대응")  return false;
+      return true;
+    });
+
+    // bp_ax13(가스 유탄 발사기)은 역할 분류 태그 전체 억제 (전투보조는 별도 추가)
+    const hasBpAx13 = allItems.some(it => s(it?.id).toLowerCase().includes("bp_ax13"));
+
+    const suppressRole = hasBpAx13 || allItems.some(it => {
       const id = s(it?.id).toLowerCase();
       return ROLE_SUPPRESS_IDS.some(r => id.includes(r));
     });
@@ -1194,7 +1207,7 @@ export default function App() {
     const roleTags = [];
     if (!suppressRole) {
       const seenRoles = new Set();
-      for (const tag of roleCandidates) {
+      for (const tag of filteredCandidates) {
         if (suppressMed && tag.label === "중형 적 대응") continue;
         if (!seenRoles.has(tag.label)) { seenRoles.add(tag.label); roleTags.push(tag); }
       }
