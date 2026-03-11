@@ -687,7 +687,7 @@ export default function PickerModal({
 
                       return (
                         <button key={id}
-                          className={`stratagemBtn ${isActive?"active":""} ${disabled?"disabled":""} ${id==="sm_mp98"?"glowItem":""}`}
+                          className={`stratagemBtn ${isActive?"active":""} ${disabled?"disabled":""}`}
                           type="button" disabled={disabled}
                           onClick={()=>{ if(!disabled) onPick(it); }}
                           title={s(it.name_ko)||id}
@@ -717,7 +717,7 @@ export default function PickerModal({
                       const active = pickedId!=null && String(it.id)===String(pickedId);
                       return (
                         <button key={it.id}
-                          className={`pickCard ${active?"active":""} ${isSuperStore(it)?"superItem":""} ${isSuperCitizen(it)?"superCitizenItem":""}`}
+                          className={`pickCard ${active?"active":""} ${isSuperStore(it)?"superItem":""} ${isSuperCitizen(it)?"superCitizenItem":""} ${String(it.id)==="sm_mp98"?"glowItem":""}`}
                           onClick={()=>onPick(it)} type="button"
                         >
                           <div className="pickThumb">
