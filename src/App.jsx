@@ -979,7 +979,7 @@ export default function App() {
 
     const FORCE_SMALL_IDS              = ["sw_flam","sp_flam","st_flam","p72"];
     const ERGO_FORCE_THROW_IDS         = ["sw_c4"];  // 지원무기 중 "투척" ergo 강제 표시
-    const ROLE_SUPPRESS_IDS            = ["tx41"];    // bp_ax13은 별도 처리
+    const ROLE_SUPPRESS_IDS            = [];    // 개별 처리로 전환
     const GRENADE_PARTIAL_MED_EXCLUDE  = ["k2"];
     const GRENADE_PARTIAL_MED_FORCE    = ["g142"];
     // 중형 태그 억제: m102, bp_l182, ep_arc3
@@ -1190,10 +1190,14 @@ export default function App() {
       return true;
     });
 
-    // bp_ax13(가스 유탄 발사기)은 역할 분류 태그 전체 억제 (전투보조는 별도 추가)
-    const hasBpAx13 = allItems.some(it => s(it?.id).toLowerCase().includes("bp_ax13"));
+    // bp_ax13(가스 유탄 발사기), sw_tx41(TX-13 독브레스)은 역할 분류 태그 전체 억제 (전투보조는 별도 추가)
+    const SUPPRESS_EXACT_IDS = ["bp_ax13", "sw_tx41"];
+    const hasSuppressItem = allItems.some(it => {
+      const id = s(it?.id).toLowerCase();
+      return SUPPRESS_EXACT_IDS.some(r => id === r || id.includes(r));
+    });
 
-    const suppressRole = hasBpAx13 || allItems.some(it => {
+    const suppressRole = hasSuppressItem || allItems.some(it => {
       const id = s(it?.id).toLowerCase();
       return ROLE_SUPPRESS_IDS.some(r => id.includes(r));
     });
