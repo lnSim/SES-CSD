@@ -970,7 +970,8 @@ export default function App() {
     ════════════════════════════════════════════ */
     const SUPPORT_WEAPON_SUBTYPES = new Set(["지원무기","일회용 지원무기","지원배낭 무기"]);
 
-    const AT_EXCLUDE_IDS = ["sp_g4","g123","cqc20","sw_arc","bp_b100","gp20","bp_ax9","ep_at12","ep_md8"];
+    const AT_EXCLUDE_IDS = ["sp_g4","g123","cqc20","sw_arc","bp_b100","gp20","bp_ax9","ep_at12","ep_md8",
+      "sw_tx41","bp_ax13"];  // 가스 지원무기/배낭: rolePen 계산 제외 (전투보조만 표시)
     // 대전차 전담을 부분적으로 강등시키는 아이템 (gp20 제외 — 대전차 전담 유지)
     const DEMOTE_AT_IDS  = ["g123","las99","stax3","500kg","orb_rc","orb_ls","orb_ps","cqc20","sw_arc","bp_b100","ep_at12"];
     // 단독으로 부분적 대전차 가능 태그를 표시하는 아이템 (gp20 포함)
