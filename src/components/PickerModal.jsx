@@ -234,11 +234,11 @@ function makeInitFilters(wbOptions, storageKey) {
       traits:               new Set(Array.isArray(saved.traits)     ? saved.traits     : []),
       weaponType:           new Set(Array.isArray(saved.weaponType) ? saved.weaponType : []),
       stratSubType:         new Set(Array.isArray(saved.stratSubType) ? saved.stratSubType : []),
-      includeSuperStore:    !!saved.includeSuperStore,
+      includeSuperStore:    saved.includeSuperStore === false ? false : true,
       includeSuperCitizen:  !!saved.includeSuperCitizen,
     };
   }
-  return { ownedWb:new Set(wbOptions), armorValue:new Set(), passive:new Set(), armorPen:new Set(), traits:new Set(), weaponType:new Set(), stratSubType:new Set(), includeSuperStore:false, includeSuperCitizen:false };
+  return { ownedWb:new Set(wbOptions), armorValue:new Set(), passive:new Set(), armorPen:new Set(), traits:new Set(), weaponType:new Set(), stratSubType:new Set(), includeSuperStore:true, includeSuperCitizen:false };
 }
 
 export default function PickerModal({
@@ -265,7 +265,7 @@ export default function PickerModal({
     ownedWb:new Set(), armorValue:new Set(), passive:new Set(),
     armorPen:new Set(), traits:new Set(), weaponType:new Set(),
     stratSubType:new Set(),
-    includeSuperStore:false, includeSuperCitizen:false,
+    includeSuperStore:true, includeSuperCitizen:false,
   }));
   const initializedForKey = useRef("");
 
@@ -295,7 +295,7 @@ export default function PickerModal({
   const togOwn          = (wb)  => setFilters(p => { const o=new Set(p.ownedWb); o.has(wb)?o.delete(wb):o.add(wb); return {...p,ownedWb:o}; });
   const selAll          = ()    => setFilters(p => ({...p, ownedWb:new Set(wbOptions)}));
   const deselAll        = ()    => setFilters(p => ({...p, ownedWb:new Set()}));
-  const resetAll        = ()    => setFilters({ownedWb:new Set(wbOptions),armorValue:new Set(),passive:new Set(),armorPen:new Set(),traits:new Set(),weaponType:new Set(),stratSubType:new Set(),includeSuperStore:false,includeSuperCitizen:false});
+  const resetAll        = ()    => setFilters({ownedWb:new Set(wbOptions),armorValue:new Set(),passive:new Set(),armorPen:new Set(),traits:new Set(),weaponType:new Set(),stratSubType:new Set(),includeSuperStore:true,includeSuperCitizen:false});
   const togSet          = (k,v) => setFilters(p => { const s2=new Set(p[k]); const next=new Set(); if(!s2.has(v)) next.add(v); return {...p,[k]:next}; });
   const togSuper        = ()    => setFilters(p => ({...p, includeSuperStore:!p.includeSuperStore}));
   const togSuperCitizen = ()    => setFilters(p => ({...p, includeSuperCitizen:!p.includeSuperCitizen}));
@@ -314,7 +314,7 @@ export default function PickerModal({
 
   const itemsByOwnership = useMemo(() => items.filter(it => {
     const wb = getWB(it);
-    if (isSuperStore(it))          return isStratagemMode ? true : filters.includeSuperStore;
+    if (isSuperStore(it))          return filters.includeSuperStore; // 토글로 표시/숨김
     if (isSuperCitizen(it))        return filters.includeSuperCitizen;
     if (WB_ALWAYS_INCLUDE.has(wb)) return true;
     if (!wb)                       return true;
@@ -475,7 +475,7 @@ export default function PickerModal({
     || (isArmorMode && (filters.armorValue.size>0 || filters.passive.size>0))
     || (isWeapon   && (filters.armorPen.size>0   || filters.traits.size>0 || filters.weaponType.size>0))
     || (isStratagemMode && filters.stratSubType.size>0)
-    || (!isStratagemMode && (filters.includeSuperStore || filters.includeSuperCitizen));
+    || (!filters.includeSuperStore) || filters.includeSuperCitizen;
 
   const hasBackpackWeaponSelected = useMemo(() => {
     if (!isStratagemMode) return false;
@@ -565,6 +565,7 @@ export default function PickerModal({
                   onToggle={v => setFilters(p => ({ ...p, stratSubType: p.stratSubType.has(v) ? new Set() : new Set([v]) }))}
                 />
                 <div className="filterFooter">
+                  <button className={`filterSuperToggle ${filters.includeSuperStore?"on":""}`} onClick={togSuper} type="button">{filters.includeSuperStore ? "슈퍼 스토어 아이템 숨기기" : "슈퍼 스토어 아이템 포함하기"}</button>
                   <button className="filterResetBtn" onClick={resetAll} type="button">필터 선택 초기화</button>
                 </div>
               </>
@@ -574,7 +575,7 @@ export default function PickerModal({
                 <FilterGroup title="장갑 등급" options={filterOptions.armorValue??[]} selected={filters.armorValue} onToggle={v=>togSet("armorValue",v)} />
                 <FilterGroup title="패시브"    options={filterOptions.passive??[]}    selected={filters.passive}    onToggle={v=>togSet("passive",v)} />
                 <div className="filterFooter">
-                  <button className={`filterSuperToggle ${filters.includeSuperStore?"on":""}`} onClick={togSuper} type="button">슈퍼 스토어 아이템 포함하기</button>
+                  <button className={`filterSuperToggle ${filters.includeSuperStore?"on":""}`} onClick={togSuper} type="button">{filters.includeSuperStore ? "슈퍼 스토어 아이템 숨기기" : "슈퍼 스토어 아이템 포함하기"}</button>
                   <button className="filterResetBtn" onClick={resetAll} type="button">필터 선택 초기화</button>
                 </div>
               </>
@@ -590,7 +591,7 @@ export default function PickerModal({
                   {slotKind==="primary" && (
                     <button className={`filterSuperCitizenToggle ${filters.includeSuperCitizen?"on":""}`} onClick={togSuperCitizen} type="button">슈퍼 시민권 에디션 업그레이드</button>
                   )}
-                  <button className={`filterSuperToggle ${filters.includeSuperStore?"on":""}`} onClick={togSuper} type="button">슈퍼 스토어 아이템 포함하기</button>
+                  <button className={`filterSuperToggle ${filters.includeSuperStore?"on":""}`} onClick={togSuper} type="button">{filters.includeSuperStore ? "슈퍼 스토어 아이템 숨기기" : "슈퍼 스토어 아이템 포함하기"}</button>
                   <button className="filterResetBtn" onClick={resetAll} type="button">필터 선택 초기화</button>
                 </div>
               </>
