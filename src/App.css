@@ -90,6 +90,15 @@ body {
 @media(max-width:600px) {
   .topNavInner { padding:0 12px; }
 }
+/* topNavTitle 안의 인라인 페이지 탭 */
+.topNavPageTabs {
+  display:inline-flex; gap:6px; margin-left:14px;
+  vertical-align:middle;
+}
+.topNavPageTabs .topNavTab {
+  font-size:12px; padding:5px 12px; border-radius:8px;
+}
+
 .topNavTitle {
   font-size:clamp(13px,1.8vw,22px); font-weight:800;
   color:var(--yellow); letter-spacing:-0.03em;
@@ -1122,3 +1131,284 @@ body:has(.modalOverlay) {
   transition:background .12s;
 }
 .modalSearchClear:hover { background:rgba(255,255,255,.22); }
+
+/* ═══════════════════════════════════════════
+   무작위 로드아웃 페이지
+═══════════════════════════════════════════ */
+/* 탭 버튼 */
+.topNavTab.pageTab { font-weight:600; }
+.topNavTab.pageTab.active {
+  color:var(--yellow);
+  background:rgba(240,196,0,.10);
+  border-color:rgba(240,196,0,.40);
+}
+
+.pageRandom {
+  padding:32px 20px 64px;
+  max-width:1000px;
+  margin:0 auto;
+  display:flex; flex-direction:column; gap:32px;
+}
+
+/* 브라쉬 장군 팝업 */
+.randomHeroPopupOverlay {
+  position:fixed; inset:0; z-index:9000;
+  background:rgba(0,0,0,.72);
+  display:flex; align-items:center; justify-content:center;
+  animation:randomFadeIn .3s ease;
+  cursor:pointer;
+  transition:opacity .4s ease;
+}
+.randomHeroPopupOverlay.fading {
+  opacity:0;
+  pointer-events:none;
+}
+@keyframes randomFadeIn { from{opacity:0} to{opacity:1} }
+
+.randomHeroPopup {
+  display:flex; align-items:center; gap:28px;
+  background:rgba(8,8,8,.97);
+  border:1px solid rgba(240,196,0,.45);
+  border-radius:20px;
+  padding:32px 36px;
+  max-width:720px; width:92%;
+  box-shadow:0 0 40px rgba(240,196,0,.20), 0 8px 40px rgba(0,0,0,.8);
+  position:relative;
+  animation:heroPopupIn .35s cubic-bezier(.22,1,.36,1);
+}
+@keyframes heroPopupIn {
+  from { opacity:0; transform:scale(.94) translateY(16px); }
+  to   { opacity:1; transform:scale(1)   translateY(0); }
+}
+.randomHeroPopupHint {
+  position:absolute; bottom:10px; right:16px;
+  font-size:11px; color:rgba(255,255,255,.30);
+}
+.randomHeroEmphasis {
+  color:#fe5f47; font-weight:700;
+}
+
+.randomHeroText {
+  display:flex; flex-direction:column; gap:10px;
+  font-size:14px; line-height:1.7;
+  color:rgba(255,255,255,.92);
+  min-width:0; flex:1;
+  white-space:normal; word-break:keep-all;
+}
+.randomHeroText p { margin:0; }
+.randomBrashImg {
+  width:110px; height:110px;
+  object-fit:contain; flex-shrink:0;
+  filter:drop-shadow(0 2px 12px rgba(0,0,0,.6));
+}
+
+/* 무작위 선택 범위 옵션 */
+.randomModeSection {
+  display:grid;
+  grid-template-columns:repeat(4, 1fr);
+  gap:10px;
+}
+.randomModeBtn {
+  display:flex; flex-direction:column; align-items:center; gap:6px;
+  padding:12px 10px;
+  background:rgba(40,40,40,.90);
+  border:1px solid rgba(255,255,255,.22);
+  border-radius:12px;
+  cursor:pointer;
+  text-align:center;
+  transition:border-color .15s, background .15s, box-shadow .15s;
+  color:rgba(255,255,255,.88);
+  width:100%;
+  box-sizing:border-box;
+}
+.randomModeBtn:hover {
+  border-color:rgba(240,196,0,.50);
+  background:rgba(50,45,20,.92);
+}
+.randomModeBtn.active {
+  border-color:rgba(240,196,0,.80);
+  background:rgba(55,47,10,.95);
+  color:#fff;
+  box-shadow:0 0 0 2px rgba(240,196,0,.20);
+}
+.randomModeBtnLabel {
+  font-size:13px; font-weight:700; text-align:center; width:100%;
+  color:inherit;
+}
+.randomModeBtn.active .randomModeBtnLabel { color:var(--yellow); }
+.randomModeBtnDesc {
+  font-size:11px; line-height:1.5; text-align:center;
+  color:rgba(255,255,255,.50);
+}
+.randomModeBtn.active .randomModeBtnDesc { color:rgba(255,220,80,.75); }
+
+/* 무작위 버튼 */
+.randomBtnWrap { display:flex; justify-content:center; }
+.randomBtn {
+  padding:14px 48px;
+  font-size:16px; font-weight:700; letter-spacing:.04em;
+  color:#111;
+  background:var(--yellow);
+  border:none; border-radius:10px;
+  cursor:pointer;
+  box-shadow:0 0 18px rgba(240,196,0,.35);
+  transition:background .15s, box-shadow .15s, transform .10s;
+}
+.randomBtn:hover { background:#ffd700; box-shadow:0 0 28px rgba(240,196,0,.55); transform:translateY(-1px); }
+.randomBtn:active { transform:translateY(0); }
+.randomBtn:disabled { opacity:.5; cursor:not-allowed; transform:none; }
+
+/* 연출 오버레이 */
+.randomPendingOverlay {
+  position:fixed; inset:0; z-index:9998;
+  background:rgba(0,0,0,.88);
+  display:flex; align-items:center; justify-content:center;
+  animation:randomFadeIn .25s ease;
+}
+.randomPendingText {
+  font-size:28px; font-weight:700; letter-spacing:.08em;
+  color:var(--yellow);
+  text-shadow:0 0 32px rgba(240,196,0,.6);
+  animation:randomPulse 0.8s ease-in-out infinite alternate;
+}
+@keyframes randomFadeIn { from { opacity:0 } to { opacity:1 } }
+@keyframes randomPulse  { from { opacity:.5 } to { opacity:1 } }
+
+/* 결과 */
+.randomResult {
+  display:flex; flex-direction:column; gap:24px;
+  animation:randomFadeIn .4s ease;
+}
+.randomResultTitle {
+  font-size:18px; font-weight:800; letter-spacing:.04em;
+  text-align:center;
+  color:var(--yellow);
+  text-shadow:
+    0 0 10px rgba(240,196,0,.70),
+    0 0 24px rgba(240,196,0,.40),
+    0 0 48px rgba(240,196,0,.20);
+  animation:resultTitleGlow 2.4s ease-in-out infinite alternate;
+  padding-bottom:8px;
+  border-bottom:1px solid rgba(240,196,0,.25);
+}
+@keyframes resultTitleGlow {
+  from { text-shadow:0 0 8px rgba(240,196,0,.55), 0 0 18px rgba(240,196,0,.28); }
+  to   { text-shadow:0 0 14px rgba(240,196,0,.90), 0 0 32px rgba(240,196,0,.55), 0 0 56px rgba(240,196,0,.25); }
+}
+
+.randomSection { display:flex; flex-direction:column; gap:12px; }
+.randomSectionLabel {
+  font-size:13px; font-weight:600;
+  color:rgba(255,255,255,.50); letter-spacing:.06em; text-transform:uppercase;
+}
+
+/* 집착 배지 */
+.randomObsessionBadge {
+  text-align:center;
+  font-size:13px; color:rgba(255,255,255,.75);
+  background:rgba(240,196,0,.10);
+  border:1px solid rgba(240,196,0,.30);
+  border-radius:8px; padding:8px 16px;
+}
+.randomObsessionBadge strong { color:var(--yellow); }
+
+/* 조커 카드 클릭 강조 */
+.randomCardClickable { cursor:pointer; }
+.randomCardClickable:hover { border-color:rgba(240,196,0,.50) !important; }
+.randomCardSelected {
+  border-color:rgba(240,196,0,.85) !important;
+  background:rgba(240,196,0,.14) !important;
+  box-shadow:0 0 0 2px rgba(240,196,0,.20);
+}
+/* 조커 교체 후 flash */
+.randomCardFlash {
+  animation:cardFlash .7s ease-out forwards;
+}
+@keyframes cardFlash {
+  0%   { box-shadow:0 0 0 3px rgba(255,255,255,.95), 0 0 24px rgba(255,255,255,.70); background:rgba(255,255,255,.22) !important; }
+  100% { box-shadow:none; background:rgba(18,18,18,.90) !important; }
+}
+.randomCardRerollBtn {
+  margin-top:auto;
+  padding:5px 14px; border-radius:7px;
+  font-size:12px; font-weight:700;
+  color:#111; background:var(--yellow);
+  border:none; cursor:pointer;
+  transition:background .12s, box-shadow .12s;
+  white-space:nowrap;
+  width:100%;
+}
+.randomCardRerollBtn:hover { background:#ffd700; box-shadow:0 0 10px rgba(240,196,0,.45); }
+
+/* 스트라타젬 카드 */
+.randomStratRow {
+  display:grid; grid-template-columns:repeat(4,1fr); gap:14px;
+}
+.randomStratCard {
+  background:rgba(18,18,18,.90);
+  border:1px solid rgba(255,255,255,.15);
+  border-radius:12px;
+  padding:14px 10px 12px;
+  display:flex; flex-direction:column; align-items:center; gap:8px;
+  text-align:center;
+  transition:border-color .15s;
+}
+.randomStratCard:hover { border-color:rgba(240,196,0,.35); }
+.randomStratIcon { width:72px; height:72px; object-fit:contain; }
+.randomStratIconEmpty { width:72px; height:72px; border-radius:8px; background:rgba(255,255,255,.06); }
+.randomStratName { font-size:13px; font-weight:600; color:#fff; line-height:1.35; }
+.randomStratSub  { font-size:11px; color:rgba(255,255,255,.40); }
+
+/* olddays 비활성 슬롯 */
+.randomSlotDisabled {
+  background:rgba(10,10,10,.70) !important;
+  border-color:rgba(255,255,255,.08) !important;
+  opacity:.45;
+}
+.randomSlotX { font-size:32px; font-weight:900; color:rgba(255,80,80,.60); line-height:1; }
+
+/* 장비 카드 */
+.randomGearRow {
+  display:grid; grid-template-columns:repeat(4,1fr); gap:14px;
+}
+.randomGearCard {
+  background:rgba(18,18,18,.90);
+  border:1px solid rgba(255,255,255,.15);
+  border-radius:12px;
+  padding:14px 10px 12px;
+  display:flex; flex-direction:column; align-items:center; gap:8px;
+  text-align:center;
+  transition:border-color .15s;
+}
+.randomGearCard:hover { border-color:rgba(240,196,0,.35); }
+.randomGearLabel { font-size:11px; font-weight:600; color:rgba(255,255,255,.45); letter-spacing:.05em; }
+.randomGearIcon  { width:90px; height:90px; object-fit:contain; }
+.randomGearIconEmpty { width:90px; height:90px; border-radius:8px; background:rgba(255,255,255,.06); }
+.randomGearName  { font-size:13px; font-weight:600; color:#fff; line-height:1.35; }
+
+/* 조커 힌트 */
+.randomJokerHint {
+  text-align:center; font-size:12px;
+  padding:7px 16px; border-radius:8px;
+  color:rgba(255,255,255,.55);
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.12);
+}
+.randomJokerHint.used {
+  color:rgba(120,220,100,.80);
+  background:rgba(80,200,60,.08);
+  border-color:rgba(80,200,60,.25);
+}
+
+/* 모바일 */
+@media (max-width:700px) {
+  .randomModeSection { grid-template-columns:repeat(2, 1fr); }
+}
+@media (max-width:600px) {
+  .randomHeroPopup { flex-direction:column; text-align:center; padding:24px 20px; }
+  .randomBrashImg { width:80px; height:80px; }
+  .randomStratRow, .randomGearRow { grid-template-columns:repeat(2,1fr); }
+  .randomBtn { padding:12px 32px; font-size:15px; }
+  .randomPendingText { font-size:20px; }
+  .topNavPageTabs { display:none; }
+}

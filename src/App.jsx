@@ -46,6 +46,26 @@ function normalizeItem(it) {
   return { ...it, id:s(it?.id), type, icon:normalizeIcon({...it,type}) };
 }
 
+/* ── 무작위 결과 카드용 이미지 컴포넌트 (png→svg→webp fallback) ── */
+function RandIcon({ item, className, style={} }) {
+  const primary = s(item?.icon) || normalizeIcon(item);
+  const fallbacks = [primary,
+    primary.replace(/\.(png|webp)$/i, ".svg"),
+    primary.replace(/\.(svg|webp)$/i, ".png"),
+    primary.replace(/\.(png|svg)$/i,  ".webp"),
+  ].filter((v,i,a) => v && a.indexOf(v)===i);
+  const [idx, setIdx] = useState(0);
+  const [dead, setDead] = useState(false);
+  useEffect(()=>{ setIdx(0); setDead(false); }, [primary]);
+  if (dead) return null;
+  return (
+    <img src={fallbacks[idx]??primary} alt={s(item?.name_ko)||s(item?.id)}
+      className={className} style={style} draggable={false}
+      onError={()=>{ const next=idx+1; if(next<fallbacks.length) setIdx(next); else setDead(true); }}
+    />
+  );
+}
+
 const EMPTY_SELECTED = {
   stratagem:[null,null,null,null],
   armor:null, primary:null, secondary:null, throwable:null,
@@ -826,6 +846,21 @@ function FireformRow({ row, hasIdealBody }) {
 
 export default function App() {
   const [tutorialStep, setTutorialStep] = useState(-1); // -1=숨김, 0~N=진행중
+  const [activePage,   setActivePage]   = useState("loadout"); // "loadout" | "random"
+  const [heroPopup,    setHeroPopup]    = useState(false);   // 무작위 페이지 전환 시 팝업
+  const [heroPopupFading, setHeroPopupFading] = useState(false); // 팝업 fade-out 중
+  const [jokerFlash,   setJokerFlash]   = useState(null);    // 조커 교체 후 flash 대상 슬롯 key
+
+  const closeHeroPopup = () => {
+    setHeroPopupFading(true);
+    setTimeout(() => { setHeroPopup(false); setHeroPopupFading(false); }, 400);
+  };
+
+  const goRandom = () => {
+    setActivePage("random");
+    setHeroPopup(true);
+    setHeroPopupFading(false);
+  };
   const [items,        setItems]        = useState([]);
   const [err,          setErr]          = useState("");
   const [isLoading,    setIsLoading]    = useState(true);
@@ -844,6 +879,144 @@ export default function App() {
 
   /* PNG 캡처 대상: mainCol 전체 */
   const captureRef = useRef(null);
+
+  /* ── 무작위 로드아웃 ── */
+  // 대전차 지원무기 id 목록 (armorPen >= 6 + 부분적 대전차)
+  const AT_SUPPORT_WEAPON_IDS = new Set([
+    "st_sw_eat17","st_sw_gr8","st_sw_arc3","st_sw_mls4x","st_sw_las99",
+    "st_sw_faf14","st_sw_stax3","st_sw_eat700","st_sw_ms11","st_sw_c4",
+    "st_sw_cqc20","st_sw_eat411","st_bp_b100","st_bp_ax9",
+  ]);
+  const RANDOM_STRAT_EXCLUDE_SUBTYPES = new Set(["탑승물"]);
+  // 전채권 포함 wb 목록 (기본 + 무료 제공)
+  const FREE_WB = new Set(["기본 제공","기본","헬다이버 출동!"]);
+
+  const [randomResult,   setRandomResult]   = useState(null);
+  const [randomPending,  setRandomPending]  = useState(false);
+  const [randomMode,     setRandomMode]     = useState("default"); // 선택 옵션
+  // 조커: 재선택 대상 슬롯 ("strat0"~"strat3","armor","primary","secondary","throwable")
+  const [jokerTarget,    setJokerTarget]    = useState(null);
+  const [jokerUsed,      setJokerUsed]      = useState(false); // 조커 교체 1회 사용 여부
+
+  const pickRandom = () => {
+    if (randomPending) return;
+    setRandomPending(true);
+    setJokerTarget(null);
+    setJokerUsed(false);
+    setTimeout(() => {
+      const shuffle = arr => [...arr].sort(() => Math.random() - 0.5);
+      const pick1 = (pool) => pool[Math.floor(Math.random() * pool.length)] ?? null;
+
+      let stratPool = (itemsByType.get("stratagem") ?? [])
+        .filter(it => !RANDOM_STRAT_EXCLUDE_SUBTYPES.has(getSubType(it)));
+
+      // ── 옵션별 필터 ──
+      // 헬다이버즈 2 클래식: 채권 구성품 제외 (기본 제공만)
+      if (randomMode === "classic") {
+        stratPool = stratPool.filter(it => FREE_WB.has(s(it?.wbrequirement)) || !it?.wbrequirement);
+      }
+      // 대전차 고갈: armorPen >= 6 지원무기 + 부분적 대전차 제외
+      if (randomMode === "noat") {
+        stratPool = stratPool.filter(it => !AT_SUPPORT_WEAPON_IDS.has(s(it?.id)));
+      }
+
+      let slots = 4;
+      // "그 시절을 기억하나?" : 슬롯 3개만 사용
+      if (randomMode === "olddays") slots = 3;
+
+      let strats;
+      if (randomMode === "chaos") {
+        // 대혼돈: 배낭 중복 허용 — 완전 무작위
+        strats = shuffle(stratPool).slice(0, slots);
+      } else if (randomMode === "obsession") {
+        // 집착: 한 stratType(공격/지원/방어)만
+        const types = ["공격","지원","방어"];
+        const chosen = types[Math.floor(Math.random() * types.length)];
+        const typed = stratPool.filter(it => s(it?.stratType) === chosen);
+        const shuffledTyped = shuffle(typed);
+        strats = shuffledTyped.slice(0, slots);
+        strats._obsessionType = chosen;
+      } else {
+        // 기본 (배낭 중복 불가)
+        const shuffled = shuffle(stratPool);
+        strats = [];
+        const usedBp = new Set();
+        for (const it of shuffled) {
+          if (strats.length >= slots) break;
+          const sub = getSubType(it);
+          const isBp = sub === "배낭" || sub === "지원배낭 무기";
+          if (isBp) {
+            if (usedBp.has(sub + "_" + s(it?.id))) continue;
+            // 배낭은 1개 제한
+            const alreadyHasBp = strats.some(x => {
+              const xs = getSubType(x);
+              return xs === "배낭" || xs === "지원배낭 무기";
+            });
+            if (alreadyHasBp) continue;
+          }
+          strats.push(it);
+        }
+        // 부족하면 남은 것으로 채움
+        if (strats.length < slots) {
+          for (const it of shuffled) {
+            if (strats.length >= slots) break;
+            if (!strats.includes(it)) strats.push(it);
+          }
+        }
+      }
+      // olddays: 나머지 1슬롯은 null
+      while (strats.length < 4) strats.push(null);
+
+      const gearPool = (type) => {
+        let pool = itemsByType.get(type) ?? [];
+        if (randomMode === "classic") {
+          pool = pool.filter(it => FREE_WB.has(s(it?.wbrequirement)) || !it?.wbrequirement);
+        }
+        return pool;
+      };
+
+      const result = {
+        strats,
+        obsessionType: strats._obsessionType ?? null,
+        armor:     pick1(gearPool("armor")),
+        primary:   pick1(gearPool("주무기")),
+        secondary: pick1(gearPool("보조무기")),
+        throwable: pick1(gearPool("투척무기")),
+      };
+
+      // 조커: 결과를 받은 뒤 하나를 재선택할 수 있도록 저장
+      setRandomResult(result);
+      setRandomPending(false);
+    }, 1200);
+  };
+
+  // 조커 재선택
+  const jokerReroll = (target) => {
+    if (!randomResult) return;
+    const shuffle = arr => [...arr].sort(() => Math.random() - 0.5);
+    const pick1 = (pool) => pool[Math.floor(Math.random() * pool.length)] ?? null;
+    const newResult = { ...randomResult };
+    if (target.startsWith("strat")) {
+      const idx = parseInt(target.replace("strat",""));
+      let stratPool = (itemsByType.get("stratagem") ?? [])
+        .filter(it => !RANDOM_STRAT_EXCLUDE_SUBTYPES.has(getSubType(it)));
+      if (randomMode === "noat") stratPool = stratPool.filter(it => !AT_SUPPORT_WEAPON_IDS.has(s(it?.id)));
+      const others = newResult.strats.filter((_, i) => i !== idx);
+      const avail  = shuffle(stratPool.filter(it => !others.includes(it)));
+      newResult.strats = [...newResult.strats];
+      newResult.strats[idx] = avail[0] ?? null;
+    } else {
+      const typeMap = { armor:"armor", primary:"주무기", secondary:"보조무기", throwable:"투척무기" };
+      const pool = itemsByType.get(typeMap[target]) ?? [];
+      newResult[target] = pick1(pool);
+    }
+    setRandomResult(newResult);
+    setJokerTarget(null);
+    setJokerUsed(true);
+    // 교체된 슬롯 flash 효과
+    setJokerFlash(target);
+    setTimeout(() => setJokerFlash(null), 700);
+  };
 
   /* ── 아이템 로드 & 기본 프리셋 자동 적용 ── */
   useEffect(() => {
@@ -1719,13 +1892,26 @@ export default function App() {
       {/* 상단 네비 — appWrap 바깥, 화면 전체 폭 */}
       <nav className="topNav">
         <div className="topNavInner">
-          <div className="topNavTitle">SES 자기 결정의 전달자 <span className="topNavPatch">억압의 도구</span></div>
+          <div className="topNavTitle">
+            SES 자기 결정의 전달자 <span className="topNavPatch">억압의 도구</span>
+            <span className="topNavPageTabs">
+              <button
+                className={`topNavTab pageTab ${activePage==="loadout"?"active":""}`}
+                type="button" onClick={()=>setActivePage("loadout")}
+              >로드아웃 빌더</button>
+              <button
+                className={`topNavTab pageTab ${activePage==="random"?"active":""}`}
+                type="button" onClick={goRandom}
+              >무작위 로드아웃</button>
+            </span>
+          </div>
           <div className="topNavTabs">
             <button className="topNavTab infoBtn" type="button"
               onClick={()=>setInfoModal(true)}
             >운용자 정보</button>
             <button className="topNavTab tutorialBtn" type="button"
               onClick={()=>setTutorialStep(0)}
+              style={activePage==="random" ? {display:"none"} : {}}
             >튜토리얼</button>
           </div>
         </div>
@@ -1742,7 +1928,7 @@ export default function App() {
         )}
 
         {/* ── 개인 로드아웃 ── */}
-        {!isLoading && <div className="pagePersonal">
+        {!isLoading && activePage==="loadout" && <div className="pagePersonal">
             <div className="layout">
 
               {/* mainCol: 슬롯 영역 전체 — PNG 캡처 대상 */}
@@ -1898,6 +2084,164 @@ export default function App() {
             </div>{/* /layout */}
         </div>}
 
+        {/* ── 무작위 로드아웃 ── */}
+        {!isLoading && activePage==="random" && (
+          <div className="pageRandom">
+
+            {/* 브라쉬 장군 팝업 — 클릭하면 서서히 사라짐 */}
+            {heroPopup && (
+              <div className={`randomHeroPopupOverlay ${heroPopupFading ? "fading" : ""}`} onClick={closeHeroPopup}>
+                <div className="randomHeroPopup">
+                  <img src="/brash.png" className="randomBrashImg" alt="브라쉬 장군" />
+                  <div className="randomHeroText">
+                    <p>어서 와라! 헬다이버,</p>
+                    <p>자네의 임무 진행 능력에 한계를 확인하기 위해 더 큰 시련을 준비했다.</p>
+                    <p><span className="randomHeroEmphasis">무작위 스트라타젬과 개인 장비로 투입하는 거다!</span></p>
+                    <p>헬다이버에게 헤쳐나가지 못할 상황이 없음을 민주주의의 적들에게 똑똑히 보여줘라! 행운을 빈다.</p>
+                  </div>
+                  <div className="randomHeroPopupHint">클릭해서 닫기</div>
+                </div>
+              </div>
+            )}
+
+            {/* 무작위 선택 범위 옵션 */}
+            <div className="randomModeSection">
+              {[
+                { key:"default",  label:"능력 한계 시험",           desc:"기본 옵션. 배낭이 중복되지 않는 선에서 무작위 스트라타젬이 선택됩니다." },
+                { key:"chaos",    label:"대혼돈",                   desc:"배낭 스트라타젬이 중복될 수 있습니다." },
+                { key:"classic",  label:"헬다이버즈 2 클래식",      desc:"채권 구성품이 포함되지 않습니다." },
+                { key:"obsession",label:"집착",                     desc:"한 분류의 스트라타젬(공격/지원/방어)만으로 로드아웃이 구성됩니다." },
+                { key:"olddays",  label:"\"그 시절\"을 기억하나?",  desc:"스트라타젬 슬롯 한 칸을 배제하고 로드아웃을 구성합니다." },
+                { key:"joker",    label:"조커 뽑기",                desc:"무작위 로드아웃을 배정받고, 원하는 슬롯을 직접 골라 재배정합니다." },
+                { key:"noat",     label:"대전차 고갈",              desc:"대전차 지원무기가 배제된 상태로 로드아웃을 구성합니다." },
+              ].map(({ key, label, desc }) => {
+                const active = randomMode === key;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    className={`randomModeBtn ${active ? "active" : ""}`}
+                    onClick={() => { setRandomMode(key); setJokerTarget(null); }}
+                  >
+                    <span className="randomModeBtnLabel">{label}</span>
+                    <span className="randomModeBtnDesc">{desc}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* 연출 오버레이 */}
+            {randomPending && (
+              <div className="randomPendingOverlay">
+                <div className="randomPendingText">대혼돈에 대비하세요...</div>
+              </div>
+            )}
+
+            {/* 무작위 버튼 */}
+            <div className="randomBtnWrap">
+              <button className="randomBtn" type="button" onClick={pickRandom} disabled={randomPending}>
+                {randomPending ? "배정 중..." : "무작위 로드아웃 배정"}
+              </button>
+            </div>
+
+            {/* 결과 */}
+            {randomResult && !randomPending && (
+              <div className="randomResult">
+                <div className="randomResultTitle">아래의 준비를 요청합니다.</div>
+
+                {/* 집착 — 선택된 분류 표시 */}
+                {randomMode === "obsession" && randomResult.obsessionType && (()=>{
+                  const OBS_COLORS = {"공격":["#fe5f47","rgba(254,95,71,.15)","rgba(254,95,71,.40)"],"지원":["#bfe1f6","rgba(191,225,246,.15)","rgba(191,225,246,.40)"],"방어":["#d4edbc","rgba(212,237,188,.15)","rgba(212,237,188,.40)"]};
+                  const [tc, bg, bc] = OBS_COLORS[randomResult.obsessionType] ?? ["#fff","rgba(255,255,255,.10)","rgba(255,255,255,.30)"];
+                  return (
+                    <div className="randomObsessionBadge" style={{color:tc, background:bg, borderColor:bc}}>
+                      선택된 분류 : <strong>{randomResult.obsessionType}</strong>
+                    </div>
+                  );
+                })()}
+
+                {/* 조커 — 사용 안내 */}
+                {randomMode === "joker" && (
+                  <div className={`randomJokerHint ${jokerUsed ? "used" : ""}`}>
+                    {jokerUsed
+                      ? "✓ 교체 완료 — 이번 로드아웃의 슬롯 교체를 1회 사용했습니다."
+                      : "슬롯을 클릭해 하나를 선택한 뒤 교체하기를 누르세요. (1회 한정)"}
+                  </div>
+                )}
+
+                <div className="randomSection">
+                  <div className="randomSectionLabel">스트라타젬</div>
+                  <div className="randomStratRow">
+                    {randomResult.strats.map((it, i) => {
+                      const slotKey = `strat${i}`;
+                      const isDisabled = !it && randomMode === "olddays";
+                      const isEmpty = !it && !isDisabled;
+                      const isJokerActive = randomMode === "joker" && !jokerUsed;
+                      const isJokerSelected = randomMode === "joker" && jokerTarget === slotKey;
+                      const isFlashing = jokerFlash === slotKey;
+                      return (
+                        <div
+                          key={i}
+                          className={`randomStratCard ${isDisabled ? "randomSlotDisabled" : ""} ${isJokerSelected ? "randomCardSelected" : ""} ${isJokerActive && it ? "randomCardClickable" : ""} ${isFlashing ? "randomCardFlash" : ""}`}
+                          onClick={() => isJokerActive && it && setJokerTarget(jokerTarget === slotKey ? null : slotKey)}
+                        >
+                          {isDisabled ? (
+                            <><div className="randomSlotX">✕</div><div className="randomStratName" style={{color:"rgba(255,255,255,.3)"}}>비활성 슬롯</div></>
+                          ) : isEmpty ? (
+                            <div className="randomStratIconEmpty" />
+                          ) : (
+                            <>
+                              <RandIcon item={it} className="randomStratIcon" />
+                              <div className="randomStratName">{it?.name_ko || it?.id || "—"}</div>
+                              <div className="randomStratSub">{getSubType(it)||""}</div>
+                            </>
+                          )}
+                          {isJokerSelected && !jokerUsed && (
+                            <button type="button" className="randomCardRerollBtn" onClick={e=>{e.stopPropagation(); jokerReroll(slotKey);}}>교체하기</button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="randomSection">
+                  <div className="randomSectionLabel">개인 장비</div>
+                  <div className="randomGearRow">
+                    {[
+                      { label:"방어구",   key:"armor",     item:randomResult.armor },
+                      { label:"주무기",   key:"primary",   item:randomResult.primary },
+                      { label:"보조무기", key:"secondary", item:randomResult.secondary },
+                      { label:"투척무기", key:"throwable", item:randomResult.throwable },
+                    ].map(({ label, key, item }) => {
+                      const isJokerActive = randomMode === "joker" && !jokerUsed;
+                      const isJokerSelected = randomMode === "joker" && jokerTarget === key;
+                      const isFlashing = jokerFlash === key;
+                      return (
+                        <div
+                          key={label}
+                          className={`randomGearCard ${isJokerSelected ? "randomCardSelected" : ""} ${isJokerActive ? "randomCardClickable" : ""} ${isFlashing ? "randomCardFlash" : ""}`}
+                          onClick={() => isJokerActive && setJokerTarget(jokerTarget === key ? null : key)}
+                        >
+                          <div className="randomGearLabel">{label}</div>
+                          {item
+                            ? <RandIcon item={item} className="randomGearIcon" />
+                            : <div className="randomGearIconEmpty" />
+                          }
+                          <div className="randomGearName">{item?.name_ko || item?.id || "—"}</div>
+                          {isJokerSelected && !jokerUsed && (
+                            <button type="button" className="randomCardRerollBtn" onClick={e=>{e.stopPropagation(); jokerReroll(key);}}>교체하기</button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
       </div>
 
       {/* ── 튜토리얼 오버레이 ── */}
@@ -1952,7 +2296,7 @@ export default function App() {
 
               <div className="infoBuildRow">
                 <span className="infoBuildLabel">빌드 버전</span>
-                <span className="infoBuildValue">ver 26.03.09</span>
+                <span className="infoBuildValue">ver 26.03.12</span>
               </div>
               <div className="infoBuildRow">
                 <span className="infoBuildLabel">빌드 기준 최신 업데이트</span>
