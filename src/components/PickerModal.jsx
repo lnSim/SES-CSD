@@ -475,7 +475,7 @@ export default function PickerModal({
     || (isArmorMode && (filters.armorValue.size>0 || filters.passive.size>0))
     || (isWeapon   && (filters.armorPen.size>0   || filters.traits.size>0 || filters.weaponType.size>0))
     || (isStratagemMode && filters.stratSubType.size>0)
-    || (!filters.includeSuperStore) || filters.includeSuperCitizen;
+    || (!isStratagemMode && !filters.includeSuperStore) || filters.includeSuperCitizen;
 
   const hasBackpackWeaponSelected = useMemo(() => {
     if (!isStratagemMode) return false;
@@ -565,7 +565,6 @@ export default function PickerModal({
                   onToggle={v => setFilters(p => ({ ...p, stratSubType: p.stratSubType.has(v) ? new Set() : new Set([v]) }))}
                 />
                 <div className="filterFooter">
-                  <button className={`filterSuperToggle ${filters.includeSuperStore?"on":""}`} onClick={togSuper} type="button">{filters.includeSuperStore ? "슈퍼 스토어 아이템 숨기기" : "슈퍼 스토어 아이템 포함하기"}</button>
                   <button className="filterResetBtn" onClick={resetAll} type="button">필터 선택 초기화</button>
                 </div>
               </>
