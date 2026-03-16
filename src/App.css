@@ -422,6 +422,24 @@ body {
   display:flex; flex-direction:column;
 }
 .statLabel { font-size:13px; font-weight:700; color:rgba(255,255,255,.50); margin-bottom:6px; }
+
+/* 로드아웃 구성 요구 사항 전용 */
+.reqSection {
+  margin-top:12px;
+  padding:18px 20px 18px;
+  min-height:0;
+}
+.reqSection .statLabel {
+  font-size:14px;
+  font-weight:800;
+  color:var(--yellow);
+  margin-bottom:12px;
+  letter-spacing:.02em;
+}
+.reqSection .statTraitList {
+  gap:8px;
+  row-gap:8px;
+}
 .statTraitList  { display:flex; flex-wrap:wrap; gap:7px; }
 .statTraitBadge {
   display:inline-block; padding:4px 11px; border-radius:999px;
@@ -820,7 +838,9 @@ body {
 .pickCard { text-align:left; display:grid; grid-template-columns:100px 1fr; gap:12px; padding:12px; min-height:108px; align-items:center; border-radius:14px; border:1px solid rgba(255,255,255,.10); background:rgba(255,255,255,.04); cursor:pointer; }
 .pickCard:hover  { border-color:rgba(240,196,0,.35); background:rgba(240,196,0,.08); }
 .pickCard.active { border-color:rgba(240,196,0,.60); background:rgba(240,196,0,.10); }
-.pickCard.superItem { border-color:rgba(0,246,255,.35); }
+.pickCard.superItem { border-color:rgba(0,246,255,.45); box-shadow:0 0 8px rgba(0,246,255,.25), 0 0 20px rgba(0,246,255,.12); }
+.pickCard.superItem:hover { border-color:rgba(0,246,255,.75); box-shadow:0 0 12px rgba(0,246,255,.45), 0 0 28px rgba(0,246,255,.22); }
+.pickCard.superItem.active { border-color:rgba(0,246,255,.90); box-shadow:0 0 16px rgba(0,246,255,.60), 0 0 36px rgba(0,246,255,.30); }
 .pickThumb { width:96px; height:96px; justify-self:center; align-self:center; border-radius:12px; background:rgba(0,0,0,.20); border:1px solid rgba(255,255,255,.08); display:grid; place-items:center; overflow:hidden; }
 .pickText  { min-width:0; }
 .pickName  { font-weight:800; font-size:clamp(14px,1.5vw,18px); line-height:1.1; }
@@ -1003,10 +1023,17 @@ body {
   .modalCard:has(.filterPanel) .stratPreviewBar {
     display:none;
   }
-  /* 필터 패널 자체는 전체 높이 활용 */
+  /* modalCard가 필터 스크롤을 막지 않도록 */
+  .modalCard:has(.filterPanel) {
+    overflow:visible;
+    max-height:none;
+  }
+  /* 필터 패널: 독립 스크롤 + 전체 뷰포트 활용 */
   .modalCard:has(.filterPanel) .filterPanel {
     max-height:calc(100dvh - 56px);
     overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior:contain;
   }
 }
 

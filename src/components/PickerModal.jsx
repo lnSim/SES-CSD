@@ -721,7 +721,7 @@ export default function PickerModal({
                             <div className="pickName">{s(it.name_ko)||it.id}</div>
                             <div className="pickDesc">{it.desc||""}</div>
                             {isSuperCitizen(it) && (
-                              <div className="pickUnlock" style={{color:"#fee800"}}>슈퍼 시민 에디션 업그레이드에 포함</div>
+                              <div className="pickUnlock" style={{color:"#fee800"}}>슈퍼 시민 에디션 업그레이드</div>
                             )}
                             {isSuperStore(it) && it.unlock!=null && it.unlock!=="" && (
                               <div className="pickUnlock">{String(it.unlock)}</div>

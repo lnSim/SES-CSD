@@ -83,12 +83,14 @@ const TRAIT_BG_PNG  = {
   "소이":"#ffcfc9","폭발성":"#ffc8aa","레이저":"#ffe5a0","플라즈마":"#e6cff2",
   "아크":"#0a53a8","가스":"#d4edbc","기절":"#d4edbc","치유":"#d4edbc",
   /* 흰색 배경 태그 */
+  "유도":"#f0f0f0",
   "한 손 파지":"#e8e8e8","단발 장전":"#e8e8e8","탄종/발사형식 변경":"#e8e8e8",
   "차지 업":"#e8e8e8","과열":"#e8e8e8","총검":"#e8e8e8","소음기":"#e8e8e8",
 };
 const TRAIT_TC_PNG  = {
   "아크":"#fff",
   /* 흰색 배경 → 어두운 텍스트 */
+  "유도":"#1a1a1a",
   "한 손 파지":"#1a1a1a","단발 장전":"#1a1a1a","탄종/발사형식 변경":"#1a1a1a",
   "차지 업":"#1a1a1a","과열":"#1a1a1a","총검":"#1a1a1a","소음기":"#1a1a1a",
 };
@@ -151,7 +153,7 @@ async function exportLoadoutPng(captureRef, selected, wbSummary=[]) {
   const LEFT_W = STRAT_ROW_W;
 
   /* ── 우측 현재선택 패널 치수 ── */
-  const SEL_W=240;
+  const SEL_W=270;
   const TOTAL_W=PAD+LEFT_W+GAP+SEL_W+PAD;
 
   /* ── 높이 계산 ── */
@@ -159,21 +161,19 @@ async function exportLoadoutPng(captureRef, selected, wbSummary=[]) {
   // 로드아웃 행들
   const STRAT_BLOCK = TITLE_H+6+STRAT_SZ;
   const GEAR_BLOCK  = TITLE_H+6+ARM_H;
-  // 로드아웃 구성 요구 사항 영역
-  const WB_PILL_H = 22, WB_GAP = 6;
-  const wbRows = wbSummary.length > 0
-    ? Math.ceil(wbSummary.length / 4)
-    : 0;
-  const WB_BLOCK = wbSummary.length > 0
-    ? (SEC_GAP + TITLE_H + 6 + wbRows * (WB_PILL_H + WB_GAP))
-    : 0;
+  // 로드아웃 구성 요구 사항 영역 — 항상 표시
+  const WB_PILL_H = 19, WB_GAP = 5;
+  const wbRows = Math.max(1, wbSummary.length > 0 ? Math.ceil(wbSummary.length / 5) : 1);
+  const WB_BLOCK = SEC_GAP + 14 + 10 + wbRows * (WB_PILL_H + WB_GAP) + 14;
   const LEFT_H = STRAT_BLOCK + SEC_GAP + GEAR_BLOCK + WB_BLOCK;
 
-  // 현재선택 패널 높이 — pill 줄넘김 최대 2줄 기준으로 넉넉히 잡음
+  // 현재선택 패널 높이 — LEFT_H + 하단 여유 추가
   const SEL_ROW_H=36;
-  const SEL_H = 24 + 4 + (4*(SEL_ROW_H+8)) + 14 + 14 + 4 + (4*(SEL_ROW_H+16));
+  const SEL_H_MIN = 24 + 4 + (4*(SEL_ROW_H+8)) + 14 + 14 + 4 + (4*(SEL_ROW_H+16));
+  // 패널은 LEFT_H 기준 + 하단 여유 30px
+  const SEL_PANEL_H = Math.max(LEFT_H, SEL_H_MIN) + 30;
 
-  const TOTAL_H = PAD + Math.max(LEFT_H, SEL_H) + PAD;
+  const TOTAL_H = PAD + SEL_PANEL_H + PAD;
 
   const canvas = document.createElement("canvas");
   canvas.width  = TOTAL_W * SC;
@@ -360,48 +360,83 @@ async function exportLoadoutPng(captureRef, selected, wbSummary=[]) {
     }
   }
 
-  /* ── 3. 로드아웃 구성 요구 사항 (개인장비 하단) ── */
-  if (wbSummary.length > 0) {
+  /* ── 3. 로드아웃 구성 요구 사항 (개인장비 하단) — 항상 표시 ── */
+  {
     const WB_Y_START = gearY + ARM_H + SEC_GAP;
-    secTitle("로드아웃 구성 요구 사항", LX, WB_Y_START);
-    let wbCy = WB_Y_START + TITLE_H + 8;
-    let wbX = LX;
-    const WB_PILL_H = 22, WB_GAP_X = 8, WB_GAP_Y = 6;
-    const WB_STYLE_MAP = {
-      "슈퍼스토어 구매": { bg:"rgba(0,246,255,0.15)", border:"rgba(0,246,255,0.55)", tc:"#00f6ff" },
-    };
-    // 기본 WB 스타일 팔레트 (간소화)
-    const WB_COLORS = [
-      "#f7f352","#fbbf24","#fb923c","#f87171","#c084fc","#60a5fa","#34d399","#a3e635",
-    ];
-    let wbColorIdx = 0;
-    for (const { wb, page } of wbSummary) {
-      const label = page > 0 ? `${wb} ${page}페이지` : wb;
-      const stylePreset = WB_STYLE_MAP[wb];
-      let bg, border, tc;
-      if (stylePreset) {
-        ({ bg, border, tc } = stylePreset);
-      } else {
-        const c = WB_COLORS[wbColorIdx % WB_COLORS.length]; wbColorIdx++;
-        bg = c + "22"; border = c + "88"; tc = c;
+    const WB_BOX_PAD = 14;
+    const WB_PILL_H_INNER = 19, WB_GAP_X = 6, WB_GAP_Y = 5;
+    const innerRows = Math.max(1, wbSummary.length > 0 ? Math.ceil(wbSummary.length / 5) : 1);
+    const WB_BOX_H = WB_BOX_PAD + 14 + 10 + innerRows * (WB_PILL_H_INNER + WB_GAP_Y) + WB_BOX_PAD;
+
+    // 박스 배경
+    ctx.fillStyle = "rgba(22,22,22,0.95)";
+    rRect(ctx, LX, WB_Y_START, LEFT_W, WB_BOX_H, 12); ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.08)"; ctx.lineWidth = 1;
+    rRect(ctx, LX, WB_Y_START, LEFT_W, WB_BOX_H, 12); ctx.stroke();
+
+    // 타이틀
+    ctx.fillStyle="#f0c400"; ctx.font=`800 12px ${FONT}`;
+    ctx.textBaseline="middle"; ctx.textAlign="left";
+    ctx.fillText("로드아웃 구성 요구 사항", LX + WB_BOX_PAD, WB_Y_START + WB_BOX_PAD + 7);
+
+    let wbCy = WB_Y_START + WB_BOX_PAD + 14 + 8;
+    let wbX = LX + WB_BOX_PAD;
+
+    if (wbSummary.length === 0) {
+      // 채권 불필요 텍스트
+      ctx.fillStyle="rgba(255,255,255,0.35)"; ctx.font=`700 10px ${FONT}`;
+      ctx.textBaseline="middle"; ctx.textAlign="left";
+      ctx.fillText("채권 불필요", wbX, wbCy + WB_PILL_H_INNER/2);
+    } else {
+      const PNG_WB_STYLES = {
+        "헬다이버 출동!":          { bg:"#0e2c2e", border:"rgba(247,243,82,.35)", tc:"#f7f352" },
+        "결연한 베테랑":           { bg:"#ea630f", border:"rgba(255,255,255,.3)",  tc:"#ffffff" },
+        "최첨단":                  { bg:"#0044ab", border:"rgba(96,216,255,.50)",  tc:"#60d8ff" },
+        "민주적 폭파":             { bg:"#920f00", border:"rgba(239,143,0,.35)",   tc:"#ef8f00" },
+        "극지의 애국자":           { bg:"#3eb0e8", border:"rgba(255,255,255,.3)",  tc:"#ffffff" },
+        "독사 특공대":             { bg:"#103318", border:"rgba(255,255,255,.2)",  tc:"#ffffff" },
+        "자유의 불꽃":             { bg:"#562f18", border:"rgba(255,121,24,.35)",  tc:"#ff7918" },
+        "화학 요원":               { bg:"#3c4209", border:"rgba(211,236,24,.3)",   tc:"#d3ec18" },
+        "진리의 집행자":           { bg:"#ceb7b7", border:"rgba(181,0,0,.4)",      tc:"#b50000" },
+        "도시 전설":               { bg:"#3c4548", border:"rgba(206,174,0,.35)",   tc:"#ceae00" },
+        "자유의 종복":             { bg:"#180000", border:"rgba(255,255,255,.2)",  tc:"#ffffff" },
+        "정의의 경계선":           { bg:"#422d21", border:"rgba(221,218,221,.25)", tc:"#dddadd" },
+        "의장의 달인":             { bg:"#ffffff", border:"#efdf94",               tc:"#105994" },
+        "법의 위력":               { bg:"#1e1831", border:"#d64566",               tc:"#ffffff" },
+        "대조군":                  { bg:"#d4d2d1", border:"rgba(21,53,78,.3)",     tc:"#15354e" },
+        "먼지 폭풍":               { bg:"#301807", border:"rgba(239,215,168,.3)",  tc:"#efd7a8" },
+        "금사 특공대":             { bg:"#1b1b0b", border:"rgba(186,224,178,.3)",  tc:"#bae0b2" },
+        "존재하지 않는 부대":      { bg:"#08191c", border:"rgba(251,128,128,.35)", tc:"#fb8080" },
+        "공성 파괴자":             { bg:"#2a292a", border:"rgba(241,212,96,.35)",  tc:"#f1d460" },
+        "민주적 궤도 강하 타격대": { bg:"#081c28", border:"#fbfbaa",               tc:"#ffffff" },
+        "정의로운 망령":           { bg:"#1e1d1b", border:"#fbee6b",               tc:"#ffffff" },
+        "슈퍼시민권 업그레이드":   { bg:"#000000", border:"#fee800",               tc:"#fee800" },
+        "슈퍼스토어 구매":         { bg:"#001c2e", border:"rgba(0,246,255,.65)",   tc:"#00f6ff" },
+      };
+      const fallbackColors = ["#f7f352","#fb923c","#f87171","#c084fc","#60a5fa","#34d399"];
+      let fbIdx = 0;
+
+      for (const { wb, page } of wbSummary) {
+        const label = page > 0 ? `${wb} ${page}페이지` : wb;
+        const sty = PNG_WB_STYLES[wb];
+        let bg, border, tc;
+        if (sty) { ({ bg, border, tc } = sty); }
+        else { const c = fallbackColors[fbIdx++ % fallbackColors.length]; bg = c+"22"; border = c+"88"; tc = c; }
+
+        ctx.font = `700 9px ${FONT}`;
+        const tw = ctx.measureText(label).width;
+        const pw = tw + 14;
+        if (wbX + pw > LX + LEFT_W - WB_BOX_PAD && wbX > LX + WB_BOX_PAD) {
+          wbX = LX + WB_BOX_PAD; wbCy += WB_PILL_H_INNER + WB_GAP_Y;
+        }
+        ctx.fillStyle = bg;
+        rRect(ctx, wbX, wbCy, pw, WB_PILL_H_INNER, 8); ctx.fill();
+        ctx.strokeStyle = border; ctx.lineWidth = 1;
+        rRect(ctx, wbX, wbCy, pw, WB_PILL_H_INNER, 8); ctx.stroke();
+        ctx.fillStyle = tc; ctx.textBaseline = "middle"; ctx.textAlign = "left";
+        ctx.fillText(label, wbX + 7, wbCy + WB_PILL_H_INNER / 2);
+        wbX += pw + WB_GAP_X;
       }
-      // pill 너비 계산
-      ctx.font = `700 10px ${FONT}`;
-      const tw = ctx.measureText(label).width;
-      const pw = tw + 18;
-      // 줄넘김
-      if (wbX + pw > LX + LEFT_W && wbX > LX) {
-        wbX = LX; wbCy += WB_PILL_H + WB_GAP_Y;
-      }
-      // pill 배경
-      ctx.fillStyle = bg;
-      rRect(ctx, wbX, wbCy, pw, WB_PILL_H, 10); ctx.fill();
-      ctx.strokeStyle = border; ctx.lineWidth = 1;
-      rRect(ctx, wbX, wbCy, pw, WB_PILL_H, 10); ctx.stroke();
-      // pill 텍스트
-      ctx.fillStyle = tc; ctx.textBaseline = "middle"; ctx.textAlign = "left";
-      ctx.fillText(label, wbX + 9, wbCy + WB_PILL_H / 2);
-      wbX += pw + WB_GAP_X;
     }
   }
 
@@ -413,9 +448,9 @@ async function exportLoadoutPng(captureRef, selected, wbSummary=[]) {
 
   // 패널 배경
   ctx.fillStyle="rgba(22,22,22,0.95)";
-  rRect(ctx,RX,RY,SEL_W,TOTAL_H-PAD*2,14); ctx.fill();
+  rRect(ctx,RX,RY,SEL_W,SEL_PANEL_H,14); ctx.fill();
   ctx.strokeStyle="rgba(255,255,255,0.08)"; ctx.lineWidth=1;
-  rRect(ctx,RX,RY,SEL_W,TOTAL_H-PAD*2,14); ctx.stroke();
+  rRect(ctx,RX,RY,SEL_W,SEL_PANEL_H,14); ctx.stroke();
 
   let ry=RY+16;
   const RP=14; // 패널 내부 패딩
@@ -510,10 +545,10 @@ async function exportLoadoutPng(captureRef, selected, wbSummary=[]) {
     }
   }
 
-  /* 워터마크 — 수정5: 노란색, 날짜 제거 */
+  /* 워터마크 — 현재 선택 패널 내부 하단 우측 정렬 */
   ctx.fillStyle="#f0c400"; ctx.font=`700 10px ${FONT}`;
   ctx.textBaseline="bottom"; ctx.textAlign="right";
-  ctx.fillText("SES 자기 결정의 전달자",TOTAL_W-PAD,TOTAL_H-6);
+  ctx.fillText("SES 자기 결정의 전달자", RX+SEL_W-RP, RY+SEL_PANEL_H-8);
 
   const link=document.createElement("a");
   link.download=`loadout_${Date.now()}.png`;
@@ -875,15 +910,9 @@ function FireformRow({ row, hasIdealBody }) {
         whiteSpace:"nowrap", lineHeight:1,
         display:"flex", alignItems:"flex-start", paddingTop:2,
       }}>{row.label}</span>
-      {/* 명칭 + 노트 + 배지 */}
+      {/* 명칭 + 배지 + 노트 */}
       <div style={{ flex:1, minWidth:0, display:"flex", flexDirection:"column", gap:3 }}>
         <span style={{ fontSize:13, color:nameColor, fontWeight:600, wordBreak:"keep-all", overflowWrap:"break-word" }}>{row.name}</span>
-        {orderedNotes.map((n,i) => (
-          <span key={i} style={{ fontSize:12, fontWeight:700, opacity:.95,
-            color: n.kind === "pos" ? "#86efac" : "#f87171" }}>
-            {n.kind === "neg" ? `- ${n.text}` : `+ ${n.text}`}
-          </span>
-        ))}
         {/* 배지 행 */}
         {(f || ergoStyle || respStyle) && (
           <div style={{ display:"flex", gap:5, flexWrap:"wrap", marginTop:1 }}>
@@ -892,6 +921,13 @@ function FireformRow({ row, hasIdealBody }) {
             {!respStyle && ergoStyle && <span className="statFireformBadge" style={{ ...ergoStyle, margin:0 }}>{ERGO_LABEL[ergo] ?? ergo}</span>}
           </div>
         )}
+        {/* 노트 (배지 아래) */}
+        {orderedNotes.map((n,i) => (
+          <span key={i} style={{ fontSize:12, fontWeight:700, opacity:.95,
+            color: n.kind === "pos" ? "#86efac" : "#f87171" }}>
+            {n.kind === "neg" ? `- ${n.text}` : `+ ${n.text}`}
+          </span>
+        ))}
       </div>
     </div>
   );
@@ -1326,15 +1362,22 @@ export default function App() {
     const STEALTH_IDS = ["orb_ss","eag_ss","sp_g3","sp_g89"];
 
     /* ─ 역할 태그 색상 ─ */
-    const C_AT      = "#ef4444"; // 대전차 빨강
-    const C_PAT     = "#e05353"; // 부분적 대전차 진한 분홍
-    const C_MED     = "#ffa32b"; // 중형 밝은 주황
-    const C_SMALL   = "#94a3b8"; // 소형 회색
+    const C_AT      = "#ef4444";
+    const C_PAT     = "#e05353";
+    const C_MED     = "#ffa32b";
+    const C_SMALL   = "#94a3b8";
     const C_SUPP    = "#34d399";
     const C_VEHICLE = "#93c5fd";
 
+    /* ─ 역할 태그 레이블 상수 ─ */
+    const LBL_SMALL   = "경장갑 ~ 일반 장갑 대응";
+    const LBL_MED     = "일반 장갑 ~ 중장갑 대응";
+    const LBL_AT      = "대전차 대응";
+    const LBL_PAT     = "대전차 대응(제한적)";
+    const LBL_PMED    = "중장갑 대응(제한적)";
+    const LBL_PVEH    = "부분적 대전차(탑승물)";
+
     /* ─ 역할 태그 조립 ─ */
-    // 대전차 전담 강등 조건: DEMOTE_AT_IDS 기준 (gp20 제외)
     const partialATActive  = (hasDisposableAT || hasDemoteATId) && !hasTrueATSupport;
     const upgradedByOrbEag = hasTrueATSupport && hasOrbOrEag;
 
@@ -1343,11 +1386,11 @@ export default function App() {
         const it = selected[k]; if (!it) return false;
         return FORCE_SMALL_IDS.some(r => s(it?.id).toLowerCase().includes(r));
       });
-      if (hasForceSmall && weaponMaxPen === 0) return { label:"소형 적 대응", color:C_SMALL };
-      if (weaponMaxPen >= 6) return { label:"대전차 전담",  color:C_AT    };
-      if (weaponMaxPen >= 4) return { label:"중형 적 대응", color:C_MED   };
-      if (weaponMaxPen >  0) return { label:"소형 적 대응", color:C_SMALL };
-      if (hasForceSmall)     return { label:"소형 적 대응", color:C_SMALL };
+      if (hasForceSmall && weaponMaxPen === 0) return { label:LBL_SMALL, color:C_SMALL };
+      if (weaponMaxPen >= 6) return { label:LBL_AT,    color:C_AT    };
+      if (weaponMaxPen >= 4) return { label:LBL_MED,   color:C_MED   };
+      if (weaponMaxPen >  0) return { label:LBL_SMALL, color:C_SMALL };
+      if (hasForceSmall)     return { label:LBL_SMALL, color:C_SMALL };
       return null;
     }
 
@@ -1366,26 +1409,26 @@ export default function App() {
     let mainRoleTag = null;
     if (rolePen >= 6) {
       mainRoleTag = partialATActive
-        ? { label:"부분적 대전차 가능", color:C_PAT }
-        : { label:"대전차 전담",        color:C_AT  };
+        ? { label:LBL_PAT, color:C_PAT }
+        : { label:LBL_AT,  color:C_AT  };
     } else if (rolePen >= 4) {
-      mainRoleTag = { label:"중형 적 대응", color:C_MED   };
+      mainRoleTag = { label:LBL_MED,   color:C_MED   };
     } else if (rolePen > 0) {
-      mainRoleTag = { label:"소형 적 대응", color:C_SMALL };
+      mainRoleTag = { label:LBL_SMALL, color:C_SMALL };
     } else if (hasForceSmall) {
-      mainRoleTag = { label:"소형 적 대응", color:C_SMALL };
+      mainRoleTag = { label:LBL_SMALL, color:C_SMALL };
     }
-    if (upgradedByOrbEag && mainRoleTag) mainRoleTag = { label:"대전차 전담", color:C_AT };
+    if (upgradedByOrbEag && mainRoleTag) mainRoleTag = { label:LBL_AT, color:C_AT };
 
     let extraWeaponTag = null;
-    if (mainRoleTag?.label === "부분적 대전차 가능") extraWeaponTag = weaponRoleTag();
+    if (mainRoleTag?.label === LBL_PAT) extraWeaponTag = weaponRoleTag();
 
     let loosePartialTag = null;
-    if ((hasPartialATId || hasDisposableAT) && !hasTrueATSupport && rolePen < 6 && mainRoleTag?.label !== "부분적 대전차 가능")
-      loosePartialTag = { label:"부분적 대전차 가능", color:C_PAT };
+    if ((hasPartialATId || hasDisposableAT) && !hasTrueATSupport && rolePen < 6 && mainRoleTag?.label !== LBL_PAT)
+      loosePartialTag = { label:LBL_PAT, color:C_PAT };
 
     const grenadeTag = hasGrenadePartialMed
-      ? { label:"부분적 중형 적 대응", color:C_MED }
+      ? { label:LBL_PMED, color:C_MED }
       : null;
 
     const hasPartialMedStrat = selected.stratagem.some(it => {
@@ -1393,29 +1436,28 @@ export default function App() {
       return PARTIAL_MED_SYNERGY_IDS.some(r => s(it?.id).toLowerCase().includes(r));
     });
     const partialMedStratTag = hasPartialMedStrat
-      ? { label:"부분적 중형 적 대응", color:C_MED }
+      ? { label:LBL_PMED, color:C_MED }
       : null;
 
-    const ROLE_ORDER = ["소형 적 대응","중형 적 대응","대전차 전담","부분적 중형 적 대응","부분적 대전차 가능","부분적 대전차(탑승물)"];
+    const ROLE_ORDER = [LBL_SMALL, LBL_MED, LBL_AT, LBL_PMED, LBL_PAT, LBL_PVEH];
     const roleCandidates = [];
     if (extraWeaponTag)  roleCandidates.push(extraWeaponTag);
     if (mainRoleTag)     roleCandidates.push(mainRoleTag);
     if (grenadeTag) {
-      if (!roleCandidates.some(t => t.label==="중형 적 대응")) roleCandidates.push(grenadeTag);
+      if (!roleCandidates.some(t => t.label===LBL_MED)) roleCandidates.push(grenadeTag);
     }
     if (partialMedStratTag) {
-      if (!roleCandidates.some(t => t.label === "부분적 중형 적 대응"))
+      if (!roleCandidates.some(t => t.label === LBL_PMED))
         roleCandidates.push(partialMedStratTag);
     }
     if (loosePartialTag) roleCandidates.push(loosePartialTag);
 
     // ── 상위 태그 우선: 부분적 < 전담 ──
-    // "대전차 전담"이 있으면 "부분적 대전차 가능" 제거
-    const hasFullAT  = roleCandidates.some(t => t.label === "대전차 전담");
-    const hasFullMed = roleCandidates.some(t => t.label === "중형 적 대응");
+    const hasFullAT  = roleCandidates.some(t => t.label === LBL_AT);
+    const hasFullMed = roleCandidates.some(t => t.label === LBL_MED);
     const filteredCandidates = roleCandidates.filter(t => {
-      if (hasFullAT  && t.label === "부분적 대전차 가능")   return false;
-      if (hasFullMed && t.label === "부분적 중형 적 대응")  return false;
+      if (hasFullAT  && t.label === LBL_PAT)  return false;
+      if (hasFullMed && t.label === LBL_PMED) return false;
       return true;
     });
 
@@ -1423,8 +1465,8 @@ export default function App() {
       const id = s(it?.id).toLowerCase();
       return ROLE_SUPPRESS_IDS.some(r => id.includes(r));
     });
-    // MED_SUPPRESS_IDS 중 bp_ax75 제외 항목이 있을 때만 중형 태그 억제
-    const MED_SUPPRESS_NON_PARTIAL = ["m102","ep_arc3"];
+    // 중형 태그 억제: m102, ep_arc3, sp_p35
+    const MED_SUPPRESS_NON_PARTIAL = ["m102","ep_arc3","sp_p35"];
     const suppressMed = allItems.some(it => {
       const id = s(it?.id).toLowerCase();
       return MED_SUPPRESS_NON_PARTIAL.some(r => id.includes(r));
@@ -1445,9 +1487,9 @@ export default function App() {
       });
     }
     // 전투 보조 → 부분적 대전차(탑승물) → 탑승물 운용 (마지막)
-    if (hasCombatSupport) roleTags.push({ label:"전투 보조",            color:C_SUPP    });
-    if (hasVehicleAT)     roleTags.push({ label:"부분적 대전차(탑승물)", color:"#93c5fd" });
-    if (hasVehicle)       roleTags.push({ label:"탑승물 운용",           color:C_VEHICLE });
+    if (hasCombatSupport) roleTags.push({ label:"전투 보조",   color:C_SUPP    });
+    if (hasVehicleAT)     roleTags.push({ label:LBL_PVEH,     color:"#93c5fd" });
+    if (hasVehicle)       roleTags.push({ label:"탑승물 운용", color:C_VEHICLE });
 
     // 궤도/이글/방어 subType 역할 분류 (선택된 스트라타젬 기준)
     const hasOrb = selected.stratagem.some(it => it && s(getSubType(it)).includes("궤도"));
@@ -1458,9 +1500,11 @@ export default function App() {
       const sub = s(getSubType(it));
       return st === "방어" && !["탑승물","지원무기","배낭","지원배낭 무기","일회용 지원무기"].includes(sub);
     });
-    if (hasOrb) roleTags.push({ label:"함선 화력지원 요청", color:"#fca5a5" });
-    if (hasEag) roleTags.push({ label:"신속 화력지원 요청", color:"#fdba74" });
-    if (hasDef) roleTags.push({ label:"전투 보조지원 요청", color:"#6ee7b7" });
+    // 임무 지원 형태 태그 — roleTags와 분리
+    const missionTags = [];
+    if (hasOrb) missionTags.push({ label:"함선 화력지원 요청", color:"#fca5a5" });
+    if (hasEag) missionTags.push({ label:"신속 화력지원 요청", color:"#fdba74" });
+    if (hasDef) missionTags.push({ label:"전투 보조 요청",     color:"#6ee7b7" });
 
     /* ════════════════════════════════════════════
        구성 시너지
@@ -1880,6 +1924,7 @@ export default function App() {
       uniqueTraits: [...new Set(allTraits)],
       wbSummary,
       roleTags,
+      missionTags,
       fireformGear,
       fireformStrat,
       hasIdealBody,
@@ -2103,6 +2148,22 @@ export default function App() {
                       </div>
                     </div>
 
+                    {/* 임무 지원 형태 */}
+                    <div className="statItem missionTagsSection">
+                      <div className="statLabel">임무 지원 형태</div>
+                      <div className="statTraitList" style={{ marginTop:6, gap:8 }}>
+                        {stats.missionTags.length > 0
+                          ? stats.missionTags.map(tag => (
+                              <span key={tag.label} className="statRoleBadge"
+                                style={{ background:`${tag.color}1a`, borderColor:`${tag.color}88`, color:tag.color }}>
+                                {tag.label}
+                              </span>
+                            ))
+                          : <span className="statEmpty">미선택</span>
+                        }
+                      </div>
+                    </div>
+
                     {/* 구성 시너지 — 개인장비 | 스트라타젬 2열 */}
                     <div className="statItem synergySectionItem">
                         <div className="statLabel">구성 시너지</div>
@@ -2153,7 +2214,7 @@ export default function App() {
                     {/* 로드아웃 구성 요구 사항 */}
                     <div className="statItem reqSection">
                       <div className="statLabel">로드아웃 구성 요구 사항</div>
-                      <div className="statTraitList" style={{ marginTop:5 }}>
+                      <div className="statTraitList">
                         {stats.wbSummary.length > 0
                           ? stats.wbSummary.map(({ wb, page }) => {
                               const st = getWbBadgeStyle(wb);
