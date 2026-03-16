@@ -889,6 +889,11 @@ body {
   border-color:rgba(253,224,71,.95) !important;
   box-shadow:0 0 14px rgba(253,224,71,.60), 0 0 32px rgba(253,224,71,.28);
 }
+.pickCard.glowItem.active {
+  border-color:rgba(253,224,71,.95) !important;
+  background:rgba(253,224,71,.15) !important;
+  box-shadow:0 0 16px rgba(253,224,71,.70), 0 0 36px rgba(253,224,71,.35);
+}
 .pickCard.glowItem .pickName { color:#fde047; }
 
 /* ===== 경고 점 ===== */
@@ -1000,7 +1005,7 @@ body {
   }
   /* 필터 패널 자체는 전체 높이 활용 */
   .modalCard:has(.filterPanel) .filterPanel {
-    max-height:calc(90vh - 60px);
+    max-height:calc(100dvh - 56px);
     overflow-y:auto;
   }
 }
@@ -1309,6 +1314,8 @@ body:has(.modalOverlay) {
   background:rgba(240,196,0,.10);
   border:1px solid rgba(240,196,0,.30);
   border-radius:8px; padding:8px 16px;
+  /* 나타날 때 아래 콘텐츠가 밀리지 않도록 */
+  animation:randomFadeIn .25s ease;
 }
 .randomObsessionBadge strong { color:var(--yellow); }
 
@@ -1411,4 +1418,38 @@ body:has(.modalOverlay) {
   .randomBtn { padding:12px 32px; font-size:15px; }
   .randomPendingText { font-size:20px; }
   .topNavPageTabs { display:none; }
+}
+
+/* ===== 커스텀 스크롤바 — 선택창 컬러 테마 ===== */
+.modalOverlay::-webkit-scrollbar,
+.pickGrid::-webkit-scrollbar,
+.filterPanel::-webkit-scrollbar,
+.manageModalList::-webkit-scrollbar {
+  width: 6px;
+}
+.modalOverlay::-webkit-scrollbar-track,
+.pickGrid::-webkit-scrollbar-track,
+.filterPanel::-webkit-scrollbar-track,
+.manageModalList::-webkit-scrollbar-track {
+  background: rgba(255,255,255,.04);
+  border-radius: 999px;
+}
+.modalOverlay::-webkit-scrollbar-thumb,
+.pickGrid::-webkit-scrollbar-thumb,
+.filterPanel::-webkit-scrollbar-thumb,
+.manageModalList::-webkit-scrollbar-thumb {
+  background: rgba(240,196,0,.35);
+  border-radius: 999px;
+  transition: background .2s;
+}
+.modalOverlay::-webkit-scrollbar-thumb:hover,
+.pickGrid::-webkit-scrollbar-thumb:hover,
+.filterPanel::-webkit-scrollbar-thumb:hover,
+.manageModalList::-webkit-scrollbar-thumb:hover {
+  background: rgba(240,196,0,.65);
+}
+/* Firefox */
+.modalOverlay, .pickGrid, .filterPanel, .manageModalList {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(240,196,0,.35) rgba(255,255,255,.04);
 }

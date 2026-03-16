@@ -132,7 +132,7 @@ function rRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-async function exportLoadoutPng(captureRef, selected) {
+async function exportLoadoutPng(captureRef, selected, wbSummary=[]) {
   const SC=2;
   const FONT="'Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',system-ui,sans-serif";
   const PAD=20, GAP=12;
@@ -159,7 +159,15 @@ async function exportLoadoutPng(captureRef, selected) {
   // 로드아웃 행들
   const STRAT_BLOCK = TITLE_H+6+STRAT_SZ;
   const GEAR_BLOCK  = TITLE_H+6+ARM_H;
-  const LEFT_H = STRAT_BLOCK + SEC_GAP + GEAR_BLOCK;
+  // 로드아웃 구성 요구 사항 영역
+  const WB_PILL_H = 22, WB_GAP = 6;
+  const wbRows = wbSummary.length > 0
+    ? Math.ceil(wbSummary.length / 4)
+    : 0;
+  const WB_BLOCK = wbSummary.length > 0
+    ? (SEC_GAP + TITLE_H + 6 + wbRows * (WB_PILL_H + WB_GAP))
+    : 0;
+  const LEFT_H = STRAT_BLOCK + SEC_GAP + GEAR_BLOCK + WB_BLOCK;
 
   // 현재선택 패널 높이 — pill 줄넘김 최대 2줄 기준으로 넉넉히 잡음
   const SEL_ROW_H=36;
@@ -349,6 +357,51 @@ async function exportLoadoutPng(captureRef, selected) {
       ctx.fillStyle="rgba(255,255,255,0.22)"; ctx.font=`700 10px ${FONT}`;
       ctx.textBaseline="middle"; ctx.textAlign="center";
       ctx.fillText("미선택",SX+SIDE_W/2,sy2+SIDE_H/2); ctx.textAlign="left";
+    }
+  }
+
+  /* ── 3. 로드아웃 구성 요구 사항 (개인장비 하단) ── */
+  if (wbSummary.length > 0) {
+    const WB_Y_START = gearY + ARM_H + SEC_GAP;
+    secTitle("로드아웃 구성 요구 사항", LX, WB_Y_START);
+    let wbCy = WB_Y_START + TITLE_H + 8;
+    let wbX = LX;
+    const WB_PILL_H = 22, WB_GAP_X = 8, WB_GAP_Y = 6;
+    const WB_STYLE_MAP = {
+      "슈퍼스토어 구매": { bg:"rgba(0,246,255,0.15)", border:"rgba(0,246,255,0.55)", tc:"#00f6ff" },
+    };
+    // 기본 WB 스타일 팔레트 (간소화)
+    const WB_COLORS = [
+      "#f7f352","#fbbf24","#fb923c","#f87171","#c084fc","#60a5fa","#34d399","#a3e635",
+    ];
+    let wbColorIdx = 0;
+    for (const { wb, page } of wbSummary) {
+      const label = page > 0 ? `${wb} ${page}페이지` : wb;
+      const stylePreset = WB_STYLE_MAP[wb];
+      let bg, border, tc;
+      if (stylePreset) {
+        ({ bg, border, tc } = stylePreset);
+      } else {
+        const c = WB_COLORS[wbColorIdx % WB_COLORS.length]; wbColorIdx++;
+        bg = c + "22"; border = c + "88"; tc = c;
+      }
+      // pill 너비 계산
+      ctx.font = `700 10px ${FONT}`;
+      const tw = ctx.measureText(label).width;
+      const pw = tw + 18;
+      // 줄넘김
+      if (wbX + pw > LX + LEFT_W && wbX > LX) {
+        wbX = LX; wbCy += WB_PILL_H + WB_GAP_Y;
+      }
+      // pill 배경
+      ctx.fillStyle = bg;
+      rRect(ctx, wbX, wbCy, pw, WB_PILL_H, 10); ctx.fill();
+      ctx.strokeStyle = border; ctx.lineWidth = 1;
+      rRect(ctx, wbX, wbCy, pw, WB_PILL_H, 10); ctx.stroke();
+      // pill 텍스트
+      ctx.fillStyle = tc; ctx.textBaseline = "middle"; ctx.textAlign = "left";
+      ctx.fillText(label, wbX + 9, wbCy + WB_PILL_H / 2);
+      wbX += pw + WB_GAP_X;
     }
   }
 
@@ -892,6 +945,7 @@ export default function App() {
   const FREE_WB = new Set(["기본 제공","기본","헬다이버 출동!"]);
 
   const [randomResult,   setRandomResult]   = useState(null);
+  const [resultMode,     setResultMode]     = useState("default"); // 결과가 생성된 시점의 모드
   const [randomPending,  setRandomPending]  = useState(false);
   const [randomMode,     setRandomMode]     = useState("default"); // 선택 옵션
   // 조커: 재선택 대상 슬롯 ("strat0"~"strat3","armor","primary","secondary","throwable")
@@ -986,6 +1040,7 @@ export default function App() {
 
       // 조커: 결과를 받은 뒤 하나를 재선택할 수 있도록 저장
       setRandomResult(result);
+      setResultMode(randomMode);
       setRandomPending(false);
     }, 1200);
   };
@@ -1394,6 +1449,19 @@ export default function App() {
     if (hasVehicleAT)     roleTags.push({ label:"부분적 대전차(탑승물)", color:"#93c5fd" });
     if (hasVehicle)       roleTags.push({ label:"탑승물 운용",           color:C_VEHICLE });
 
+    // 궤도/이글/방어 subType 역할 분류 (선택된 스트라타젬 기준)
+    const hasOrb = selected.stratagem.some(it => it && s(getSubType(it)).includes("궤도"));
+    const hasEag = selected.stratagem.some(it => it && s(getSubType(it)).includes("이글"));
+    const hasDef = selected.stratagem.some(it => {
+      if (!it) return false;
+      const st = s(it?.stratType ?? "");
+      const sub = s(getSubType(it));
+      return st === "방어" && !["탑승물","지원무기","배낭","지원배낭 무기","일회용 지원무기"].includes(sub);
+    });
+    if (hasOrb) roleTags.push({ label:"함선 화력지원 요청", color:"#fca5a5" });
+    if (hasEag) roleTags.push({ label:"신속 화력지원 요청", color:"#fdba74" });
+    if (hasDef) roleTags.push({ label:"전투 보조지원 요청", color:"#6ee7b7" });
+
     /* ════════════════════════════════════════════
        구성 시너지
     ════════════════════════════════════════════ */
@@ -1444,6 +1512,7 @@ export default function App() {
       if (AREA_ORB_IDS.some(r => id.includes(r)))     return "구역 화력투사";
       if (LURE_IDS.some(r => id.includes(r)))         return "적 유인";
       if (SHIELD_IDS.some(r => id.includes(r)))       return "방어막";
+      if (id.includes("sh20") || id.includes("sh51")) return "전방 방어";  // fireformStrat에서 subNotes override
       if (BARRIER_IDS.some(r => id.includes(r)))      return "전방 방어";
       if (MOBILITY_IDS.some(r => id.includes(r)))     return "기동력, 지형 활용";
       if (CQC_IDS.some(r => id.includes(r)))          return "근접";
@@ -1479,6 +1548,10 @@ export default function App() {
     const armorPassive = s(selected.armor?.passive);
     const hasIdealBody = armorPassive === "이상적인 체형";
 
+    const isArmorRs = s(selected.armor?.id ?? "").toLowerCase().includes("ar_rs");
+    const hasSh20 = selected.stratagem.some(it => it && s(it?.id).toLowerCase().includes("st_bp_sh20"));
+    const hasSh51 = selected.stratagem.some(it => it && s(it?.id).toLowerCase().includes("st_bp_sh51"));
+
     const fireformGear = [];
     for (const k of ["primary","secondary","throwable"]) {
       const it = selected[k]; if (!it) continue;
@@ -1491,6 +1564,8 @@ export default function App() {
       const id = s(it?.id ?? "").toLowerCase();
       const subNotes = [];
       const traits = [s(it?.trait1),s(it?.trait2),s(it?.trait3)];
+      const hasExplosiveTrait = traits.includes("폭발성");
+      const hasOnehanded = traits.includes("한 손 파지");
       if (traits.some(t => t.includes("과열"))) {
         subNotes.push({ text:"과열시 관통 등급 향상", kind:"pos" });
         if (armorPassive === "인화성 물질") {
@@ -1498,6 +1573,23 @@ export default function App() {
         } else {
           subNotes.push({ text:"과열 피해", kind:"neg" });
         }
+      }
+      // 5번: ar_rs 방어구 + 폭발성 무기 → 레그돌 억제 / 향상된 레그돌 억제
+      if (isArmorRs && hasExplosiveTrait && k !== "throwable") {
+        if (hasSh20 && hasOnehanded) {
+          // 11번: sh20 + 한 손 파지 + 폭발성 → 향상된 레그돌 억제
+          subNotes.push({ text:"향상된 레그돌 억제", kind:"pos" });
+        } else {
+          subNotes.push({ text:"레그돌 억제", kind:"pos" });
+        }
+      }
+      // 7번: sh20/sh51 + 한 손 파지 → 전방 방어 서브노트
+      if ((hasSh20 || hasSh51) && hasOnehanded && k !== "throwable") {
+        subNotes.push({ text:"전방 방어", kind:"pos" });
+      }
+      // 8번: sh20 + 한 손 파지 아닌 무기(투척 제외) → 수납중 후방 보호
+      if (hasSh20 && !hasOnehanded && k !== "throwable") {
+        subNotes.push({ text:"수납중 후방 보호", kind:"pos" });
       }
       fireformGear.push({ label:GEAR_LABELS[k], name:s(it.name_ko||it.id), form, ergo, id, subNotes, passiveNotes:[] });
     }
@@ -1531,6 +1623,12 @@ export default function App() {
       }
     }
 
+    // 한 손 파지 무기 선택 여부 (투척 제외)
+    const hasOnehandedGear = ["primary","secondary"].some(k => {
+      const it = selected[k]; if (!it) return false;
+      return [s(it?.trait1),s(it?.trait2),s(it?.trait3)].includes("한 손 파지");
+    });
+
     const fireformStrat = [];
     for (const it of selected.stratagem) {
       if (!it) continue;
@@ -1546,6 +1644,23 @@ export default function App() {
       // 민주주의의 가호 + bp_b100 → 특수 메시지
       if (id.includes("bp_b100") && armorPassive === "민주주의의 가호")
         subNotes.push({ text:"당신은 민주주의를 믿나?", kind:"pos" });
+
+      // 9번: sh20 선택 + 한 손 파지 없음 → 전방 방어 대신 수납중 후방 보호
+      // 10번: sh51 선택 + 한 손 파지 없음 → 전방 방어 제거, 시너지 없음 표시
+      if (id.includes("st_bp_sh20")) {
+        if (hasOnehandedGear) {
+          subNotes.push({ text:"전방 방어", kind:"pos" });
+        } else {
+          subNotes.push({ text:"수납중 후방 보호", kind:"pos" });
+        }
+      } else if (id.includes("st_bp_sh51")) {
+        if (hasOnehandedGear) {
+          subNotes.push({ text:"전방 방어", kind:"pos" });
+        } else {
+          subNotes.push({ text:"시너지 장비가 없습니다.", kind:"neg" });
+        }
+      }
+
       // 호출 시간: stratType이 공격/방어 또는 subType이 탑승물인 경우
       const stratType  = s(it?.stratType ?? "");
       const stratSub   = s(it?.subType ?? it?.subtype ?? "");
@@ -1745,9 +1860,7 @@ export default function App() {
       // 사막 돌격대 / 적응력 → 모든 상태이상 피해 감소
       if (["사막 돌격대","적응력"].includes(armorPassive))
         armorPersonalNotes.push("모든 상태이상 피해 감소");
-      // 굳건한 바위 → 레그돌 억제
-      if (armorPassive === "굳건한 바위")
-        armorPersonalNotes.push("레그돌 억제");
+      // 굳건한 바위 → 레그돌 억제는 개인 목록 제거 (구성 시너지로 이동)
       // 보급 아드레날린 → 피해를 받을때 스태미나 회복
       if (armorPassive === "보급 아드레날린")
         armorPersonalNotes.push("피해를 받을때 스태미나 회복");
@@ -2075,7 +2188,7 @@ export default function App() {
                   <div className="loadoutMgmtBtns">
                     <button className="lBtn lBtnSave"       onClick={handleSaveLoadout}                         type="button">현재 로드아웃 저장</button>
                     <button className="lBtn lBtnManage"     onClick={()=>setManageModal(true)}                  type="button">저장된 로드아웃 관리</button>
-                    <button className="lBtn lBtnExport"     onClick={()=>exportLoadoutPng(captureRef,selected)} type="button">로드아웃 내보내기</button>
+                    <button className="lBtn lBtnExport"     onClick={()=>exportLoadoutPng(captureRef,selected,stats.wbSummary)} type="button">로드아웃 내보내기</button>
                   </div>
                   <button className="lBtn lBtnResetDanger" onClick={()=>setResetConfirm(true)}                type="button">선택 사항 초기화</button>
                 </div>
@@ -2149,8 +2262,8 @@ export default function App() {
               <div className="randomResult">
                 <div className="randomResultTitle">아래의 준비를 요청합니다.</div>
 
-                {/* 집착 — 선택된 분류 표시 */}
-                {randomMode === "obsession" && randomResult.obsessionType && (()=>{
+                {/* 집착 — 선택된 분류 표시 (결과 생성 시점이 obsession일 때만) */}
+                {resultMode === "obsession" && randomResult.obsessionType && (()=>{
                   const OBS_COLORS = {"공격":["#fe5f47","rgba(254,95,71,.15)","rgba(254,95,71,.40)"],"지원":["#bfe1f6","rgba(191,225,246,.15)","rgba(191,225,246,.40)"],"방어":["#d4edbc","rgba(212,237,188,.15)","rgba(212,237,188,.40)"]};
                   const [tc, bg, bc] = OBS_COLORS[randomResult.obsessionType] ?? ["#fff","rgba(255,255,255,.10)","rgba(255,255,255,.30)"];
                   return (
@@ -2160,8 +2273,8 @@ export default function App() {
                   );
                 })()}
 
-                {/* 조커 — 사용 안내 */}
-                {randomMode === "joker" && (
+                {/* 조커 — 사용 안내 (결과 생성 시점이 joker일 때만) */}
+                {resultMode === "joker" && (
                   <div className={`randomJokerHint ${jokerUsed ? "used" : ""}`}>
                     {jokerUsed
                       ? "✓ 교체 완료 — 이번 로드아웃의 슬롯 교체를 1회 사용했습니다."
@@ -2174,10 +2287,10 @@ export default function App() {
                   <div className="randomStratRow">
                     {randomResult.strats.map((it, i) => {
                       const slotKey = `strat${i}`;
-                      const isDisabled = !it && randomMode === "olddays";
+                      const isDisabled = !it && resultMode === "olddays";
                       const isEmpty = !it && !isDisabled;
-                      const isJokerActive = randomMode === "joker" && !jokerUsed;
-                      const isJokerSelected = randomMode === "joker" && jokerTarget === slotKey;
+                      const isJokerActive = resultMode === "joker" && !jokerUsed;
+                      const isJokerSelected = resultMode === "joker" && jokerTarget === slotKey;
                       const isFlashing = jokerFlash === slotKey;
                       return (
                         <div
@@ -2214,8 +2327,8 @@ export default function App() {
                       { label:"보조무기", key:"secondary", item:randomResult.secondary },
                       { label:"투척무기", key:"throwable", item:randomResult.throwable },
                     ].map(({ label, key, item }) => {
-                      const isJokerActive = randomMode === "joker" && !jokerUsed;
-                      const isJokerSelected = randomMode === "joker" && jokerTarget === key;
+                      const isJokerActive = resultMode === "joker" && !jokerUsed;
+                      const isJokerSelected = resultMode === "joker" && jokerTarget === key;
                       const isFlashing = jokerFlash === key;
                       return (
                         <div

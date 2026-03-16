@@ -314,12 +314,12 @@ export default function PickerModal({
 
   const itemsByOwnership = useMemo(() => items.filter(it => {
     const wb = getWB(it);
-    if (isSuperStore(it))          return filters.includeSuperStore; // 토글로 표시/숨김
-    if (isSuperCitizen(it))        return filters.includeSuperCitizen;
+    if (isSuperStore(it))          return true;   // 항상 표시
+    if (isSuperCitizen(it))        return true;   // 항상 표시
     if (WB_ALWAYS_INCLUDE.has(wb)) return true;
     if (!wb)                       return true;
     return filters.ownedWb.has(wb);
-  }), [items, filters.includeSuperStore, filters.includeSuperCitizen, filters.ownedWb, isStratagemMode]);
+  }), [items, filters.ownedWb, isStratagemMode]);
 
   const filterOptions = useMemo(() => {
     if (isStratagemMode) return {};
@@ -474,8 +474,7 @@ export default function PickerModal({
     filters.ownedWb.size < wbOptions.length
     || (isArmorMode && (filters.armorValue.size>0 || filters.passive.size>0))
     || (isWeapon   && (filters.armorPen.size>0   || filters.traits.size>0 || filters.weaponType.size>0))
-    || (isStratagemMode && filters.stratSubType.size>0)
-    || (!isStratagemMode && !filters.includeSuperStore) || filters.includeSuperCitizen;
+    || (isStratagemMode && filters.stratSubType.size>0);
 
   const hasBackpackWeaponSelected = useMemo(() => {
     if (!isStratagemMode) return false;
@@ -574,7 +573,6 @@ export default function PickerModal({
                 <FilterGroup title="장갑 등급" options={filterOptions.armorValue??[]} selected={filters.armorValue} onToggle={v=>togSet("armorValue",v)} />
                 <FilterGroup title="패시브"    options={filterOptions.passive??[]}    selected={filters.passive}    onToggle={v=>togSet("passive",v)} />
                 <div className="filterFooter">
-                  <button className={`filterSuperToggle ${filters.includeSuperStore?"on":""}`} onClick={togSuper} type="button">{filters.includeSuperStore ? "슈퍼 스토어 아이템 숨기기" : "슈퍼 스토어 아이템 포함하기"}</button>
                   <button className="filterResetBtn" onClick={resetAll} type="button">필터 선택 초기화</button>
                 </div>
               </>
@@ -587,10 +585,6 @@ export default function PickerModal({
                 <FilterGroup title="장갑 관통" options={filterOptions.armorPen??[]} selected={filters.armorPen} onToggle={v=>togSet("armorPen",v)} />
                 <FilterGroup title="특성"      options={filterOptions.traits??[]}   selected={filters.traits}   onToggle={v=>togSet("traits",v)} />
                 <div className="filterFooter">
-                  {slotKind==="primary" && (
-                    <button className={`filterSuperCitizenToggle ${filters.includeSuperCitizen?"on":""}`} onClick={togSuperCitizen} type="button">슈퍼 시민권 에디션 업그레이드</button>
-                  )}
-                  <button className={`filterSuperToggle ${filters.includeSuperStore?"on":""}`} onClick={togSuper} type="button">{filters.includeSuperStore ? "슈퍼 스토어 아이템 숨기기" : "슈퍼 스토어 아이템 포함하기"}</button>
                   <button className="filterResetBtn" onClick={resetAll} type="button">필터 선택 초기화</button>
                 </div>
               </>
@@ -717,7 +711,7 @@ export default function PickerModal({
                       const active = pickedId!=null && String(it.id)===String(pickedId);
                       return (
                         <button key={it.id}
-                          className={`pickCard ${active?"active":""} ${isSuperStore(it)?"superItem":""} ${isSuperCitizen(it)?"superCitizenItem":""} ${String(it.id)==="sm_mp98"?"glowItem":""}`}
+                          className={`pickCard ${active?"active":""} ${isSuperStore(it)?"superItem":""} ${isSuperCitizen(it)?"superCitizenItem":""} ${String(it.id)==="pr_sm_mp98"?"glowItem":""}`}
                           onClick={()=>onPick(it)} type="button"
                         >
                           <div className="pickThumb">
@@ -726,6 +720,9 @@ export default function PickerModal({
                           <div className="pickText">
                             <div className="pickName">{s(it.name_ko)||it.id}</div>
                             <div className="pickDesc">{it.desc||""}</div>
+                            {isSuperCitizen(it) && (
+                              <div className="pickUnlock" style={{color:"#fee800"}}>슈퍼 시민 에디션 업그레이드에 포함</div>
+                            )}
                             {isSuperStore(it) && it.unlock!=null && it.unlock!=="" && (
                               <div className="pickUnlock">{String(it.unlock)}</div>
                             )}
