@@ -6,7 +6,7 @@ const WB_ORDER = [
   "독사 특공대","자유의 불꽃","화학 요원","진리의 집행자","도시 전설",
   "자유의 종복","정의의 경계선","의장의 달인","법의 위력","대조군",
   "먼지 폭풍","금사 특공대","존재하지 않는 부대","공성 파괴자",
-  "민주적 궤도 강하 타격대","정의로운 망령",
+  "민주적 궤도 강하 타격대","정의로운 망령","견고한 참호 사단",
 ];
 function sortWbList(list) {
   return [...list].sort((a, b) => {
@@ -42,6 +42,7 @@ const WB_STYLES = {
   "민주적 궤도 강하 타격대":{ color:"#ffffff", background:"#081c28", borderColor:"#fbfbaa" },
   "정의로운 망령":          { color:"#ffffff", background:"#1e1d1b", borderColor:"#fbee6b" },
   "슈퍼시민권 업그레이드":  { color:"#fee800", background:"#000000", borderColor:"#fee800" },
+  "견고한 참호 사단":       { color:"#c7b243", background:"#040200", borderColor:"#978642" },
 };
 function getWbFilterStyle(wb, active) {
   const st = WB_STYLES[wb];
@@ -59,12 +60,13 @@ function getWbFilterStyle(wb, active) {
       opacity: 1,
     };
   }
-  // 비활성: 회색 처리
+  // 비활성: 고유 색상 유지하되 opacity 낮춤
   return {
-    color:      "rgba(255,255,255,.35)",
-    background: "rgba(255,255,255,.05)",
-    borderColor:"rgba(255,255,255,.10)",
-    opacity: 0.55,
+    color:      st.color,
+    background: st.background,
+    borderColor:st.borderColor ?? "transparent",
+    textShadow: "none",
+    opacity: 0.40,
   };
 }
 
@@ -715,7 +717,7 @@ export default function PickerModal({
                           onClick={()=>onPick(it)} type="button"
                         >
                           <div className="pickThumb">
-                            <ItemIcon item={it} style={{ width:"100%", height:"100%", objectFit:"contain" }} />
+                            <ItemIcon item={it} style={{ width:"100%", height:"100%", objectFit:"contain", objectPosition:"center" }} />
                           </div>
                           <div className="pickText">
                             <div className="pickName">{s(it.name_ko)||it.id}</div>

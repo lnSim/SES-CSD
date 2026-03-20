@@ -412,6 +412,7 @@ async function exportLoadoutPng(captureRef, selected, wbSummary=[]) {
         "정의로운 망령":           { bg:"#1e1d1b", border:"#fbee6b",               tc:"#ffffff" },
         "슈퍼시민권 업그레이드":   { bg:"#000000", border:"#fee800",               tc:"#fee800" },
         "슈퍼스토어 구매":         { bg:"#001c2e", border:"rgba(0,246,255,.65)",   tc:"#00f6ff" },
+        "견고한 참호 사단":        { bg:"#040200", border:"#978642",               tc:"#c7b243" },
       };
       const fallbackColors = ["#f7f352","#fb923c","#f87171","#c084fc","#60a5fa","#34d399"];
       let fbIdx = 0;
@@ -589,7 +590,7 @@ const WB_ORDER = [
   "독사 특공대","자유의 불꽃","화학 요원","진리의 집행자","도시 전설",
   "자유의 종복","정의의 경계선","의장의 달인","법의 위력","대조군",
   "먼지 폭풍","금사 특공대","존재하지 않는 부대","공성 파괴자",
-  "민주적 궤도 강하 타격대","정의로운 망령",
+  "민주적 궤도 강하 타격대","정의로운 망령","견고한 참호 사단",
 ];
 function sortByWbOrder(entries) {
   return [...entries].sort(([a],[b]) => {
@@ -625,6 +626,8 @@ const WB_STYLES = {
   "정의로운 망령":         { color:"#ffffff", background:"#1e1d1b", borderColor:"#fbee6b"              },
   "슈퍼시민권 업그레이드":  { color:"#fee800", background:"#000000", borderColor:"#fee800"              },
   "슈퍼스토어 구매":        { color:"#00f6ff", background:"#001c2e", borderColor:"rgba(0,246,255,.65)", textShadow:"0 0 8px rgba(0,246,255,.5)" },
+  "견고한 참호 사단":       { color:"#c7b243", background:"#040200", borderColor:"#978642"              },
+  "견고한 참호 사단":       { color:"#c7b243", background:"#040200", borderColor:"#978642"              },
 };
 function getWbBadgeStyle(wb) {
   return WB_STYLES[wb] ?? { color:"rgba(255,255,255,.8)", background:"rgba(255,255,255,.07)", borderColor:"rgba(255,255,255,.18)" };
@@ -1152,14 +1155,7 @@ export default function App() {
         const merged=[defaultPreset,...userList];
         setSavedLoadouts(merged);
 
-        /* 마지막 사용 로드아웃 복원 */
-        const lastId=stored?.lastId;
-        if (lastId && lastId!=="__default__") {
-          const found=merged.find(l=>l.id===lastId);
-          if (found) { setSelected({...found.selected}); setActiveLoadoutId(lastId); return; }
-        }
-        /* 기본 제공 로드아웃 자동 선택
-           — lastId가 없거나, "__default__"이거나, 찾을 수 없는 경우 모두 해당 */
+        /* 새로고침 시 항상 기본 제공 로드아웃으로 시작 */
         setSelected({
           stratagem:[...defSel.stratagem],
           armor:    defSel.armor,
@@ -1234,7 +1230,7 @@ export default function App() {
     ════════════════════════════════════════════ */
     const SUPPORT_WEAPON_SUBTYPES = new Set(["지원무기","일회용 지원무기","지원배낭 무기"]);
 
-    const AT_EXCLUDE_IDS = ["sp_g4","g123","cqc20","sw_arc","bp_b100","gp20","bp_ax9","ep_at12","ep_md8",
+    const AT_EXCLUDE_IDS = ["th_sp_gas4","g123","cqc20","sw_arc","bp_b100","gp20","bp_ax9","ep_at12","ep_md8",
       "sw_tx41","bp_ax13"];  // 가스 지원무기/배낭: rolePen 계산 제외 (전투보조만 표시)
     // 대전차 전담을 부분적으로 강등시키는 아이템 (gp20 제외 — 대전차 전담 유지)
     const DEMOTE_AT_IDS  = ["g123","las99","stax3","500kg","orb_rc","orb_ls","orb_ps","cqc20","sw_arc","bp_b100","ep_at12"];
@@ -1270,6 +1266,11 @@ export default function App() {
       }
     }
 
+    const throwableIt  = selected.throwable;
+    const throwableId  = throwableIt ? s(throwableIt?.id).toLowerCase() : "";
+    const throwableRaw = throwableIt ? s(throwableIt?.armorPen) : "";
+    const throwablePen = (throwableRaw && throwableRaw !== "비살상") ? (Number(throwableRaw)||0) : 0;
+
     let weaponMaxPen = 0;
     for (const k of ["primary","secondary"]) {
       const it = selected[k]; if (!it) continue;
@@ -1281,17 +1282,20 @@ export default function App() {
       const n = Number(raw);
       if (!isNaN(n) && n > weaponMaxPen) weaponMaxPen = n;
     }
+    // 투척무기는 weaponMaxPen에 반영하지 않음 — grenadeTag로 별도 처리
 
-    const throwableIt  = selected.throwable;
-    const throwableId  = throwableIt ? s(throwableIt?.id).toLowerCase() : "";
-    const throwableRaw = throwableIt ? s(throwableIt?.armorPen) : "";
-    const throwablePen = (throwableRaw && throwableRaw !== "비살상") ? (Number(throwableRaw)||0) : 0;
-    const hasGrenadePartialMed = throwableIt && (
-      (throwableId.includes("th_")
-        && throwablePen > 0 && throwablePen <= 4
+    // 수류탄 역할 태그 분류
+    const isThrowableGrenade = throwableIt && throwableId.startsWith("th_");
+    const hasGrenadeAT      = isThrowableGrenade && throwablePen >= 5
+      && !GRENADE_PARTIAL_MED_EXCLUDE.some(ex => throwableId.includes(ex));
+    const hasGrenadePartialMed = isThrowableGrenade && !hasGrenadeAT && (
+      (throwablePen === 4
         && !GRENADE_PARTIAL_MED_EXCLUDE.some(ex => throwableId.includes(ex)))
       || GRENADE_PARTIAL_MED_FORCE.some(f => throwableId.includes(f))
     );
+    const hasGrenadeSmall = isThrowableGrenade && !hasGrenadeAT && !hasGrenadePartialMed
+      && throwablePen >= 2 && throwablePen <= 3
+      && !GRENADE_PARTIAL_MED_EXCLUDE.some(ex => throwableId.includes(ex));
 
     let stratOtherMaxPen = 0;
     for (const it of selected.stratagem) {
@@ -1430,6 +1434,12 @@ export default function App() {
     const grenadeTag = hasGrenadePartialMed
       ? { label:LBL_PMED, color:C_MED }
       : null;
+    const grenadeSmallTag = hasGrenadeSmall
+      ? { label:LBL_SMALL, color:C_SMALL }
+      : null;
+    const grenadeATTag = hasGrenadeAT
+      ? { label:LBL_PAT, color:C_PAT }
+      : null;
 
     const hasPartialMedStrat = selected.stratagem.some(it => {
       if (!it) return false;
@@ -1444,7 +1454,20 @@ export default function App() {
     if (extraWeaponTag)  roleCandidates.push(extraWeaponTag);
     if (mainRoleTag)     roleCandidates.push(mainRoleTag);
     if (grenadeTag) {
-      if (!roleCandidates.some(t => t.label===LBL_MED)) roleCandidates.push(grenadeTag);
+      // 지원무기/무기로 이미 MED 이상이 커버되면 수류탄 태그 불필요
+      const alreadyCoveredByWeapon = rolePen >= 4;
+      if (!alreadyCoveredByWeapon && !roleCandidates.some(t => t.label===LBL_MED))
+        roleCandidates.push(grenadeTag);
+    }
+    if (grenadeSmallTag) {
+      const alreadyCovered = rolePen >= 2;
+      if (!alreadyCovered && !roleCandidates.some(t => t.label===LBL_SMALL || t.label===LBL_MED))
+        roleCandidates.push(grenadeSmallTag);
+    }
+    if (grenadeATTag) {
+      // 이미 대전차 이상이 커버되면 불필요
+      if (!roleCandidates.some(t => t.label===LBL_AT || t.label===LBL_PAT))
+        roleCandidates.push(grenadeATTag);
     }
     if (partialMedStratTag) {
       if (!roleCandidates.some(t => t.label === LBL_PMED))
@@ -1509,10 +1532,10 @@ export default function App() {
     /* ════════════════════════════════════════════
        구성 시너지
     ════════════════════════════════════════════ */
-    const RANGE_IDS         = ["sg8p","plas101","g4","plas15"];
+    const RANGE_IDS         = ["sg8p","plas101","plas15"];
     const BARRAGE_IDS       = ["mp98","p19","las16","las17","mg105","mg101","m1000","m105","st_g16"];
     const PRECISE_IDS       = ["dm_r2124","dm_r63","en_las5","dm_r63cs","ps_p4","dm_r6","dm_r2","plas39","dm_r72","las98","sw_apw1"];
-    const AREA_CC_IDS       = ["sp_g4","orb_gs","orb_ss","sp_g23","orb_ems"];
+    const AREA_CC_IDS       = ["th_sp_gas4","orb_gs","orb_ss","sp_g23","orb_ems"];
     const STOP_IDS          = ["sp_p35","sp_g109","ar23c","ar32","smg72","sp_k2","sg20","arc-12","sg_sg8","sg_sg8s","sg_sg451","sg_sg20","sg_m90a"];
     const CQC_IDS           = ["cqc"];
     const SINGLE_ENTITY_IDS = ["faf14","stax3"];
@@ -1544,6 +1567,18 @@ export default function App() {
       const wt     = s(it?.weaponType);
       const traits = [s(it?.trait1), s(it?.trait2), s(it?.trait3)];
       const hasExplosive = traits.includes("폭발성");
+
+      // 투척무기(th_ prefix): 항상 범위형 (가스/기절 예외)
+      if (id.startsWith("th_")) {
+        const hasGas     = traits.includes("가스");
+        const hasStun    = traits.includes("기절");
+        const isDecoy    = id.includes("tm1");      // TM-1 유인 지뢰
+        const isShield   = traits.includes("방어막");
+        if (hasGas || hasStun) return "범위 CC";
+        if (isShield)          return "방어막";
+        if (isDecoy)           return "적 유인";
+        return "범위형";
+      }
 
       for (const [vid, vlabel] of Object.entries(VEHICLE_SYNERGY)) {
         if (id.includes(vid)) return vlabel;
@@ -1815,7 +1850,7 @@ export default function App() {
       }
       // ── 고급 여과 → 가스 피해 감소 (특정 ID)
       if (armorPassive === "고급 여과") {
-        const GAS_IDS = ["sp_g4","orb_gs","sw_tx41","bp_ax13","sw_s11","ep_md8"];
+        const GAS_IDS = ["th_sp_gas4","orb_gs","sw_tx41","bp_ax13","sw_s11","ep_md8"];
         if (GAS_IDS.some(r => itId.includes(r))) posNotes.push("가스 피해 감소");
       }
       // ── 결연함 → 1인칭 피격 흔들림 감소 (주무기, 보조무기, 지원무기 / 스트라타젬 제외)
@@ -1839,6 +1874,21 @@ export default function App() {
       // ── 전도성 / 아드레노-제세동기 → 아크 피해 감소 (아크 특성, en_arc12·sw_arc 제외)
       if (["전도성","아드레노-제세동기"].includes(armorPassive)) {
         if (hasTrait(it, "아크") && !itId.includes("en_arc12") && !itId.includes("sw_arc")) posNotes.push("아크 피해 감소");
+      }
+      // ── 충격 방지 패드, 척탄병 → 폭발 피해 감소(폭발성), 수류탄 추가 보유(투척)
+      if (armorPassive === "충격 방지 패드, 척탄병") {
+        if (hasTrait(it, "폭발성")) posNotes.push("폭발 피해 감소");
+        if (isThrowable)            posNotes.push("투입시 추가 보유", "최대 소지량");
+      }
+      // ── 충격 방지 패드, 위험물 → 폭발 피해 감소(폭발성), 가스 피해 감소(가스), 반동 감소(보조무기)
+      if (armorPassive === "충격 방지 패드, 위험물") {
+        if (hasTrait(it, "폭발성")) posNotes.push("폭발 피해 감소");
+        if (hasTrait(it, "가스"))   posNotes.push("가스 피해 감소");
+        if (isSecondary)            posNotes.push("반동 감소");
+      }
+      // ── 충격 방지 패드, 강화 버전 → 폭발 피해 감소(폭발성)
+      if (armorPassive === "충격 방지 패드, 강화 버전") {
+        if (hasTrait(it, "폭발성")) posNotes.push("폭발 피해 감소");
       }
       return posNotes.map(t => ({ text: t, kind:"pos" }));
     }
@@ -1914,6 +1964,12 @@ export default function App() {
       // 강화된 견장 → 확률적 사지 부상 방지
       if (armorPassive === "강화된 견장")
         armorPersonalNotes.push("확률적 사지 부상 방지");
+      // 충격 방지 패드 3종 공통 → 폭발 피해 50% 감소
+      if (["충격 방지 패드, 척탄병","충격 방지 패드, 위험물","충격 방지 패드, 강화 버전"].includes(armorPassive))
+        armorPersonalNotes.push("폭발 피해 50% 감소");
+      // 충격 방지 패드, 강화 버전 → 장갑 등급 +30
+      if (armorPassive === "충격 방지 패드, 강화 버전")
+        armorPersonalNotes.push("장갑 등급 +30");
     }
     // 문자열을 pos kind 객체로 정규화
     const normalizedPersonalNotes = armorPersonalNotes.map(n =>
@@ -1992,9 +2048,19 @@ export default function App() {
     setSaveModal({ open:false, name:"" });
   }
   function handleLoadLoadout(entry) {
-    setSelected(entry.selected);
+    // 저장된 id 기반으로 최신 GAS 아이템 데이터로 재매핑 (태그 등 업데이트 반영)
+    const byId = new Map(items.map(it => [it.id, it]));
+    const remapItem = (it) => it ? (byId.get(String(it.id)) ?? it) : null;
+    const remapped = {
+      stratagem: (entry.selected.stratagem ?? [null,null,null,null]).map(remapItem),
+      armor:     remapItem(entry.selected.armor),
+      primary:   remapItem(entry.selected.primary),
+      secondary: remapItem(entry.selected.secondary),
+      throwable: remapItem(entry.selected.throwable),
+    };
+    setSelected(remapped);
     setActiveLoadoutId(entry.id);
-    persistList(savedLoadouts,entry.id);
+    persistList(savedLoadouts, entry.id);
     setManageModal(false);
   }
   function requestDelete(id) { setDeleteConfirm(id); }

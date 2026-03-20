@@ -52,9 +52,9 @@ const PASSIVE_DESC = {
   "적응력":           "상태이상 피해 50% 감소",
   "신호 감소":        "소음 범위 50% 감소, 적 탐지 범위 40% 감소",
   "보급 아드레날린":  "피해를 받으면 스태미나 회복, 장갑 등급 +25",
-  "충격 방지 패드, 척탄병":   "폭발 피해 50% 감소, 수류탄 초기/최대 수량 2개 증가",
-  "충격 방지 패드, 위험물":   "폭발 피해 50% 감소, 가스 피해 25% 감소, 보조무기 반동 30% 감소",
-  "충격 방지 패드, 강화 버전":"폭발 피해 50% 감소, 장갑 등급 +30",
+  "충격 방지 패드, 척탄병":   "낙하 피해 감소, 수류탄 초기/최대 수량 증가",
+  "충격 방지 패드, 위험물":   "낙하 피해 감소, 폭발 피해 감소",
+  "충격 방지 패드, 강화 버전":"낙하 피해 감소, 장갑 등급 증가",
 };
 
 const TRAIT_BG = {
@@ -102,7 +102,7 @@ function getArmorPenInfo(it) {
   // armorPen이 "가스"이면 관통 태그 미표시 — 단 sw_s11, sp_p35는 예외
   if (raw==="가스" && !id.includes("sw_s11") && !id.includes("sp_p35")) return null;
   // G-4 가스 수류탄만 관통 등급 태그 미표시 (id 정확 매칭)
-  if (id === "th_sp_gas4") return null;
+  if (id === "th_sp_g4") return null;
   return { label:ARMOR_PEN_LABEL[raw]||raw, ...(ARMOR_PEN_STYLE[raw]||{bg:"#333",color:"#fff"}) };
 }
 function getWeaponTraits(it) {

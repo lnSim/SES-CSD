@@ -841,7 +841,8 @@ body {
 .pickCard.superItem { border-color:rgba(0,246,255,.45); box-shadow:0 0 8px rgba(0,246,255,.25), 0 0 20px rgba(0,246,255,.12); }
 .pickCard.superItem:hover { border-color:rgba(0,246,255,.75); box-shadow:0 0 12px rgba(0,246,255,.45), 0 0 28px rgba(0,246,255,.22); }
 .pickCard.superItem.active { border-color:rgba(0,246,255,.90); box-shadow:0 0 16px rgba(0,246,255,.60), 0 0 36px rgba(0,246,255,.30); }
-.pickThumb { width:96px; height:96px; justify-self:center; align-self:center; border-radius:12px; background:rgba(0,0,0,.20); border:1px solid rgba(255,255,255,.08); display:grid; place-items:center; overflow:hidden; }
+.pickThumb { width:96px; height:96px; justify-self:center; align-self:center; border-radius:12px; background:rgba(0,0,0,.20); border:1px solid rgba(255,255,255,.08); display:grid; place-items:center; overflow:hidden; flex-shrink:0; }
+.pickThumb img { width:100%; height:100%; object-fit:contain; object-position:center; display:block; }
 .pickText  { min-width:0; }
 .pickName  { font-weight:800; font-size:clamp(14px,1.5vw,18px); line-height:1.1; }
 .pickDesc  { margin-top:4px; color:rgba(255,255,255,.75); font-size:clamp(11px,1.1vw,13px); line-height:1.25; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
