@@ -1539,7 +1539,7 @@ export default function App() {
     const STOP_IDS          = ["sp_p35","sp_g109","ar23c","ar32","smg72","sp_k2","sg20","arc-12","sg_sg8","sg_sg8s","sg_sg451","sg_sg20","sg_m90a"];
     const CQC_IDS           = ["cqc"];
     const SINGLE_ENTITY_IDS = ["faf14","stax3"];
-    const FORCE_RANGE_IDS   = ["gl52","eat700","bp_flam","sw_flam","sp_flam","bflam80","p72"];
+    const FORCE_RANGE_IDS   = ["gl52","eat700","bp_flam","sw_flam","sp_flam","p72"];
     const FORCE_SINGLE_IDS  = ["sg451","st_mls4x","g123"];
     // 신규: 단일|탄막형
     const DUAL_BARRAGE_IDS  = ["sw_ac8"];
@@ -1599,7 +1599,6 @@ export default function App() {
       if (STOP_IDS.some(r => id.includes(r)))         return "대상 저지";
       if (SINGLE_ENTITY_IDS.some(r => id.includes(r))) return "단일 대상";
       if (DUAL_BARRAGE_IDS.some(r => id.includes(r))) return "단일 | 탄막형";
-      if (id.includes("smg34"))                        return "단일 | 범위형(하단 화염방사기 한정)";
       if (FORCE_RANGE_IDS.some(r => id.includes(r)))  return "범위형";
       if (FORCE_SINGLE_IDS.some(r => id.includes(r))) return "단일 대상";
       if (id.includes("mg43")) return id.includes("sw_") ? "탄막형" : "단일 대상";
@@ -1671,6 +1670,14 @@ export default function App() {
       if (hasSh20 && !hasOnehanded && k !== "throwable") {
         subNotes.push({ text:"수납중 후방 보호", kind:"pos" });
       }
+      // 인화성 물질 → 화염 피해 감소 (소이 특성 + 범위형 계열 form)
+      if (armorPassive === "인화성 물질") {
+        const soiForm = s(form);
+        const isFlamId = ["sw_flam","sp_flam","st_flam","bflam80","smg34"].some(r => id.includes(r));
+        if (traits.includes("소이") &&
+            (soiForm.includes("범위형") || soiForm.includes("횡방향 화력투사") || soiForm.includes("구역 화력투사") || isFlamId))
+          subNotes.push({ text:"화염 피해 감소", kind:"pos" });
+      }
       fireformGear.push({ label:GEAR_LABELS[k], name:s(it.name_ko||it.id), form, ergo, id, subNotes, passiveNotes:[] });
     }
     // 지원무기가 스트라타젬에 있으면 지원무기 종류도 개인장비 열에 표시
@@ -1699,6 +1706,14 @@ export default function App() {
           }
         }
         // 민주주의의 가호 + bp_b100 → 특수 메시지 (스트라타젬 열에서 처리)
+        // 인화성 물질 → 화염 피해 감소 (소이 특성 + 범위형 계열 form)
+        if (armorPassive === "인화성 물질") {
+          const soiForm = s(form);
+          const isFlamId = ["sw_flam","sp_flam","st_flam","bflam80","ax75"].some(r => id.includes(r));
+          if (supportTraits.includes("소이") &&
+              (soiForm.includes("범위형") || soiForm.includes("횡방향 화력투사") || soiForm.includes("구역 화력투사") || isFlamId))
+            subNotes.push({ text:"화염 피해 감소", kind:"pos" });
+        }
         fireformGear.push({ label:"지원무기", name:s(it.name_ko||it.id), form, ergo, id, subNotes, passiveNotes:[] });
       }
     }
@@ -1841,13 +1856,6 @@ export default function App() {
       if (armorPassive === "이상적인 체형") {
         if ((isPrimary || isSecondary || isSupportRow) && rowErgo !== "투척")
           posNotes.push("핸들링 향상");
-      }
-      // ── 인화성 물질 → 화염 피해 감소 (소이 특성 보유 + 해당 무기 자체가 소이 관련 form)
-      if (armorPassive === "인화성 물질") {
-        const soiForm = s(rowForm);
-        if (hasTrait(it, "소이") &&
-            (soiForm.includes("범위형") || soiForm.includes("횡방향 화력투사") || soiForm.includes("구역 화력투사")))
-          posNotes.push("화염 피해 감소");
       }
       // ── 고급 여과 → 가스 피해 감소 (특정 ID)
       if (armorPassive === "고급 여과") {
