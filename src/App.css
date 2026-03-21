@@ -1024,17 +1024,25 @@ body {
   .modalCard:has(.filterPanel) .stratPreviewBar {
     display:none;
   }
-  /* modalCard가 필터 스크롤을 막지 않도록 */
+  /* modalCard: 필터 열렸을 때도 정상 flex column 유지, 높이 제한 */
   .modalCard:has(.filterPanel) {
-    overflow:visible;
-    max-height:none;
+    overflow:hidden;
+    max-height:92vh;
+    display:flex;
+    flex-direction:column;
   }
-  /* 필터 패널: 독립 스크롤 + 전체 뷰포트 활용 */
+  /* 필터 패널: flex:1로 남은 공간 채우고 독립 스크롤 */
   .modalCard:has(.filterPanel) .filterPanel {
-    max-height:calc(100dvh - 56px);
+    flex:1;
+    max-height:none;
     overflow-y:auto;
     -webkit-overflow-scrolling:touch;
     overscroll-behavior:contain;
+  }
+  /* 모달 헤더/검색창은 flex-shrink:0 유지 */
+  .modalCard:has(.filterPanel) .modalHeader,
+  .modalCard:has(.filterPanel) .modalSearchBar {
+    flex-shrink:0;
   }
 }
 

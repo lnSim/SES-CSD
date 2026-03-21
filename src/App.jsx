@@ -1238,7 +1238,7 @@ export default function App() {
     const PARTIAL_AT_IDS = [...DEMOTE_AT_IDS, "gp20"];
     const AT_SUPPORT_IDS = ["gr8","faf14","rr_","spear"];
 
-    const FORCE_SMALL_IDS              = ["sw_flam","sp_flam","st_flam","p72"];
+    const FORCE_SMALL_IDS              = ["sw_flam","sp_flam","st_flam","bp_flam","p72"];
     const ERGO_FORCE_THROW_IDS         = ["sw_c4"];  // 지원무기 중 "투척" ergo 강제 표시
     const ROLE_SUPPRESS_IDS            = [];    // 개별 처리로 전환
     const GRENADE_PARTIAL_MED_EXCLUDE  = ["k2"];
@@ -1964,12 +1964,9 @@ export default function App() {
       // 강화된 견장 → 확률적 사지 부상 방지
       if (armorPassive === "강화된 견장")
         armorPersonalNotes.push("확률적 사지 부상 방지");
-      // 충격 방지 패드 3종 공통 → 폭발 피해 50% 감소
-      if (["충격 방지 패드, 척탄병","충격 방지 패드, 위험물","충격 방지 패드, 강화 버전"].includes(armorPassive))
-        armorPersonalNotes.push("폭발 피해 50% 감소");
-      // 충격 방지 패드, 강화 버전 → 장갑 등급 +30
+      // 충격 방지 패드, 강화 버전 → 받는 피해 감소 (추가 완충제와 동일)
       if (armorPassive === "충격 방지 패드, 강화 버전")
-        armorPersonalNotes.push("장갑 등급 +30");
+        armorPersonalNotes.push("받는 피해 감소");
     }
     // 문자열을 pos kind 객체로 정규화
     const normalizedPersonalNotes = armorPersonalNotes.map(n =>
