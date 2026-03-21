@@ -1238,7 +1238,7 @@ export default function App() {
     const PARTIAL_AT_IDS = [...DEMOTE_AT_IDS, "gp20"];
     const AT_SUPPORT_IDS = ["gr8","faf14","rr_","spear"];
 
-    const FORCE_SMALL_IDS              = ["sw_flam","sp_flam","st_flam","bp_flam","p72"];
+    const FORCE_SMALL_IDS              = ["sw_flam","sp_flam","st_flam","p72"];
     const ERGO_FORCE_THROW_IDS         = ["sw_c4"];  // 지원무기 중 "투척" ergo 강제 표시
     const ROLE_SUPPRESS_IDS            = [];    // 개별 처리로 전환
     const GRENADE_PARTIAL_MED_EXCLUDE  = ["k2"];
@@ -1539,7 +1539,7 @@ export default function App() {
     const STOP_IDS          = ["sp_p35","sp_g109","ar23c","ar32","smg72","sp_k2","sg20","arc-12","sg_sg8","sg_sg8s","sg_sg451","sg_sg20","sg_m90a"];
     const CQC_IDS           = ["cqc"];
     const SINGLE_ENTITY_IDS = ["faf14","stax3"];
-    const FORCE_RANGE_IDS   = ["gl52","eat700","bp_flam","sw_flam","sp_flam","p72"];
+    const FORCE_RANGE_IDS   = ["gl52","eat700","bp_flam","sw_flam","sp_flam","bflam80","p72"];
     const FORCE_SINGLE_IDS  = ["sg451","st_mls4x","g123"];
     // 신규: 단일|탄막형
     const DUAL_BARRAGE_IDS  = ["sw_ac8"];
@@ -1599,6 +1599,7 @@ export default function App() {
       if (STOP_IDS.some(r => id.includes(r)))         return "대상 저지";
       if (SINGLE_ENTITY_IDS.some(r => id.includes(r))) return "단일 대상";
       if (DUAL_BARRAGE_IDS.some(r => id.includes(r))) return "단일 | 탄막형";
+      if (id.includes("smg34"))                        return "단일 | 범위형(하단 화염방사기 한정)";
       if (FORCE_RANGE_IDS.some(r => id.includes(r)))  return "범위형";
       if (FORCE_SINGLE_IDS.some(r => id.includes(r))) return "단일 대상";
       if (id.includes("mg43")) return id.includes("sw_") ? "탄막형" : "단일 대상";
@@ -1964,9 +1965,12 @@ export default function App() {
       // 강화된 견장 → 확률적 사지 부상 방지
       if (armorPassive === "강화된 견장")
         armorPersonalNotes.push("확률적 사지 부상 방지");
-      // 충격 방지 패드, 강화 버전 → 받는 피해 감소 (추가 완충제와 동일)
+      // 충격 방지 패드 3종 공통 → 폭발 피해 50% 감소
+      if (["충격 방지 패드, 척탄병","충격 방지 패드, 위험물","충격 방지 패드, 강화 버전"].includes(armorPassive))
+        armorPersonalNotes.push("폭발 피해 50% 감소");
+      // 충격 방지 패드, 강화 버전 → 장갑 등급 +30
       if (armorPassive === "충격 방지 패드, 강화 버전")
-        armorPersonalNotes.push("받는 피해 감소");
+        armorPersonalNotes.push("장갑 등급 +30");
     }
     // 문자열을 pos kind 객체로 정규화
     const normalizedPersonalNotes = armorPersonalNotes.map(n =>
