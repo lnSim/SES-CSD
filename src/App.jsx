@@ -1670,13 +1670,19 @@ export default function App() {
       if (hasSh20 && !hasOnehanded && k !== "throwable") {
         subNotes.push({ text:"수납중 후방 보호", kind:"pos" });
       }
-      // 인화성 물질 → 화염 피해 감소 (소이 특성 + 범위형 계열 form)
-      if (armorPassive === "인화성 물질") {
-        const soiForm = s(form);
-        const isFlamId = ["sw_flam","sp_flam","st_flam","bflam80","smg34"].some(r => id.includes(r));
-        if (traits.includes("소이") &&
-            (soiForm.includes("범위형") || soiForm.includes("횡방향 화력투사") || soiForm.includes("구역 화력투사") || isFlamId))
+      // ── 패시브 방어구 긍정 효과 (subNotes 텍스트)
+      if (armorPassive) {
+        const soiForm    = s(form);
+        const isFlamId   = ["sw_flam","sp_flam","st_flam","bflam80","smg34"].some(r => id.includes(r));
+        const isSoiFire  = traits.includes("소이") &&
+          (soiForm.includes("범위형") || soiForm.includes("횡방향 화력투사") || soiForm.includes("구역 화력투사") || isFlamId);
+        const isGasSelf  = traits.includes("가스") && !id.includes("p35");
+        if (armorPassive === "인화성 물질" && isSoiFire)
           subNotes.push({ text:"화염 피해 감소", kind:"pos" });
+        if (armorPassive === "고급 여과" && isGasSelf)
+          subNotes.push({ text:"가스 피해 감소", kind:"pos" });
+        if (["적응력","사막 돌격대"].includes(armorPassive) && (isSoiFire || traits.includes("아크") || isGasSelf))
+          subNotes.push({ text:"상태이상 피해 감소", kind:"pos" });
       }
       fireformGear.push({ label:GEAR_LABELS[k], name:s(it.name_ko||it.id), form, ergo, id, subNotes, passiveNotes:[] });
     }
@@ -1706,13 +1712,19 @@ export default function App() {
           }
         }
         // 민주주의의 가호 + bp_b100 → 특수 메시지 (스트라타젬 열에서 처리)
-        // 인화성 물질 → 화염 피해 감소 (소이 특성 + 범위형 계열 form)
-        if (armorPassive === "인화성 물질") {
-          const soiForm = s(form);
-          const isFlamId = ["sw_flam","sp_flam","st_flam","bflam80","ax75"].some(r => id.includes(r));
-          if (supportTraits.includes("소이") &&
-              (soiForm.includes("범위형") || soiForm.includes("횡방향 화력투사") || soiForm.includes("구역 화력투사") || isFlamId))
+        // ── 패시브 방어구 긍정 효과 (subNotes 텍스트)
+        if (armorPassive) {
+          const soiForm    = s(form);
+          const isFlamId   = ["sw_flam","sp_flam","st_flam","bflam80","ax75"].some(r => id.includes(r));
+          const isSoiFire  = supportTraits.includes("소이") &&
+            (soiForm.includes("범위형") || soiForm.includes("횡방향 화력투사") || soiForm.includes("구역 화력투사") || isFlamId);
+          const isGasSelf  = supportTraits.includes("가스") && !id.includes("p35");
+          if (armorPassive === "인화성 물질" && isSoiFire)
             subNotes.push({ text:"화염 피해 감소", kind:"pos" });
+          if (armorPassive === "고급 여과" && isGasSelf)
+            subNotes.push({ text:"가스 피해 감소", kind:"pos" });
+          if (["적응력","사막 돌격대"].includes(armorPassive) && (isSoiFire || supportTraits.includes("아크") || isGasSelf))
+            subNotes.push({ text:"상태이상 피해 감소", kind:"pos" });
         }
         fireformGear.push({ label:"지원무기", name:s(it.name_ko||it.id), form, ergo, id, subNotes, passiveNotes:[] });
       }
@@ -1761,6 +1773,21 @@ export default function App() {
       const stratSub   = s(it?.subType ?? it?.subtype ?? "");
       const respTime   = s(it?.responseTime ?? "");
       const showResp   = !!(respTime && (["공격","방어"].includes(stratType) || stratSub === "탑승물"));
+      // ── 패시브 방어구 긍정 효과 (subNotes 텍스트)
+      if (armorPassive) {
+        const soiForm    = s(form);
+        const isFlamId   = ["sw_flam","sp_flam","st_flam","bflam80","ax75"].some(r => id.includes(r));
+        const stratTraits = [s(it?.trait1),s(it?.trait2),s(it?.trait3)];
+        const isSoiFire  = stratTraits.includes("소이") &&
+          (soiForm.includes("범위형") || soiForm.includes("횡방향 화력투사") || soiForm.includes("구역 화력투사") || isFlamId);
+        const isGasSelf  = stratTraits.includes("가스") && !id.includes("p35");
+        if (armorPassive === "인화성 물질" && isSoiFire)
+          subNotes.push({ text:"화염 피해 감소", kind:"pos" });
+        if (armorPassive === "고급 여과" && isGasSelf)
+          subNotes.push({ text:"가스 피해 감소", kind:"pos" });
+        if (["적응력","사막 돌격대"].includes(armorPassive) && (isSoiFire || stratTraits.includes("아크") || isGasSelf))
+          subNotes.push({ text:"상태이상 피해 감소", kind:"pos" });
+      }
       fireformStrat.push({ label:s(getSubType(it)||"스트라타젬"), name:s(it.name_ko||it.id), form, ergo:"", id, subNotes, responseTime: showResp ? respTime : "" });
     }
 
@@ -1857,10 +1884,12 @@ export default function App() {
         if ((isPrimary || isSecondary || isSupportRow) && rowErgo !== "투척")
           posNotes.push("핸들링 향상");
       }
-      // ── 고급 여과 → 가스 피해 감소 (특정 ID)
-      if (armorPassive === "고급 여과") {
-        const GAS_IDS = ["th_sp_gas4","orb_gs","sw_tx41","bp_ax13","sw_s11","ep_md8"];
-        if (GAS_IDS.some(r => itId.includes(r))) posNotes.push("가스 피해 감소");
+      // ── 인화성 물질 → 화염 피해 감소 (소이 특성 보유 + 해당 무기 자체가 소이 관련 form)
+      if (armorPassive === "인화성 물질") {
+        const soiForm = s(rowForm);
+        if (hasTrait(it, "소이") &&
+            (soiForm.includes("범위형") || soiForm.includes("횡방향 화력투사") || soiForm.includes("구역 화력투사")))
+          posNotes.push("화염 피해 감소");
       }
       // ── 결연함 → 1인칭 피격 흔들림 감소 (주무기, 보조무기, 지원무기 / 스트라타젬 제외)
       if (armorPassive === "결연함") {
@@ -1960,9 +1989,6 @@ export default function App() {
       // 발 먼저 → 관심 지역 탐지 범위, 다리 부상 면역
       if (armorPassive === "발 먼저")
         armorPersonalNotes.push("관심 지역 탐지 범위", "다리 부상 면역");
-      // 사막 돌격대 / 적응력 → 모든 상태이상 피해 감소
-      if (["사막 돌격대","적응력"].includes(armorPassive))
-        armorPersonalNotes.push("모든 상태이상 피해 감소");
       // 굳건한 바위 → 레그돌 억제는 개인 목록 제거 (구성 시너지로 이동)
       // 보급 아드레날린 → 피해를 받을때 스태미나 회복
       if (armorPassive === "보급 아드레날린")
