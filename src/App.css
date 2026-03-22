@@ -673,6 +673,7 @@ body {
   border-radius:10px; overflow:hidden;
   background:rgba(0,0,0,.30); position:relative;
   flex-shrink:0;
+  min-height:100px;
 }
 /* 주무기 하단 메타: 5번 요청 - 행간 gap 확대 */
 .slotPrimaryBottom {
@@ -1024,25 +1025,17 @@ body {
   .modalCard:has(.filterPanel) .stratPreviewBar {
     display:none;
   }
-  /* modalCard: 필터 열렸을 때도 정상 flex column 유지, 높이 제한 */
+  /* modalCard가 필터 스크롤을 막지 않도록 */
   .modalCard:has(.filterPanel) {
-    overflow:hidden;
-    max-height:92vh;
-    display:flex;
-    flex-direction:column;
-  }
-  /* 필터 패널: flex:1로 남은 공간 채우고 독립 스크롤 */
-  .modalCard:has(.filterPanel) .filterPanel {
-    flex:1;
+    overflow:visible;
     max-height:none;
+  }
+  /* 필터 패널: 독립 스크롤 + 전체 뷰포트 활용 */
+  .modalCard:has(.filterPanel) .filterPanel {
+    max-height:calc(100dvh - 56px);
     overflow-y:auto;
     -webkit-overflow-scrolling:touch;
     overscroll-behavior:contain;
-  }
-  /* 모달 헤더/검색창은 flex-shrink:0 유지 */
-  .modalCard:has(.filterPanel) .modalHeader,
-  .modalCard:has(.filterPanel) .modalSearchBar {
-    flex-shrink:0;
   }
 }
 
@@ -1488,4 +1481,189 @@ body:has(.modalOverlay) {
 .modalOverlay, .pickGrid, .filterPanel, .manageModalList {
   scrollbar-width: thin;
   scrollbar-color: rgba(240,196,0,.35) rgba(255,255,255,.04);
+}
+
+
+/* ===== 신규 채권 미리보기 오버레이 ===== */
+.wbNoticeOverlay {
+  position:fixed; inset:0; z-index:3000;
+  background:rgba(0,0,0,.78);
+  backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+  display:flex; align-items:center; justify-content:center;
+  padding:16px;
+  animation:wbNoticeFadeIn .3s ease;
+  transition:opacity .35s ease;
+  cursor:pointer;
+}
+.wbNoticeOverlay.wbNoticeFading { opacity:0; pointer-events:none; }
+@keyframes wbNoticeFadeIn { from{opacity:0} to{opacity:1} }
+
+.wbNoticeCard {
+  background:linear-gradient(180deg,rgba(24,24,24,.99),rgba(12,12,12,.99));
+  border:1px solid rgba(240,196,0,.38);
+  border-radius:18px;
+  box-shadow:0 0 40px rgba(240,196,0,.18), 0 8px 48px rgba(0,0,0,.85);
+  width:min(780px,96vw);
+  max-height:90vh;
+  display:flex; flex-direction:column;
+  overflow:hidden;
+  animation:wbNoticeCardIn .35s cubic-bezier(.22,1,.36,1);
+  cursor:default;
+}
+@keyframes wbNoticeCardIn {
+  from { opacity:0; transform:scale(.94) translateY(14px); }
+  to   { opacity:1; transform:scale(1)   translateY(0); }
+}
+
+.wbNoticeHeader {
+  display:flex; align-items:center;
+  padding:15px 20px 12px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+  flex-shrink:0;
+}
+.wbNoticeTitle {
+  font-size:15px; font-weight:800; color:var(--yellow);
+  letter-spacing:-.02em;
+  text-shadow:0 0 12px rgba(240,196,0,.55);
+}
+
+/* 채권 이미지 — 상단 전체 폭 */
+.wbNoticeImgWrap {
+  width:100%; flex-shrink:0;
+  background:rgba(0,0,0,.50);
+  overflow:hidden;
+  max-height:260px;
+  display:flex; align-items:center; justify-content:center;
+}
+.wbNoticeImg {
+  width:100%; height:100%;
+  object-fit:contain; display:block;
+}
+
+/* 채권명 */
+.wbNoticeWbName {
+  padding:12px 20px 4px;
+  font-size:15px; font-weight:800;
+  color:var(--yellow);
+  text-shadow:0 0 10px rgba(240,196,0,.70), 0 0 24px rgba(240,196,0,.35);
+  letter-spacing:-.01em;
+  flex-shrink:0;
+}
+
+/* 아이템 카드 스크롤 영역 — PC: wrap, 모바일: 가로 스크롤 */
+.wbNoticeScrollArea {
+  overflow-x:hidden;
+  overflow-y:hidden;
+  flex-shrink:0;
+  padding:8px 20px 14px;
+  display:flex; flex-direction:column; gap:6px;
+}
+
+/* 슈퍼 스토어 구분 레이블 */
+.wbNoticeSuperLabel {
+  font-size:11px; font-weight:700;
+  color:#00f6ff;
+  letter-spacing:.06em;
+  text-shadow:0 0 8px rgba(0,246,255,.55);
+  padding:2px 0 0 2px;
+}
+
+/* 카드 그리드 — PC: 한 줄 */
+.wbNoticeItemGrid {
+  display:flex; flex-direction:row;
+  flex-wrap:nowrap;
+  gap:8px;
+}
+
+/* 개별 아이템 카드 — 고정 높이로 텍스트 정렬 일관화 */
+.wbNoticeItemCard {
+  display:flex; flex-direction:column; align-items:center;
+  gap:0;
+  padding:10px 8px 10px;
+  border-radius:12px;
+  border:1px solid transparent;
+  flex:1 1 0; min-width:0;
+  text-align:center;
+}
+
+/* 아이콘 래퍼 */
+.wbNoticeItemImgWrap {
+  width:82px; height:82px;
+  border-radius:10px;
+  overflow:hidden;
+  background:rgba(0,0,0,.35);
+  display:flex; align-items:center; justify-content:center;
+  flex-shrink:0;
+  margin-bottom:8px;
+}
+.wbNoticeItemIcon {
+  width:100%; height:100%;
+  object-fit:contain; display:block;
+}
+.wbNoticeItemImgPlaceholder {
+  width:100%; height:100%;
+  background:rgba(255,255,255,.06);
+}
+
+/* 아이템 명칭 — 고정 높이 2줄 */
+.wbNoticeItemName {
+  font-size:11px; font-weight:700;
+  line-height:1.35;
+  word-break:keep-all; overflow-wrap:break-word;
+  width:100%;
+  height:2.7em;          /* 2줄 고정 */
+  display:flex; align-items:center; justify-content:center;
+  margin-bottom:4px;
+}
+
+/* 아이템 종류 — 항상 하단 고정 */
+.wbNoticeItemKind {
+  font-size:10px; font-weight:700;
+  color:rgba(255,255,255,.38);
+  line-height:1.2;
+  width:100%;
+  height:1.2em;          /* 1줄 고정 */
+  display:flex; align-items:center; justify-content:center;
+}
+
+/* 모바일: 가로 스크롤로 전환 */
+@media(max-width:600px) {
+  .wbNoticeScrollArea {
+    overflow-x:auto;
+    overflow-y:hidden;
+    scrollbar-width:thin;
+    scrollbar-color:rgba(240,196,0,.35) rgba(255,255,255,.04);
+    -webkit-overflow-scrolling:touch;
+  }
+  .wbNoticeScrollArea::-webkit-scrollbar { height:4px; }
+  .wbNoticeScrollArea::-webkit-scrollbar-track { background:rgba(255,255,255,.04); border-radius:99px; }
+  .wbNoticeScrollArea::-webkit-scrollbar-thumb { background:rgba(240,196,0,.35); border-radius:99px; }
+  .wbNoticeItemGrid { width:max-content; }
+  .wbNoticeItemCard { width:90px; flex:0 0 90px; }
+  .wbNoticeItemImgWrap { width:64px; height:64px; }
+  .wbNoticeImgWrap { max-height:160px; }
+}
+
+/* 하단 */
+.wbNoticeActions {
+  display:flex; flex-direction:column; gap:8px;
+  padding:10px 20px 16px;
+  border-top:1px solid rgba(255,255,255,.08);
+  flex-shrink:0;
+}
+.wbNoticePermanentBtn {
+  width:100%; padding:10px 16px; border-radius:10px;
+  border:1px solid rgba(255,255,255,.20);
+  background:rgba(255,255,255,.06);
+  color:rgba(255,255,255,.65);
+  font-size:13px; font-weight:700; cursor:pointer;
+  transition:background .12s, border-color .12s, color .12s;
+  font-family:inherit;
+}
+.wbNoticePermanentBtn:hover {
+  background:rgba(255,255,255,.11); border-color:rgba(255,255,255,.38); color:#fff;
+}
+.wbNoticeHint {
+  text-align:center;
+  font-size:12px; color:rgba(255,255,255,.28);
 }

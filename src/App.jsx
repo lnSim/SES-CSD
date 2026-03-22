@@ -26,6 +26,162 @@ const LS_KEY = "helldiver_loadouts_v2";
 function lsGet()       { try { const r=localStorage.getItem(LS_KEY); return r?JSON.parse(r):null; } catch { return null; } }
 function lsSet(data)   { try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch {} }
 
+/* ── 신규 채권 미리보기 오버레이 ── */
+// ★ 채권 업데이트 시 WB_NOTICE_VERSION을 바꾸면 모든 사용자에게 재표시됨
+const WB_NOTICE_VERSION = "v_견고한참호사단";
+const WB_NOTICE_KEY     = `wb_notice_dismissed_${WB_NOTICE_VERSION}`;
+function wbNoticeDismissed()  { try { return localStorage.getItem(WB_NOTICE_KEY) === "true"; } catch { return false; } }
+function wbNoticeSetDismiss() { try { localStorage.setItem(WB_NOTICE_KEY, "true"); } catch {} }
+
+// ★ 채권 업데이트 시 아래 데이터 수정
+const WB_NOTICE_DATA = {
+  name: "견고한 참호 사단",
+  items: [
+    { label: "SMG/FLAM-34 스토커",  kind: "주무기",   id: "pr_sm_smg34"  },
+    { label: "CQC-73 참호 도구",     kind: "보조무기", id: "se_cq_cqc73"  },
+    { label: "P-69 비토",            kind: "보조무기", id: "se_ps_p69"    },
+    { label: "G-48 기가 수류탄",     kind: "투척무기", id: "th_sp_g48"    },
+    { label: "CPG-48 공병",          kind: "방어구",   id: "ar_cp_cpg48"  },
+    { label: "CPH-26 사령관",        kind: "방어구",   id: "ar_cp_cph26"  },
+  ],
+  superStore: [
+    { label: "CPR-80 방벽",   kind: "방어구", id: "ar_cp_cpr80" },
+    { label: "SG-97 스위퍼",  kind: "주무기", id: "pr_sg_sg97"  },
+  ],
+};
+
+const KIND_COLOR = {
+  "주무기":    { color:"#fde047", shadow:"rgba(253,224,71,.55)" },
+  "보조무기":  { color:"#fde047", shadow:"rgba(253,224,71,.55)" },
+  "투척무기":  { color:"#fde047", shadow:"rgba(253,224,71,.55)" },
+  "방어구":    { color:"#fde047", shadow:"rgba(253,224,71,.55)" },
+  "스트라타젬":{ color:"#fde047", shadow:"rgba(253,224,71,.55)" },
+  "슈퍼스토어":{ color:"#00f6ff", shadow:"rgba(0,246,255,.55)"  },
+};
+
+function WbItemIcon({ src, alt }) {
+  const exts = [src, src.replace(/\.png$/i,".webp"), src.replace(/\.png$/i,".svg")];
+  const [idx, setIdx] = useState(0);
+  const [dead, setDead] = useState(false);
+  if (dead) return null;
+  return (
+    <img src={exts[idx] ?? src} alt={alt}
+      className="wbNoticeItemIcon" draggable={false}
+      onError={() => { const n=idx+1; if(n<exts.length) setIdx(n); else setDead(true); }}
+    />
+  );
+}
+
+function WbNoticeOverlay({ onClose }) {
+  const [fading, setFading] = useState(false);
+  const handleClose = (permanent) => {
+    if (permanent) wbNoticeSetDismiss();
+    setFading(true);
+    setTimeout(() => onClose(), 350);
+  };
+
+
+  function resolveWbIcon(id) {
+    if (!id) return null;
+    if (id.startsWith("ar_")) return `/icons/armor/${id}.png`;
+    if (id.startsWith("st_")) return `/icons/stratagem/${id}.png`;
+    return `/icons/weapon/${id}.png`;
+  }
+
+  /* kind → 표시 레이블 */
+  const KIND_LABEL = {
+    "주무기":    "주무기",
+    "보조무기":  "보조무기",
+    "투척무기":  "투척무기",
+    "방어구":    "방어구",
+    "공격":      "스트라타젬 (공격)",
+    "지원무기":  "스트라타젬 (지원무기)",
+    "배낭":      "스트라타젬 (배낭)",
+    "방어":      "스트라타젬 (방어)",
+    "스트라타젬":"스트라타젬",
+    "슈퍼스토어":"슈퍼 스토어",
+  };
+
+  return (
+    <div
+      className={`wbNoticeOverlay ${fading ? "wbNoticeFading" : ""}`}
+      onClick={() => handleClose(false)}
+    >
+      <div className="wbNoticeCard" onClick={e => e.stopPropagation()}>
+
+        {/* 헤더 */}
+        <div className="wbNoticeHeader">
+          <span className="wbNoticeTitle">신규 채권이 업데이트 되었습니다!</span>
+        </div>
+
+        {/* 채권 이미지 — 상단 전체 폭 */}
+        <div className="wbNoticeImgWrap">
+          <img src="/latest_wb.webp" alt="신규 채권 미리보기" className="wbNoticeImg"
+            onError={e => { e.currentTarget.style.display = "none"; }} />
+        </div>
+
+        {/* 채권명 */}
+        <div className="wbNoticeWbName">{WB_NOTICE_DATA.name}</div>
+
+        {/* 항목 카드 — 일반 한 줄 + 슈퍼스토어 한 줄 */}
+        <div className="wbNoticeScrollArea">
+          {/* 일반 채권 항목 */}
+          <div className="wbNoticeItemGrid">
+            {WB_NOTICE_DATA.items.map(({ label, kind, id }) => {
+              const cs = KIND_COLOR[kind] ?? KIND_COLOR["주무기"];
+              const iconSrc = resolveWbIcon(id);
+              const kindLabel = KIND_LABEL[kind] ?? kind;
+              return (
+                <div key={label} className="wbNoticeItemCard"
+                  style={{ borderColor:`${cs.color}44`, background:`${cs.color}0a`, boxShadow:`0 0 8px ${cs.shadow}` }}>
+                  <div className="wbNoticeItemImgWrap">
+                    {iconSrc ? <WbItemIcon src={iconSrc} alt={label} /> : <div className="wbNoticeItemImgPlaceholder" />}
+                  </div>
+                  <div className="wbNoticeItemName" style={{ color:cs.color, textShadow:`0 0 8px ${cs.shadow}` }}>{label}</div>
+                  <div className="wbNoticeItemKind">{kindLabel}</div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* 슈퍼스토어 항목 (있을 때만) */}
+          {WB_NOTICE_DATA.superStore?.length > 0 && (
+            <>
+              <div className="wbNoticeSuperLabel">슈퍼 스토어</div>
+              <div className="wbNoticeItemGrid">
+                {WB_NOTICE_DATA.superStore.map(({ label, kind, id }) => {
+                  const cs = KIND_COLOR["슈퍼스토어"];
+                  const iconSrc = resolveWbIcon(id);
+                  const kindLabel = KIND_LABEL[kind] ?? kind;
+                  return (
+                    <div key={label} className="wbNoticeItemCard"
+                      style={{ borderColor:`${cs.color}44`, background:`${cs.color}0a`, boxShadow:`0 0 8px ${cs.shadow}` }}>
+                      <div className="wbNoticeItemImgWrap">
+                        {iconSrc ? <WbItemIcon src={iconSrc} alt={label} /> : <div className="wbNoticeItemImgPlaceholder" />}
+                      </div>
+                      <div className="wbNoticeItemName" style={{ color:cs.color, textShadow:`0 0 8px ${cs.shadow}` }}>{label}</div>
+                      <div className="wbNoticeItemKind">{kindLabel}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* 하단 */}
+        <div className="wbNoticeActions">
+          <button type="button" className="wbNoticePermanentBtn" onClick={() => handleClose(true)}>
+            채권 업데이트 전까지 해당 창을 표시하지 않기
+          </button>
+          <div className="wbNoticeHint">아무곳이나 클릭하면 이 창을 닫습니다.</div>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
 /* ── 기본 제공 로드아웃 아이템 ID (실제 DB 기준) ── */
 const DEFAULT_LOADOUT_IDS = {
   stratagem: ["st_orb_ps", "st_sw_mg43", null, null],  // 궤도 정밀 타격, MG-43 기관총
@@ -938,6 +1094,7 @@ function FireformRow({ row, hasIdealBody }) {
 
 export default function App() {
   const [tutorialStep, setTutorialStep] = useState(-1); // -1=숨김, 0~N=진행중
+  const [showWbNotice, setShowWbNotice] = useState(() => !wbNoticeDismissed());
   const [activePage,   setActivePage]   = useState("loadout"); // "loadout" | "random"
   const [heroPopup,    setHeroPopup]    = useState(false);   // 무작위 페이지 전환 시 팝업
   const [heroPopupFading, setHeroPopupFading] = useState(false); // 팝업 fade-out 중
@@ -1670,20 +1827,6 @@ export default function App() {
       if (hasSh20 && !hasOnehanded && k !== "throwable") {
         subNotes.push({ text:"수납중 후방 보호", kind:"pos" });
       }
-      // ── 패시브 방어구 긍정 효과 (subNotes 텍스트)
-      if (armorPassive) {
-        const soiForm    = s(form);
-        const isFlamId   = ["sw_flam","sp_flam","st_flam","bflam80","smg34"].some(r => id.includes(r));
-        const isSoiFire  = traits.includes("소이") &&
-          (soiForm.includes("범위형") || soiForm.includes("횡방향 화력투사") || soiForm.includes("구역 화력투사") || isFlamId);
-        const isGasSelf  = traits.includes("가스") && !id.includes("p35");
-        if (armorPassive === "인화성 물질" && isSoiFire)
-          subNotes.push({ text:"화염 피해 감소", kind:"pos" });
-        if (armorPassive === "고급 여과" && isGasSelf)
-          subNotes.push({ text:"가스 피해 감소", kind:"pos" });
-        if (["적응력","사막 돌격대"].includes(armorPassive) && (isSoiFire || traits.includes("아크") || isGasSelf))
-          subNotes.push({ text:"상태이상 피해 감소", kind:"pos" });
-      }
       fireformGear.push({ label:GEAR_LABELS[k], name:s(it.name_ko||it.id), form, ergo, id, subNotes, passiveNotes:[] });
     }
     // 지원무기가 스트라타젬에 있으면 지원무기 종류도 개인장비 열에 표시
@@ -1712,20 +1855,6 @@ export default function App() {
           }
         }
         // 민주주의의 가호 + bp_b100 → 특수 메시지 (스트라타젬 열에서 처리)
-        // ── 패시브 방어구 긍정 효과 (subNotes 텍스트)
-        if (armorPassive) {
-          const soiForm    = s(form);
-          const isFlamId   = ["sw_flam","sp_flam","st_flam","bflam80","ax75"].some(r => id.includes(r));
-          const isSoiFire  = supportTraits.includes("소이") &&
-            (soiForm.includes("범위형") || soiForm.includes("횡방향 화력투사") || soiForm.includes("구역 화력투사") || isFlamId);
-          const isGasSelf  = supportTraits.includes("가스") && !id.includes("p35");
-          if (armorPassive === "인화성 물질" && isSoiFire)
-            subNotes.push({ text:"화염 피해 감소", kind:"pos" });
-          if (armorPassive === "고급 여과" && isGasSelf)
-            subNotes.push({ text:"가스 피해 감소", kind:"pos" });
-          if (["적응력","사막 돌격대"].includes(armorPassive) && (isSoiFire || supportTraits.includes("아크") || isGasSelf))
-            subNotes.push({ text:"상태이상 피해 감소", kind:"pos" });
-        }
         fireformGear.push({ label:"지원무기", name:s(it.name_ko||it.id), form, ergo, id, subNotes, passiveNotes:[] });
       }
     }
@@ -1773,21 +1902,6 @@ export default function App() {
       const stratSub   = s(it?.subType ?? it?.subtype ?? "");
       const respTime   = s(it?.responseTime ?? "");
       const showResp   = !!(respTime && (["공격","방어"].includes(stratType) || stratSub === "탑승물"));
-      // ── 패시브 방어구 긍정 효과 (subNotes 텍스트)
-      if (armorPassive) {
-        const soiForm    = s(form);
-        const isFlamId   = ["sw_flam","sp_flam","st_flam","bflam80","ax75"].some(r => id.includes(r));
-        const stratTraits = [s(it?.trait1),s(it?.trait2),s(it?.trait3)];
-        const isSoiFire  = stratTraits.includes("소이") &&
-          (soiForm.includes("범위형") || soiForm.includes("횡방향 화력투사") || soiForm.includes("구역 화력투사") || isFlamId);
-        const isGasSelf  = stratTraits.includes("가스") && !id.includes("p35");
-        if (armorPassive === "인화성 물질" && isSoiFire)
-          subNotes.push({ text:"화염 피해 감소", kind:"pos" });
-        if (armorPassive === "고급 여과" && isGasSelf)
-          subNotes.push({ text:"가스 피해 감소", kind:"pos" });
-        if (["적응력","사막 돌격대"].includes(armorPassive) && (isSoiFire || stratTraits.includes("아크") || isGasSelf))
-          subNotes.push({ text:"상태이상 피해 감소", kind:"pos" });
-      }
       fireformStrat.push({ label:s(getSubType(it)||"스트라타젬"), name:s(it.name_ko||it.id), form, ergo:"", id, subNotes, responseTime: showResp ? respTime : "" });
     }
 
@@ -1891,6 +2005,11 @@ export default function App() {
             (soiForm.includes("범위형") || soiForm.includes("횡방향 화력투사") || soiForm.includes("구역 화력투사")))
           posNotes.push("화염 피해 감소");
       }
+      // ── 고급 여과 → 가스 피해 감소 (특정 ID)
+      if (armorPassive === "고급 여과") {
+        const GAS_IDS = ["th_sp_gas4","orb_gs","sw_tx41","bp_ax13","sw_s11","ep_md8"];
+        if (GAS_IDS.some(r => itId.includes(r))) posNotes.push("가스 피해 감소");
+      }
       // ── 결연함 → 1인칭 피격 흔들림 감소 (주무기, 보조무기, 지원무기 / 스트라타젬 제외)
       if (armorPassive === "결연함") {
         if (isPrimary || isSecondary || isSupportRow)
@@ -1989,6 +2108,9 @@ export default function App() {
       // 발 먼저 → 관심 지역 탐지 범위, 다리 부상 면역
       if (armorPassive === "발 먼저")
         armorPersonalNotes.push("관심 지역 탐지 범위", "다리 부상 면역");
+      // 사막 돌격대 / 적응력 → 모든 상태이상 피해 감소
+      if (["사막 돌격대","적응력"].includes(armorPassive))
+        armorPersonalNotes.push("모든 상태이상 피해 감소");
       // 굳건한 바위 → 레그돌 억제는 개인 목록 제거 (구성 시너지로 이동)
       // 보급 아드레날린 → 피해를 받을때 스태미나 회복
       if (armorPassive === "보급 아드레날린")
@@ -1999,12 +2121,9 @@ export default function App() {
       // 강화된 견장 → 확률적 사지 부상 방지
       if (armorPassive === "강화된 견장")
         armorPersonalNotes.push("확률적 사지 부상 방지");
-      // 충격 방지 패드 3종 공통 → 폭발 피해 50% 감소
-      if (["충격 방지 패드, 척탄병","충격 방지 패드, 위험물","충격 방지 패드, 강화 버전"].includes(armorPassive))
-        armorPersonalNotes.push("폭발 피해 50% 감소");
-      // 충격 방지 패드, 강화 버전 → 장갑 등급 +30
+      // 충격 방지 패드, 강화 버전 → 받는 피해 감소 (추가 완충제와 동일)
       if (armorPassive === "충격 방지 패드, 강화 버전")
-        armorPersonalNotes.push("장갑 등급 +30");
+        armorPersonalNotes.push("받는 피해 감소");
     }
     // 문자열을 pos kind 객체로 정규화
     const normalizedPersonalNotes = armorPersonalNotes.map(n =>
@@ -2518,6 +2637,9 @@ export default function App() {
         )}
 
       </div>
+
+      {/* ── 신규 채권 미리보기 오버레이 ── */}
+      {showWbNotice && <WbNoticeOverlay onClose={() => setShowWbNotice(false)} />}
 
       {/* ── 튜토리얼 오버레이 ── */}
       <TutorialOverlay
