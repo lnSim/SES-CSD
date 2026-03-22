@@ -1489,11 +1489,21 @@ body:has(.modalOverlay) {
   position:fixed; inset:0; z-index:3000;
   background:rgba(0,0,0,.78);
   backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
-  display:flex; align-items:center; justify-content:center;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
   padding:16px;
   animation:wbNoticeFadeIn .3s ease;
   transition:opacity .35s ease;
   cursor:pointer;
+  gap:10px;
+}
+/* 오버레이 상단 닫기 힌트 */
+.wbNoticeOverlay::before {
+  content:"▲  탭하면 닫힙니다  ▲";
+  font-size:12px; font-weight:700;
+  color:rgba(255,255,255,.35);
+  letter-spacing:.06em;
+  flex-shrink:0;
+  pointer-events:none;
 }
 .wbNoticeOverlay.wbNoticeFading { opacity:0; pointer-events:none; }
 @keyframes wbNoticeFadeIn { from{opacity:0} to{opacity:1} }
@@ -1504,7 +1514,7 @@ body:has(.modalOverlay) {
   border-radius:18px;
   box-shadow:0 0 40px rgba(240,196,0,.18), 0 8px 48px rgba(0,0,0,.85);
   width:min(860px,96vw);
-  max-height:88vh;
+  max-height:82vh;
   height:auto;
   display:flex; flex-direction:column;
   overflow:hidden;
@@ -1551,7 +1561,7 @@ body:has(.modalOverlay) {
   flex-shrink:0;
 }
 
-/* 아이템 카드 스크롤 영역 — PC: wrap, 모바일: 가로 스크롤 */
+/* 아이템 카드 스크롤 영역 — 섹션 전체 세로 스크롤 */
 .wbNoticeScrollArea {
   overflow-x:hidden;
   overflow-y:auto;
@@ -1566,12 +1576,12 @@ body:has(.modalOverlay) {
 .wbNoticeScrollArea::-webkit-scrollbar-track { background:transparent; }
 .wbNoticeScrollArea::-webkit-scrollbar-thumb { background:rgba(240,196,0,.30); border-radius:99px; }
 
-/* 카드 그리드 — 고정 폭 카드, 왼쪽 정렬 */
+/* 카드 그리드 행 — PC: wrap 전체 표시 + 중앙 정렬 */
 .wbNoticeItemGrid {
   display:flex; flex-direction:row;
-  flex-wrap:nowrap;
+  flex-wrap:wrap;
   gap:8px;
-  justify-content:flex-start;
+  justify-content:center;
 }
 
 /* 개별 아이템 카드 — 고정 폭 */
@@ -1636,23 +1646,23 @@ body:has(.modalOverlay) {
   display:flex; align-items:center; justify-content:center;
 }
 
-/* 모바일: 가로 스크롤로 전환 */
+/* 모바일 보정 */
 @media(max-width:600px) {
-  .wbNoticeScrollArea {
-    overflow-x:auto;
-    overflow-y:hidden;
-    scrollbar-width:thin;
-    scrollbar-color:rgba(240,196,0,.35) rgba(255,255,255,.04);
-    -webkit-overflow-scrolling:touch;
-  }
-  .wbNoticeScrollArea::-webkit-scrollbar { height:4px; }
-  .wbNoticeScrollArea::-webkit-scrollbar-track { background:rgba(255,255,255,.04); border-radius:99px; }
-  .wbNoticeScrollArea::-webkit-scrollbar-thumb { background:rgba(240,196,0,.35); border-radius:99px; }
-  .wbNoticeItemGrid { width:max-content; }
+  .wbNoticeCard { max-height:78vh; }
   .wbNoticeItemCard { width:90px; flex:0 0 90px; }
   .wbNoticeItemImgWrap { width:64px; height:64px; padding:4px; background:transparent; }
   .wbNoticeImgWrap { max-height:160px; }
-  .wbNoticeScrollArea { overflow-x:auto; overflow-y:auto; }
+  .wbNoticeItemGrid {
+    flex-wrap:nowrap;
+    justify-content:flex-start;
+    overflow-x:auto;
+    padding-bottom:4px;
+    scrollbar-width:thin;
+    scrollbar-color:rgba(240,196,0,.20) transparent;
+  }
+  .wbNoticeItemGrid::-webkit-scrollbar { height:3px; }
+  .wbNoticeItemGrid::-webkit-scrollbar-track { background:transparent; }
+  .wbNoticeItemGrid::-webkit-scrollbar-thumb { background:rgba(240,196,0,.25); border-radius:99px; }
 }
 
 /* 하단 */

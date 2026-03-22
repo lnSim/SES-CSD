@@ -1073,10 +1073,11 @@ function FireformRow({ row, hasIdealBody }) {
   const ergoStyle = isIdealTarget ? IDEAL_BLUE_STYLE : getErgoBadgeStyle(ergo);
   const nameColor = isIdealTarget ? IDEAL_BLUE : "rgba(255,255,255,.75)";
 
-  // passiveNotes(pos) → subNotes(pos) → subNotes(neg) 순으로 표시
-  const allPos = [...passiveNotes.filter(n => n.kind === "pos"), ...subNotes.filter(n => n.kind === "pos")];
-  const allNeg = subNotes.filter(n => n.kind === "neg");
-  const orderedNotes = [...allPos, ...allNeg];
+  // passiveNotes(pos/pos2) → subNotes(pos2) → subNotes(pos) → subNotes(neg) 순으로 표시
+  const allPos2 = [...passiveNotes.filter(n => n.kind === "pos2"), ...subNotes.filter(n => n.kind === "pos2")];
+  const allPos  = [...passiveNotes.filter(n => n.kind === "pos"),  ...subNotes.filter(n => n.kind === "pos")];
+  const allNeg  = subNotes.filter(n => n.kind === "neg");
+  const orderedNotes = [...allPos2, ...allPos, ...allNeg];
 
   const respStyle = RESP_STYLE[responseTime] ?? null;
 
@@ -1105,8 +1106,8 @@ function FireformRow({ row, hasIdealBody }) {
         {/* 노트 (배지 아래) */}
         {orderedNotes.map((n,i) => (
           <span key={i} style={{ fontSize:12, fontWeight:700, opacity:.95,
-            color: n.kind === "pos" ? "#86efac" : "#f87171" }}>
-            {n.kind === "neg" ? `- ${n.text}` : `+ ${n.text}`}
+            color: n.kind === "neg" ? "#f87171" : n.kind === "pos2" ? "#4ade80" : "#86efac" }}>
+            {n.kind === "neg" ? `- ${n.text}` : n.kind === "pos2" ? `${n.text}` : `+ ${n.text}`}
           </span>
         ))}
       </div>
@@ -1778,6 +1779,7 @@ export default function App() {
       if (STOP_IDS.some(r => id.includes(r)))         return "대상 저지";
       if (SINGLE_ENTITY_IDS.some(r => id.includes(r))) return "단일 대상";
       if (DUAL_BARRAGE_IDS.some(r => id.includes(r))) return "단일 | 탄막형";
+      if (id.includes("smg34"))                        return "단일 | 범위형(하단 화염방사기 한정)";
       if (FORCE_RANGE_IDS.some(r => id.includes(r)))  return "범위형";
       if (FORCE_SINGLE_IDS.some(r => id.includes(r))) return "단일 대상";
       if (id.includes("mg43")) return id.includes("sw_") ? "탄막형" : "단일 대상";
@@ -1849,6 +1851,31 @@ export default function App() {
       if (hasSh20 && !hasOnehanded && k !== "throwable") {
         subNotes.push({ text:"수납중 후방 보호", kind:"pos" });
       }
+      // ── 패시브 방어구 상태이상 피해 감소 (subNotes 텍스트)
+      if (armorPassive) {
+        const soiForm   = s(form);
+        const isFlamId  = ["sw_flam","sp_flam","st_flam","bflam80","smg34"].some(r => id.includes(r));
+        const isSoiFire = traits.includes("소이") &&
+          (soiForm.includes("범위형") || soiForm.includes("횡방향 화력투사") || soiForm.includes("구역 화력투사") || isFlamId);
+        const isGasSelf  = traits.includes("가스") && !id.includes("p35");
+        const isArcSelf  = traits.includes("아크") && !id.includes("en_arc") && !id.includes("sw_arc");
+        const hasOverheat = traits.includes("과열") || id.includes("las17");
+        // ++ 단일 고수치 패시브
+        if (armorPassive === "인화성 물질") {
+          if (isSoiFire)   subNotes.push({ text:"++ 화염 피해 감소", kind:"pos2" });
+          if (hasOverheat) subNotes.push({ text:"++ 과열 피해 감소", kind:"pos2" });
+        }
+        if (armorPassive === "고급 여과" && isGasSelf)  subNotes.push({ text:"++ 가스 피해 감소", kind:"pos2" });
+        if (armorPassive === "전도성"    && isArcSelf)  subNotes.push({ text:"++ 아크 피해 감소", kind:"pos2" });
+        // + 복합·저수치 패시브
+        if (armorPassive === "아드레노-제세동기" && isArcSelf) subNotes.push({ text:"+ 아크 피해 감소", kind:"pos2" });
+        if (["적응력","사막 돌격대"].includes(armorPassive)) {
+          if (isSoiFire)   subNotes.push({ text:"+ 화염 피해 감소",  kind:"pos2" });
+          if (isGasSelf)   subNotes.push({ text:"+ 가스 피해 감소",  kind:"pos2" });
+          if (isArcSelf)   subNotes.push({ text:"+ 아크 피해 감소",  kind:"pos2" });
+          if (hasOverheat) subNotes.push({ text:"+ 과열 피해 감소",  kind:"pos2" });
+        }
+      }
       fireformGear.push({ label:GEAR_LABELS[k], name:s(it.name_ko||it.id), form, ergo, id, subNotes, passiveNotes:[] });
     }
     // 지원무기가 스트라타젬에 있으면 지원무기 종류도 개인장비 열에 표시
@@ -1877,6 +1904,29 @@ export default function App() {
           }
         }
         // 민주주의의 가호 + bp_b100 → 특수 메시지 (스트라타젬 열에서 처리)
+        // ── 패시브 방어구 상태이상 피해 감소
+        if (armorPassive) {
+          const soiForm   = s(form);
+          const isFlamId  = ["sw_flam","sp_flam","st_flam","bflam80","ax75"].some(r => id.includes(r));
+          const isSoiFire = supportTraits.includes("소이") &&
+            (soiForm.includes("범위형") || soiForm.includes("횡방향 화력투사") || soiForm.includes("구역 화력투사") || isFlamId);
+          const isGasSelf  = supportTraits.includes("가스") && !id.includes("p35");
+          const isArcSelf  = supportTraits.includes("아크") && !id.includes("en_arc") && !id.includes("sw_arc");
+          const hasOverheat = supportTraits.includes("과열") || id.includes("las17");
+          if (armorPassive === "인화성 물질") {
+            if (isSoiFire)   subNotes.push({ text:"++ 화염 피해 감소", kind:"pos2" });
+            if (hasOverheat) subNotes.push({ text:"++ 과열 피해 감소", kind:"pos2" });
+          }
+          if (armorPassive === "고급 여과" && isGasSelf)  subNotes.push({ text:"++ 가스 피해 감소", kind:"pos2" });
+          if (armorPassive === "전도성"    && isArcSelf)  subNotes.push({ text:"++ 아크 피해 감소", kind:"pos2" });
+          if (armorPassive === "아드레노-제세동기" && isArcSelf) subNotes.push({ text:"+ 아크 피해 감소", kind:"pos2" });
+          if (["적응력","사막 돌격대"].includes(armorPassive)) {
+            if (isSoiFire)   subNotes.push({ text:"+ 화염 피해 감소",  kind:"pos2" });
+            if (isGasSelf)   subNotes.push({ text:"+ 가스 피해 감소",  kind:"pos2" });
+            if (isArcSelf)   subNotes.push({ text:"+ 아크 피해 감소",  kind:"pos2" });
+            if (hasOverheat) subNotes.push({ text:"+ 과열 피해 감소",  kind:"pos2" });
+          }
+        }
         fireformGear.push({ label:"지원무기", name:s(it.name_ko||it.id), form, ergo, id, subNotes, passiveNotes:[] });
       }
     }
@@ -1924,6 +1974,30 @@ export default function App() {
       const stratSub   = s(it?.subType ?? it?.subtype ?? "");
       const respTime   = s(it?.responseTime ?? "");
       const showResp   = !!(respTime && (["공격","방어"].includes(stratType) || stratSub === "탑승물"));
+      // ── 패시브 방어구 상태이상 피해 감소 (인라인 trait 체크)
+      if (armorPassive) {
+        const soiForm    = s(form);
+        const isFlamId   = ["sw_flam","sp_flam","st_flam","bflam80","ax75"].some(r => id.includes(r));
+        const stratTraits = [s(it?.trait1),s(it?.trait2),s(it?.trait3)];
+        const isSoiFire  = stratTraits.includes("소이") &&
+          (soiForm.includes("범위형") || soiForm.includes("횡방향 화력투사") || soiForm.includes("구역 화력투사") || isFlamId);
+        const isGasSelf  = stratTraits.includes("가스") && !id.includes("p35");
+        const isArcSelf  = stratTraits.includes("아크") && !id.includes("en_arc") && !id.includes("sw_arc");
+        const hasOverheat = stratTraits.includes("과열") || id.includes("las17");
+        if (armorPassive === "인화성 물질") {
+          if (isSoiFire)   subNotes.push({ text:"++ 화염 피해 감소", kind:"pos2" });
+          if (hasOverheat) subNotes.push({ text:"++ 과열 피해 감소", kind:"pos2" });
+        }
+        if (armorPassive === "고급 여과" && isGasSelf)  subNotes.push({ text:"++ 가스 피해 감소", kind:"pos2" });
+        if (armorPassive === "전도성"    && isArcSelf)  subNotes.push({ text:"++ 아크 피해 감소", kind:"pos2" });
+        if (armorPassive === "아드레노-제세동기" && isArcSelf) subNotes.push({ text:"+ 아크 피해 감소", kind:"pos2" });
+        if (["적응력","사막 돌격대"].includes(armorPassive)) {
+          if (isSoiFire)   subNotes.push({ text:"+ 화염 피해 감소",  kind:"pos2" });
+          if (isGasSelf)   subNotes.push({ text:"+ 가스 피해 감소",  kind:"pos2" });
+          if (isArcSelf)   subNotes.push({ text:"+ 아크 피해 감소",  kind:"pos2" });
+          if (hasOverheat) subNotes.push({ text:"+ 과열 피해 감소",  kind:"pos2" });
+        }
+      }
       fireformStrat.push({ label:s(getSubType(it)||"스트라타젬"), name:s(it.name_ko||it.id), form, ergo:"", id, subNotes, responseTime: showResp ? respTime : "" });
     }
 
@@ -2020,18 +2094,6 @@ export default function App() {
         if ((isPrimary || isSecondary || isSupportRow) && rowErgo !== "투척")
           posNotes.push("핸들링 향상");
       }
-      // ── 인화성 물질 → 화염 피해 감소 (소이 특성 보유 + 해당 무기 자체가 소이 관련 form)
-      if (armorPassive === "인화성 물질") {
-        const soiForm = s(rowForm);
-        if (hasTrait(it, "소이") &&
-            (soiForm.includes("범위형") || soiForm.includes("횡방향 화력투사") || soiForm.includes("구역 화력투사")))
-          posNotes.push("화염 피해 감소");
-      }
-      // ── 고급 여과 → 가스 피해 감소 (특정 ID)
-      if (armorPassive === "고급 여과") {
-        const GAS_IDS = ["th_sp_gas4","orb_gs","sw_tx41","bp_ax13","sw_s11","ep_md8"];
-        if (GAS_IDS.some(r => itId.includes(r))) posNotes.push("가스 피해 감소");
-      }
       // ── 결연함 → 1인칭 피격 흔들림 감소 (주무기, 보조무기, 지원무기 / 스트라타젬 제외)
       if (armorPassive === "결연함") {
         if (isPrimary || isSecondary || isSupportRow)
@@ -2050,10 +2112,6 @@ export default function App() {
       // ── 총잡이 → 재장전 속도, 전환 속도, 반동 감소 (보조무기)
       if (armorPassive === "총잡이" && isSecondary)
         posNotes.push("재장전 속도", "전환 속도", "반동 감소");
-      // ── 전도성 / 아드레노-제세동기 → 아크 피해 감소 (아크 특성, en_arc12·sw_arc 제외)
-      if (["전도성","아드레노-제세동기"].includes(armorPassive)) {
-        if (hasTrait(it, "아크") && !itId.includes("en_arc12") && !itId.includes("sw_arc")) posNotes.push("아크 피해 감소");
-      }
       // ── 충격 방지 패드, 척탄병 → 폭발 피해 감소(폭발성), 수류탄 추가 보유(투척)
       if (armorPassive === "충격 방지 패드, 척탄병") {
         if (hasTrait(it, "폭발성")) posNotes.push("폭발 피해 감소");
@@ -2130,9 +2188,6 @@ export default function App() {
       // 발 먼저 → 관심 지역 탐지 범위, 다리 부상 면역
       if (armorPassive === "발 먼저")
         armorPersonalNotes.push("관심 지역 탐지 범위", "다리 부상 면역");
-      // 사막 돌격대 / 적응력 → 모든 상태이상 피해 감소
-      if (["사막 돌격대","적응력"].includes(armorPassive))
-        armorPersonalNotes.push("모든 상태이상 피해 감소");
       // 굳건한 바위 → 레그돌 억제는 개인 목록 제거 (구성 시너지로 이동)
       // 보급 아드레날린 → 피해를 받을때 스태미나 회복
       if (armorPassive === "보급 아드레날린")
