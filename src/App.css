@@ -1503,8 +1503,9 @@ body:has(.modalOverlay) {
   border:1px solid rgba(240,196,0,.38);
   border-radius:18px;
   box-shadow:0 0 40px rgba(240,196,0,.18), 0 8px 48px rgba(0,0,0,.85);
-  width:min(780px,96vw);
-  max-height:90vh;
+  width:min(860px,96vw);
+  max-height:88vh;
+  height:auto;
   display:flex; flex-direction:column;
   overflow:hidden;
   animation:wbNoticeCardIn .35s cubic-bezier(.22,1,.36,1);
@@ -1553,76 +1554,85 @@ body:has(.modalOverlay) {
 /* 아이템 카드 스크롤 영역 — PC: wrap, 모바일: 가로 스크롤 */
 .wbNoticeScrollArea {
   overflow-x:hidden;
-  overflow-y:hidden;
-  flex-shrink:0;
+  overflow-y:auto;
+  flex-shrink:1;
+  min-height:0;
   padding:8px 20px 14px;
   display:flex; flex-direction:column; gap:6px;
+  scrollbar-width:thin;
+  scrollbar-color:rgba(240,196,0,.25) transparent;
 }
+.wbNoticeScrollArea::-webkit-scrollbar { width:4px; }
+.wbNoticeScrollArea::-webkit-scrollbar-track { background:transparent; }
+.wbNoticeScrollArea::-webkit-scrollbar-thumb { background:rgba(240,196,0,.30); border-radius:99px; }
 
-/* 슈퍼 스토어 구분 레이블 */
-.wbNoticeSuperLabel {
-  font-size:11px; font-weight:700;
-  color:#00f6ff;
-  letter-spacing:.06em;
-  text-shadow:0 0 8px rgba(0,246,255,.55);
-  padding:2px 0 0 2px;
-}
-
-/* 카드 그리드 — PC: 한 줄 */
+/* 카드 그리드 — 고정 폭 카드, 왼쪽 정렬 */
 .wbNoticeItemGrid {
   display:flex; flex-direction:row;
   flex-wrap:nowrap;
   gap:8px;
+  justify-content:flex-start;
 }
 
-/* 개별 아이템 카드 — 고정 높이로 텍스트 정렬 일관화 */
+/* 개별 아이템 카드 — 고정 폭 */
 .wbNoticeItemCard {
   display:flex; flex-direction:column; align-items:center;
   gap:0;
-  padding:10px 8px 10px;
+  padding:12px 8px 12px;
   border-radius:12px;
   border:1px solid transparent;
-  flex:1 1 0; min-width:0;
+  width:120px; flex:0 0 120px;
   text-align:center;
 }
 
-/* 아이콘 래퍼 */
+/* 아이콘 래퍼 — 배경 투명, padding으로 경계 여백 확보 */
 .wbNoticeItemImgWrap {
-  width:82px; height:82px;
-  border-radius:10px;
+  width:96px; height:96px;
+  border-radius:12px;
   overflow:hidden;
-  background:rgba(0,0,0,.35);
+  background:transparent;
   display:flex; align-items:center; justify-content:center;
   flex-shrink:0;
   margin-bottom:8px;
+  padding:6px;
+  box-sizing:border-box;
 }
 .wbNoticeItemIcon {
   width:100%; height:100%;
   object-fit:contain; display:block;
+  background:transparent;
 }
 .wbNoticeItemImgPlaceholder {
   width:100%; height:100%;
   background:rgba(255,255,255,.06);
+  border-radius:8px;
+}
+
+/* 섹션 구분 레이블 (스트라타젬 / 슈퍼 스토어) */
+.wbNoticeSectionLabel {
+  font-size:11px; font-weight:700;
+  letter-spacing:.06em;
+  padding:4px 2px 0;
 }
 
 /* 아이템 명칭 — 고정 높이 2줄 */
 .wbNoticeItemName {
-  font-size:11px; font-weight:700;
+  font-size:12px; font-weight:700;
   line-height:1.35;
   word-break:keep-all; overflow-wrap:break-word;
   width:100%;
-  height:2.7em;          /* 2줄 고정 */
+  height:2.7em;
   display:flex; align-items:center; justify-content:center;
   margin-bottom:4px;
 }
 
 /* 아이템 종류 — 항상 하단 고정 */
 .wbNoticeItemKind {
-  font-size:10px; font-weight:700;
+  font-size:11px; font-weight:700;
   color:rgba(255,255,255,.38);
   line-height:1.2;
   width:100%;
-  height:1.2em;          /* 1줄 고정 */
+  height:1.2em;
   display:flex; align-items:center; justify-content:center;
 }
 
@@ -1640,8 +1650,9 @@ body:has(.modalOverlay) {
   .wbNoticeScrollArea::-webkit-scrollbar-thumb { background:rgba(240,196,0,.35); border-radius:99px; }
   .wbNoticeItemGrid { width:max-content; }
   .wbNoticeItemCard { width:90px; flex:0 0 90px; }
-  .wbNoticeItemImgWrap { width:64px; height:64px; }
+  .wbNoticeItemImgWrap { width:64px; height:64px; padding:4px; background:transparent; }
   .wbNoticeImgWrap { max-height:160px; }
+  .wbNoticeScrollArea { overflow-x:auto; overflow-y:auto; }
 }
 
 /* 하단 */

@@ -36,13 +36,17 @@ function wbNoticeSetDismiss() { try { localStorage.setItem(WB_NOTICE_KEY, "true"
 // ★ 채권 업데이트 시 아래 데이터 수정
 const WB_NOTICE_DATA = {
   name: "견고한 참호 사단",
+  // ★ 채권 업데이트 시 항목 수정
+  // DB G열(wbrequirement) = '견고한 참호 사단' 기준으로 각 시트에서 조회 후 추가
   items: [
-    { label: "SMG/FLAM-34 스토커",  kind: "주무기",   id: "pr_sm_smg34"  },
-    { label: "CQC-73 참호 도구",     kind: "보조무기", id: "se_cq_cqc73"  },
-    { label: "P-69 비토",            kind: "보조무기", id: "se_ps_p69"    },
-    { label: "G-48 기가 수류탄",     kind: "투척무기", id: "th_sp_g48"    },
-    { label: "CPG-48 공병",          kind: "방어구",   id: "ar_cp_cpg48"  },
-    { label: "CPH-26 사령관",        kind: "방어구",   id: "ar_cp_cph26"  },
+    { label: "SMG/FLAM-34 스토커",        kind: "주무기",     id: "pr_sm_smg34"   },
+    { label: "CQC-73 참호 도구",           kind: "보조무기",   id: "se_cq_cqc73"   },
+    { label: "P-69 비토",                  kind: "보조무기",   id: "se_ps_p69"     },
+    { label: "G-48 기가 수류탄",           kind: "투척무기",   id: "th_sp_g48"     },
+    { label: "CPG-48 공병",               kind: "방어구",     id: "ar_cp_cpg48"   },
+    { label: "CPH-26 사령관",             kind: "방어구",     id: "ar_cp_cph26"   },
+    { label: "B/FLAM-80 크리메이터",      kind: "스트라타젬", id: "st_sw_bflam80" },
+    { label: "A/GM-17 가스 박격포 센트리", kind: "스트라타젬", id: "st_st_gm17"    },
   ],
   superStore: [
     { label: "CPR-80 방벽",   kind: "방어구", id: "ar_cp_cpr80" },
@@ -51,12 +55,15 @@ const WB_NOTICE_DATA = {
 };
 
 const KIND_COLOR = {
-  "주무기":    { color:"#fde047", shadow:"rgba(253,224,71,.55)" },
-  "보조무기":  { color:"#fde047", shadow:"rgba(253,224,71,.55)" },
-  "투척무기":  { color:"#fde047", shadow:"rgba(253,224,71,.55)" },
-  "방어구":    { color:"#fde047", shadow:"rgba(253,224,71,.55)" },
-  "스트라타젬":{ color:"#fde047", shadow:"rgba(253,224,71,.55)" },
-  "슈퍼스토어":{ color:"#00f6ff", shadow:"rgba(0,246,255,.55)"  },
+  "주무기":       { color:"#fde047", shadow:"rgba(253,224,71,.55)" },
+  "보조무기":     { color:"#fde047", shadow:"rgba(253,224,71,.55)" },
+  "투척무기":     { color:"#fde047", shadow:"rgba(253,224,71,.55)" },
+  "방어구":       { color:"#fde047", shadow:"rgba(253,224,71,.55)" },
+  "지원무기":     { color:"#bfe1f6", shadow:"rgba(191,225,246,.55)" },
+  "지원배낭 무기":{ color:"#bfe1f6", shadow:"rgba(191,225,246,.55)" },
+  "일회용 지원무기":{ color:"#bfe1f6", shadow:"rgba(191,225,246,.55)" },
+  "스트라타젬":   { color:"#fde047", shadow:"rgba(253,224,71,.55)" },
+  "슈퍼스토어":   { color:"#00f6ff", shadow:"rgba(0,246,255,.55)"  },
 };
 
 function WbItemIcon({ src, alt }) {
@@ -90,16 +97,18 @@ function WbNoticeOverlay({ onClose }) {
 
   /* kind → 표시 레이블 */
   const KIND_LABEL = {
-    "주무기":    "주무기",
-    "보조무기":  "보조무기",
-    "투척무기":  "투척무기",
-    "방어구":    "방어구",
-    "공격":      "스트라타젬 (공격)",
-    "지원무기":  "스트라타젬 (지원무기)",
-    "배낭":      "스트라타젬 (배낭)",
-    "방어":      "스트라타젬 (방어)",
-    "스트라타젬":"스트라타젬",
-    "슈퍼스토어":"슈퍼 스토어",
+    "주무기":          "주무기",
+    "보조무기":        "보조무기",
+    "투척무기":        "투척무기",
+    "방어구":          "방어구",
+    "공격":            "스트라타젬",
+    "지원무기":        "스트라타젬",
+    "지원배낭 무기":   "스트라타젬",
+    "일회용 지원무기": "스트라타젬",
+    "배낭":            "스트라타젬",
+    "방어":            "스트라타젬",
+    "스트라타젬":      "스트라타젬",
+    "슈퍼스토어":      "슈퍼 스토어",
   };
 
   return (
@@ -123,50 +132,63 @@ function WbNoticeOverlay({ onClose }) {
         {/* 채권명 */}
         <div className="wbNoticeWbName">{WB_NOTICE_DATA.name}</div>
 
-        {/* 항목 카드 — 일반 한 줄 + 슈퍼스토어 한 줄 */}
+        {/* 항목 카드 — 개인장비 → 스트라타젬 → 슈퍼스토어 순 */}
         <div className="wbNoticeScrollArea">
-          {/* 일반 채권 항목 */}
-          <div className="wbNoticeItemGrid">
-            {WB_NOTICE_DATA.items.map(({ label, kind, id }) => {
-              const cs = KIND_COLOR[kind] ?? KIND_COLOR["주무기"];
-              const iconSrc = resolveWbIcon(id);
-              const kindLabel = KIND_LABEL[kind] ?? kind;
-              return (
-                <div key={label} className="wbNoticeItemCard"
-                  style={{ borderColor:`${cs.color}44`, background:`${cs.color}0a`, boxShadow:`0 0 8px ${cs.shadow}` }}>
-                  <div className="wbNoticeItemImgWrap">
-                    {iconSrc ? <WbItemIcon src={iconSrc} alt={label} /> : <div className="wbNoticeItemImgPlaceholder" />}
-                  </div>
-                  <div className="wbNoticeItemName" style={{ color:cs.color, textShadow:`0 0 8px ${cs.shadow}` }}>{label}</div>
-                  <div className="wbNoticeItemKind">{kindLabel}</div>
-                </div>
-              );
-            })}
-          </div>
 
-          {/* 슈퍼스토어 항목 (있을 때만) */}
-          {WB_NOTICE_DATA.superStore?.length > 0 && (
-            <>
-              <div className="wbNoticeSuperLabel">슈퍼 스토어</div>
-              <div className="wbNoticeItemGrid">
-                {WB_NOTICE_DATA.superStore.map(({ label, kind, id }) => {
-                  const cs = KIND_COLOR["슈퍼스토어"];
-                  const iconSrc = resolveWbIcon(id);
-                  const kindLabel = KIND_LABEL[kind] ?? kind;
-                  return (
-                    <div key={label} className="wbNoticeItemCard"
-                      style={{ borderColor:`${cs.color}44`, background:`${cs.color}0a`, boxShadow:`0 0 8px ${cs.shadow}` }}>
-                      <div className="wbNoticeItemImgWrap">
-                        {iconSrc ? <WbItemIcon src={iconSrc} alt={label} /> : <div className="wbNoticeItemImgPlaceholder" />}
-                      </div>
-                      <div className="wbNoticeItemName" style={{ color:cs.color, textShadow:`0 0 8px ${cs.shadow}` }}>{label}</div>
-                      <div className="wbNoticeItemKind">{kindLabel}</div>
-                    </div>
-                  );
-                })}
+          {/* 개인 장비 (무기·방어구) */}
+          {(() => {
+            const STRAT_KINDS = new Set(["스트라타젬","공격","지원무기","지원배낭 무기","일회용 지원무기","배낭","방어","센트리"]);
+            const gearItems  = WB_NOTICE_DATA.items.filter(i => !STRAT_KINDS.has(i.kind));
+            const stratItems = WB_NOTICE_DATA.items.filter(i =>  STRAT_KINDS.has(i.kind));
+            const renderCard = (cs, iconSrc, label, kindLabel) => (
+              <div key={label} className="wbNoticeItemCard"
+                style={{ borderColor:`${cs.color}44`, background:`${cs.color}0a`, boxShadow:`0 0 8px ${cs.shadow}` }}>
+                <div className="wbNoticeItemImgWrap">
+                  {iconSrc ? <WbItemIcon src={iconSrc} alt={label} /> : <div className="wbNoticeItemImgPlaceholder" />}
+                </div>
+                <div className="wbNoticeItemName" style={{ color:cs.color, textShadow:`0 0 8px ${cs.shadow}` }}>{label}</div>
+                <div className="wbNoticeItemKind">{kindLabel}</div>
               </div>
-            </>
-          )}
+            );
+            return (
+              <>
+                {/* 개인 장비 행 */}
+                {gearItems.length > 0 && (
+                  <div className="wbNoticeItemGrid">
+                    {gearItems.map(({ label, kind, id }) => {
+                      const cs = KIND_COLOR[kind] ?? KIND_COLOR["주무기"];
+                      return renderCard(cs, resolveWbIcon(id), label, KIND_LABEL[kind] ?? kind);
+                    })}
+                  </div>
+                )}
+                {/* 스트라타젬 행 */}
+                {stratItems.length > 0 && (
+                  <>
+                    <div className="wbNoticeSectionLabel" style={{ color:"rgba(253,224,71,.65)" }}>스트라타젬</div>
+                    <div className="wbNoticeItemGrid">
+                      {stratItems.map(({ label, kind, id }) => {
+                        const cs = KIND_COLOR[kind] ?? KIND_COLOR["주무기"];
+                        return renderCard(cs, resolveWbIcon(id), label, KIND_LABEL[kind] ?? kind);
+                      })}
+                    </div>
+                  </>
+                )}
+                {/* 슈퍼 스토어 행 */}
+                {WB_NOTICE_DATA.superStore?.length > 0 && (
+                  <>
+                    <div className="wbNoticeSectionLabel" style={{ color:"#00f6ff", textShadow:"0 0 8px rgba(0,246,255,.55)" }}>슈퍼 스토어</div>
+                    <div className="wbNoticeItemGrid">
+                      {WB_NOTICE_DATA.superStore.map(({ label, kind, id }) => {
+                        const cs = KIND_COLOR["슈퍼스토어"];
+                        return renderCard(cs, resolveWbIcon(id), label, KIND_LABEL[kind] ?? kind);
+                      })}
+                    </div>
+                  </>
+                )}
+              </>
+            );
+          })()}
+
         </div>
 
         {/* 하단 */}
