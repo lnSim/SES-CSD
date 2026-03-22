@@ -135,11 +135,9 @@ function WbNoticeOverlay({ onClose }) {
         {/* 항목 카드 — 개인장비 → 스트라타젬 → 슈퍼스토어 순 */}
         <div className="wbNoticeScrollArea">
 
-          {/* 개인 장비 (무기·방어구) */}
           {(() => {
             const STRAT_KINDS = new Set(["스트라타젬","공격","지원무기","지원배낭 무기","일회용 지원무기","배낭","방어","센트리"]);
-            const gearItems  = WB_NOTICE_DATA.items.filter(i => !STRAT_KINDS.has(i.kind));
-            const stratItems = WB_NOTICE_DATA.items.filter(i =>  STRAT_KINDS.has(i.kind));
+            const allItems   = WB_NOTICE_DATA.items; // 개인장비 + 스트라타젬 모두
             const renderCard = (cs, iconSrc, label, kindLabel) => (
               <div key={label} className="wbNoticeItemCard"
                 style={{ borderColor:`${cs.color}44`, background:`${cs.color}0a`, boxShadow:`0 0 8px ${cs.shadow}` }}>
@@ -152,21 +150,12 @@ function WbNoticeOverlay({ onClose }) {
             );
             return (
               <>
-                {/* 개인 장비 행 */}
-                {gearItems.length > 0 && (
-                  <div className="wbNoticeItemGrid">
-                    {gearItems.map(({ label, kind, id }) => {
-                      const cs = KIND_COLOR[kind] ?? KIND_COLOR["주무기"];
-                      return renderCard(cs, resolveWbIcon(id), label, KIND_LABEL[kind] ?? kind);
-                    })}
-                  </div>
-                )}
-                {/* 스트라타젬 행 */}
-                {stratItems.length > 0 && (
+                {/* 채권 구성품 — 한 줄 */}
+                {allItems.length > 0 && (
                   <>
-                    <div className="wbNoticeSectionLabel" style={{ color:"rgba(253,224,71,.65)" }}>스트라타젬</div>
+                    <div className="wbNoticeSectionLabel" style={{ color:"rgba(253,224,71,.65)" }}>채권에 포함된 구성품</div>
                     <div className="wbNoticeItemGrid">
-                      {stratItems.map(({ label, kind, id }) => {
+                      {allItems.map(({ label, kind, id }) => {
                         const cs = KIND_COLOR[kind] ?? KIND_COLOR["주무기"];
                         return renderCard(cs, resolveWbIcon(id), label, KIND_LABEL[kind] ?? kind);
                       })}
@@ -176,7 +165,7 @@ function WbNoticeOverlay({ onClose }) {
                 {/* 슈퍼 스토어 행 */}
                 {WB_NOTICE_DATA.superStore?.length > 0 && (
                   <>
-                    <div className="wbNoticeSectionLabel" style={{ color:"#00f6ff", textShadow:"0 0 8px rgba(0,246,255,.55)" }}>슈퍼 스토어</div>
+                    <div className="wbNoticeSectionLabel" style={{ color:"#00f6ff", textShadow:"0 0 8px rgba(0,246,255,.55)" }}>슈퍼스토어 로테이션 추가</div>
                     <div className="wbNoticeItemGrid">
                       {WB_NOTICE_DATA.superStore.map(({ label, kind, id }) => {
                         const cs = KIND_COLOR["슈퍼스토어"];
