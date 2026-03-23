@@ -759,10 +759,12 @@ function FilterGroup({ title, options, selected, onToggle, collapsible=true }) {
         <div className="filterTitle" style={{ display:"flex", alignItems:"center", gap:6 }}>
           {title}
           {activeCount > 0 && (
-            <span style={{ fontSize:10, fontWeight:700, padding:"1px 6px", borderRadius:999,
-              background:"rgba(240,196,0,.20)", color:"var(--yellow)", border:"1px solid rgba(240,196,0,.45)" }}>
-              {activeCount}
-            </span>
+            <span style={{
+              width:7, height:7, borderRadius:"50%", flexShrink:0,
+              background:"var(--yellow)",
+              boxShadow:"0 0 5px rgba(240,196,0,.8), 0 0 10px rgba(240,196,0,.4)",
+              display:"inline-block",
+            }} />
           )}
         </div>
         {collapsible && (
