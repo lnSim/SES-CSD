@@ -1505,19 +1505,8 @@ body:has(.modalOverlay) {
   cursor:pointer;
   gap:10px;
 }
-/* 오버레이 상단 닫기 힌트 — 모바일에서만 표시 */
-.wbNoticeOverlay::before {
-  content:"▲  탭하면 닫힙니다  ▲";
-  font-size:12px; font-weight:700;
-  color:rgba(255,255,255,.35);
-  letter-spacing:.06em;
-  flex-shrink:0;
-  pointer-events:none;
-  display:none;
-}
-@media(max-width:600px) {
-  .wbNoticeOverlay::before { display:block; }
-}
+/* 오버레이 상단 닫기 힌트 — 사용 안 함 */
+.wbNoticeOverlay::before { display:none; }
 .wbNoticeOverlay.wbNoticeFading { opacity:0; pointer-events:none; }
 @keyframes wbNoticeFadeIn { from{opacity:0} to{opacity:1} }
 
@@ -1661,21 +1650,36 @@ body:has(.modalOverlay) {
 
 /* 모바일 보정 */
 @media(max-width:600px) {
-  .wbNoticeCard { max-height:78vh; }
+  /* 오버레이: 패딩 제거, 카드가 화면 꽉 차도록 */
+  .wbNoticeOverlay {
+    padding:0;
+    justify-content:flex-start;
+    overflow-y:auto;
+  }
+  .wbNoticeCard {
+    width:100vw;
+    max-height:none;
+    min-height:100dvh;
+    border-radius:0;
+    border-left:none; border-right:none;
+  }
   .wbNoticeItemCard { width:90px; flex:0 0 90px; }
   .wbNoticeItemImgWrap { width:64px; height:64px; padding:4px; background:transparent; }
   .wbNoticeImgWrap { max-height:160px; }
+  /* 스크롤 영역: x 방향 허용 */
+  .wbNoticeScrollArea { overflow-x:visible; }
   .wbNoticeItemGrid {
     flex-wrap:nowrap;
     justify-content:flex-start;
     overflow-x:auto;
-    padding-bottom:4px;
-    scrollbar-width:thin;
-    scrollbar-color:rgba(240,196,0,.20) transparent;
+    padding-bottom:6px;
+    /* 스크롤이 카드 패딩 바깥까지 닿도록 */
+    margin:0 -20px;
+    padding-left:20px;
+    padding-right:20px;
+    scrollbar-width:none;
   }
-  .wbNoticeItemGrid::-webkit-scrollbar { height:3px; }
-  .wbNoticeItemGrid::-webkit-scrollbar-track { background:transparent; }
-  .wbNoticeItemGrid::-webkit-scrollbar-thumb { background:rgba(240,196,0,.25); border-radius:99px; }
+  .wbNoticeItemGrid::-webkit-scrollbar { display:none; }
 }
 
 /* 하단 */
@@ -1696,6 +1700,22 @@ body:has(.modalOverlay) {
 }
 .wbNoticePermanentBtn:hover {
   background:rgba(255,255,255,.11); border-color:rgba(255,255,255,.38); color:#fff;
+}
+/* 닫기 버튼 — 모바일에서만 표시 */
+.wbNoticeCloseBtn {
+  display:none;
+  width:100%; padding:12px 16px; border-radius:10px;
+  border:1px solid rgba(240,196,0,.45);
+  background:rgba(240,196,0,.10);
+  color:var(--yellow);
+  font-size:14px; font-weight:700; cursor:pointer;
+  transition:background .12s, border-color .12s;
+  font-family:inherit;
+}
+.wbNoticeCloseBtn:hover { background:rgba(240,196,0,.20); border-color:rgba(240,196,0,.75); }
+@media(max-width:600px) {
+  .wbNoticeCloseBtn { display:block; }
+  .wbNoticeHint     { display:none;  }
 }
 .wbNoticeHint {
   text-align:center;

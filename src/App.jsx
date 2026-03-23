@@ -185,6 +185,10 @@ function WbNoticeOverlay({ onClose }) {
           <button type="button" className="wbNoticePermanentBtn" onClick={() => handleClose(true)}>
             채권 업데이트 전까지 해당 창을 표시하지 않기
           </button>
+          {/* 모바일: 닫기 버튼 / PC: 힌트 텍스트 */}
+          <button type="button" className="wbNoticeCloseBtn" onClick={() => handleClose(false)}>
+            닫기
+          </button>
           <div className="wbNoticeHint">아무곳이나 클릭하면 이 창을 닫습니다.</div>
         </div>
 
