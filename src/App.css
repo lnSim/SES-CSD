@@ -632,6 +632,7 @@ body {
 .slotCard.slotArmor {
   padding:10px;
   display:flex; flex-direction:column; gap:6px;
+  min-height:200px;
 }
 /* 방어구 타이틀 행: 타이틀 / (태그 + 해제버튼) */
 .slotTopArmor { margin-bottom:0; }
@@ -1025,14 +1026,22 @@ body {
   .modalCard:has(.filterPanel) .stratPreviewBar {
     display:none;
   }
-  /* modalCard가 필터 스크롤을 막지 않도록 */
+  /* modalCard: flex column 유지, 높이 제한 */
   .modalCard:has(.filterPanel) {
-    overflow:visible;
-    max-height:none;
+    overflow:hidden;
+    max-height:92vh;
+    display:flex;
+    flex-direction:column;
   }
-  /* 필터 패널: 독립 스크롤 + 전체 뷰포트 활용 */
+  /* 헤더/검색창은 flex-shrink:0 고정 */
+  .modalCard:has(.filterPanel) .modalHeader,
+  .modalCard:has(.filterPanel) .modalSearchBar {
+    flex-shrink:0;
+  }
+  /* 필터 패널: 남은 공간 채우고 독립 스크롤 */
   .modalCard:has(.filterPanel) .filterPanel {
-    max-height:calc(100dvh - 56px);
+    flex:1;
+    max-height:none;
     overflow-y:auto;
     -webkit-overflow-scrolling:touch;
     overscroll-behavior:contain;
@@ -1496,7 +1505,7 @@ body:has(.modalOverlay) {
   cursor:pointer;
   gap:10px;
 }
-/* 오버레이 상단 닫기 힌트 */
+/* 오버레이 상단 닫기 힌트 — 모바일에서만 표시 */
 .wbNoticeOverlay::before {
   content:"▲  탭하면 닫힙니다  ▲";
   font-size:12px; font-weight:700;
@@ -1504,6 +1513,10 @@ body:has(.modalOverlay) {
   letter-spacing:.06em;
   flex-shrink:0;
   pointer-events:none;
+  display:none;
+}
+@media(max-width:600px) {
+  .wbNoticeOverlay::before { display:block; }
 }
 .wbNoticeOverlay.wbNoticeFading { opacity:0; pointer-events:none; }
 @keyframes wbNoticeFadeIn { from{opacity:0} to{opacity:1} }
@@ -1618,11 +1631,11 @@ body:has(.modalOverlay) {
   border-radius:8px;
 }
 
-/* 섹션 구분 레이블 (스트라타젬 / 슈퍼 스토어) */
+/* 섹션 구분 레이블 (채권에 포함된 구성품 / 슈퍼스토어 로테이션 추가) */
 .wbNoticeSectionLabel {
-  font-size:11px; font-weight:700;
-  letter-spacing:.06em;
-  padding:4px 2px 0;
+  font-size:13px; font-weight:700;
+  letter-spacing:.04em;
+  padding:10px 2px 4px;
 }
 
 /* 아이템 명칭 — 고정 높이 2줄 */

@@ -256,6 +256,7 @@ export default function PickerModal({
   const isArmorMode     = slotKind === "armor";
   const isMergedPen     = slotKind === "secondary" || slotKind === "throwable";
   const storageKey      = `pickerFilters_v7:${slotKind||"unknown"}`;
+  const isMobile        = typeof window !== "undefined" && window.innerWidth <= 700;
 
   const wbOptions = useMemo(() => {
     const all = uniqInOrder(items.map(getWB));
@@ -370,27 +371,30 @@ export default function PickerModal({
   const filteredItems = useMemo(() => {
     const query = searchText.trim().toLowerCase();
     return itemsByOwnership.filter(it => {
-      if (isArmorMode) {
-        if (filters.armorValue.size>0 && !filters.armorValue.has(getArmorValue(it))) return false;
-        if (filters.passive.size>0    && !filters.passive.has(getPassive(it)))       return false;
-      } else if (isWeapon) {
-        if (filters.weaponType.size>0 && !filters.weaponType.has(getWeaponType(it))) return false;
-        if (filters.armorPen.size>0) {
-          const labelFn = isMergedPen ? getArmorPenLabelMerged : getArmorPenLabel;
-          if (!filters.armorPen.has(labelFn(it))) return false;
+      // 텍스트 검색 중이면 상세 필터(armorValue/passive/weaponType/armorPen/traits/stratSubType) 무시
+      if (!query) {
+        if (isArmorMode) {
+          if (filters.armorValue.size>0 && !filters.armorValue.has(getArmorValue(it))) return false;
+          if (filters.passive.size>0    && !filters.passive.has(getPassive(it)))       return false;
+        } else if (isWeapon) {
+          if (filters.weaponType.size>0 && !filters.weaponType.has(getWeaponType(it))) return false;
+          if (filters.armorPen.size>0) {
+            const labelFn = isMergedPen ? getArmorPenLabelMerged : getArmorPenLabel;
+            if (!filters.armorPen.has(labelFn(it))) return false;
+          }
+          if (filters.traits.size>0) {
+            const itTraits = getWeaponTraits(it);
+            if (![...filters.traits].some(t => itTraits.includes(t))) return false;
+          }
         }
-        if (filters.traits.size>0) {
-          const itTraits = getWeaponTraits(it);
-          if (![...filters.traits].some(t => itTraits.includes(t))) return false;
+        if (isStratagemMode && filters.stratSubType.size > 0) {
+          const itSub = getSubType(it);
+          const filterSub = [...filters.stratSubType][0];
+          const matchSub = filterSub === "배낭 지원무기" ? "지원배낭 무기" : filterSub;
+          if (itSub !== matchSub) return false;
         }
       }
-      if (isStratagemMode && filters.stratSubType.size > 0) {
-        const itSub = getSubType(it);
-        const filterSub = [...filters.stratSubType][0];
-        const matchSub = filterSub === "배낭 지원무기" ? "지원배낭 무기" : filterSub;
-        if (itSub !== matchSub) return false;
-      }
-      // 텍스트 검색
+      // 텍스트 검색 (채권 소유 필터는 항상 적용)
       if (query) {
         if (!getItemSearchText(it).includes(query)) return false;
       }
@@ -564,6 +568,7 @@ export default function PickerModal({
                   options={["궤도","이글","지원무기","배낭 지원무기","일회용 지원무기","배낭","탑승물","센트리","거치포","배치형"]}
                   selected={filters.stratSubType}
                   onToggle={v => setFilters(p => ({ ...p, stratSubType: p.stratSubType.has(v) ? new Set() : new Set([v]) }))}
+                  collapsible={isMobile}
                 />
                 <div className="filterFooter">
                   <button className="filterResetBtn" onClick={resetAll} type="button">필터 선택 초기화</button>
@@ -572,8 +577,8 @@ export default function PickerModal({
             )}
             {isArmorMode && (
               <>
-                <FilterGroup title="장갑 등급" options={filterOptions.armorValue??[]} selected={filters.armorValue} onToggle={v=>togSet("armorValue",v)} />
-                <FilterGroup title="패시브"    options={filterOptions.passive??[]}    selected={filters.passive}    onToggle={v=>togSet("passive",v)} />
+                <FilterGroup title="장갑 등급" options={filterOptions.armorValue??[]} selected={filters.armorValue} onToggle={v=>togSet("armorValue",v)} collapsible={isMobile} />
+                <FilterGroup title="패시브"    options={filterOptions.passive??[]}    selected={filters.passive}    onToggle={v=>togSet("passive",v)}    collapsible={isMobile} />
                 <div className="filterFooter">
                   <button className="filterResetBtn" onClick={resetAll} type="button">필터 선택 초기화</button>
                 </div>
@@ -582,10 +587,10 @@ export default function PickerModal({
             {isWeapon && (
               <>
                 {isWeapon && (filterOptions.weaponTypes??[]).length>0 && (
-                  <FilterGroup title="무기 소분류" options={filterOptions.weaponTypes??[]} selected={filters.weaponType} onToggle={v=>togSet("weaponType",v)} />
+                  <FilterGroup title="무기 소분류" options={filterOptions.weaponTypes??[]} selected={filters.weaponType} onToggle={v=>togSet("weaponType",v)} collapsible={isMobile} />
                 )}
-                <FilterGroup title="장갑 관통" options={filterOptions.armorPen??[]} selected={filters.armorPen} onToggle={v=>togSet("armorPen",v)} />
-                <FilterGroup title="특성"      options={filterOptions.traits??[]}   selected={filters.traits}   onToggle={v=>togSet("traits",v)} />
+                <FilterGroup title="장갑 관통" options={filterOptions.armorPen??[]} selected={filters.armorPen} onToggle={v=>togSet("armorPen",v)} collapsible={isMobile} />
+                <FilterGroup title="특성"      options={filterOptions.traits??[]}   selected={filters.traits}   onToggle={v=>togSet("traits",v)}   collapsible={isMobile} />
                 <div className="filterFooter">
                   <button className="filterResetBtn" onClick={resetAll} type="button">필터 선택 초기화</button>
                 </div>
@@ -743,23 +748,44 @@ export default function PickerModal({
   );
 }
 
-function FilterGroup({ title, options, selected, onToggle }) {
+function FilterGroup({ title, options, selected, onToggle, collapsible=true }) {
+  const [open, setOpen] = useState(false);
+  const activeCount = options.filter(o => selected.has(o)).length;
   return (
     <div className="filterGroup">
-      <div className="filterHead"><div className="filterTitle">{title}</div></div>
-      <div className="filterChips">
-        {!options.length && <div className="filterEmpty">옵션 없음</div>}
-        {options.map(opt => {
-          const checked = selected.has(opt);
-          return (
-            <button key={opt} type="button"
-              className={`filterChip ${checked?"on":""}`}
-              onClick={()=>onToggle(opt)}>
-              {opt}
-            </button>
-          );
-        })}
+      <div className="filterHead"
+        onClick={() => collapsible && setOpen(v => !v)}
+        style={collapsible ? { cursor:"pointer", userSelect:"none" } : {}}>
+        <div className="filterTitle" style={{ display:"flex", alignItems:"center", gap:6 }}>
+          {title}
+          {activeCount > 0 && (
+            <span style={{ fontSize:10, fontWeight:700, padding:"1px 6px", borderRadius:999,
+              background:"rgba(240,196,0,.20)", color:"var(--yellow)", border:"1px solid rgba(240,196,0,.45)" }}>
+              {activeCount}
+            </span>
+          )}
+        </div>
+        {collapsible && (
+          <span style={{ fontSize:11, color:"rgba(255,255,255,.40)", flexShrink:0 }}>
+            {open ? "▲" : "▼"}
+          </span>
+        )}
       </div>
+      {(!collapsible || open) && (
+        <div className="filterChips">
+          {!options.length && <div className="filterEmpty">옵션 없음</div>}
+          {options.map(opt => {
+            const checked = selected.has(opt);
+            return (
+              <button key={opt} type="button"
+                className={`filterChip ${checked?"on":""}`}
+                onClick={()=>onToggle(opt)}>
+                {opt}
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
