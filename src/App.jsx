@@ -1291,7 +1291,7 @@ export default function App() {
       setErr("VITE_GAS_DEPLOYMENT_ID 가 설정되지 않았습니다 (.env.local 확인)");
       return;
     }
-    fetch(`/api/macros/s/${DEPLOYMENT_ID}/exec?nocache=1&t=${Date.now()}`)
+    fetch(`/api/macros/s/${DEPLOYMENT_ID}/exec`)
       .then(async r => {
         const text=await r.text();
         if (!r.ok) throw new Error(`HTTP ${r.status}: ${text.slice(0,120)}`);
