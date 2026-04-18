@@ -4,6 +4,7 @@ import "./App.css";
 import Slot from "./components/Slot";
 import PickerModal from "./components/PickerModal";
 import SelectedPanel from "./components/SelectedPanel";
+import RadarPage from "./components/RadarPage";
 
 const DEPLOYMENT_ID = import.meta.env.VITE_GAS_DEPLOYMENT_ID;
 
@@ -1291,7 +1292,7 @@ export default function App() {
       setErr("VITE_GAS_DEPLOYMENT_ID 가 설정되지 않았습니다 (.env.local 확인)");
       return;
     }
-    fetch(`/api/macros/s/${DEPLOYMENT_ID}/exec`)
+    fetch(`/api/macros/s/${DEPLOYMENT_ID}/exec?nocache=1&t=${Date.now()}`)
       .then(async r => {
         const text=await r.text();
         if (!r.ok) throw new Error(`HTTP ${r.status}: ${text.slice(0,120)}`);
@@ -2351,6 +2352,10 @@ export default function App() {
                 className={`topNavTab pageTab ${activePage==="random"?"active":""}`}
                 type="button" onClick={goRandom}
               >무작위 로드아웃</button>
+              <button
+                className={`topNavTab pageTab ${activePage==="radar"?"active":""}`}
+                type="button" onClick={()=>setActivePage("radar")}
+              >전력 분석</button>
             </span>
           </div>
           <div className="topNavTabs">
@@ -2704,6 +2709,11 @@ export default function App() {
               </div>
             )}
           </div>
+        )}
+
+        {/* ── 전력 분석 (레이더 차트) ── */}
+        {!isLoading && activePage==="radar" && (
+          <RadarPage />
         )}
 
       </div>
