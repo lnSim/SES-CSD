@@ -10,34 +10,31 @@ function normalizeIconPath(p) {
   return `/${v}`;
 }
 
-/* ── 이미지 폴백 체인: primary → svg → webp → dead ──
- * primary가 .png → png → svg → webp
- * primary가 .webp → webp → png → svg
- * primary가 .svg  → svg
+/* ── 아이템 sheet 기반 단일 확장자 결정 ──
+ * stratagem → .svg 단일
+ * armor / weapon 등 → .png 단일
  */
-function buildFallbacks(primary) {
-  const ext = (primary.match(/\.([^./?#]+)(?:[?#]|$)/i)?.[1] || "").toLowerCase();
-  if (ext === "png")  return [primary, primary.replace(/\.png$/i,".svg"),  primary.replace(/\.png$/i,".webp")];
-  if (ext === "webp") return [primary, primary.replace(/\.webp$/i,".png"), primary.replace(/\.webp$/i,".svg")];
-  if (ext === "svg")  return [primary];
-  return [primary, primary+".svg", primary+".webp"];
+function resolveExt(sheet) {
+  return String(sheet || "").toLowerCase() === "stratagem" ? ".svg" : ".png";
+}
+function forceExt(url, ext) {
+  return url.replace(/\.(png|svg|webp)$/i, ext);
 }
 
-function SlotImg({ src, alt, className, style }) {
-  const primary   = normalizeIconPath(src) || "/icons/_default.png";
-  const fallbacks = buildFallbacks(primary);
-  const [idx,  setIdx]  = useState(0);
+function SlotImg({ src, alt, className, style, sheet }) {
+  const raw     = normalizeIconPath(src) || "/icons/_default.png";
+  const ext     = resolveExt(sheet);
+  const primary = forceExt(raw, ext);
   const [dead, setDead] = useState(false);
-  useEffect(() => { setIdx(0); setDead(false); }, [primary]);
-  const cur = fallbacks[idx] ?? primary;
+  useEffect(() => { setDead(false); }, [primary]);
   if (dead) return (
     <div style={{ display:"flex", alignItems:"center", justifyContent:"center",
       width:"100%", height:"100%", color:"rgba(255,255,255,0.15)", fontSize:11 }}>?</div>
   );
   return (
-    <img className={className} src={cur} alt={alt} draggable={false}
+    <img className={className} src={primary} alt={alt} draggable={false}
       style={{ background:"transparent", ...style }}
-      onError={() => { const next=idx+1; if(next<fallbacks.length) setIdx(next); else setDead(true); }}
+      onError={() => { setDead(true); }}
     />
   );
 }
@@ -155,7 +152,7 @@ export default function Slot({
               <div className="slotPreview">
                 {warnBackpack && <div className="stratWarnDot" />}
                 <div className="slotImageWrap">
-                  <SlotImg className="slotImage slotImageArmor" src={picked.icon} alt={picked.name_ko||picked.id} />
+                  <SlotImg className="slotImage slotImageArmor" src={picked.icon} alt={picked.name_ko||picked.id} sheet={picked.sheet} />
                 </div>
                 {/* 하단: 패시브 + 이름 */}
                 <div className="slotText slotTextArmor">
@@ -183,7 +180,7 @@ export default function Slot({
               <div className="slotPreview">
                 {warnBackpack && <div className="stratWarnDot" />}
                 <div className="slotImageWrap">
-                  <SlotImg className="slotImage slotImagePrimary" src={picked.icon} alt={picked.name_ko||picked.id} />
+                  <SlotImg className="slotImage slotImagePrimary" src={picked.icon} alt={picked.name_ko||picked.id} sheet={picked.sheet} />
                 </div>
               </div>
             )}
@@ -239,7 +236,7 @@ export default function Slot({
                 {warnBackpack && <div className="stratWarnDot" />}
                 {armorTag && <div className="slotBadge">{armorTag}</div>}
                 <div className="slotImageWrap">
-                  <SlotImg className="slotImage" src={picked.icon} alt={picked.name_ko||picked.id} />
+                  <SlotImg className="slotImage" src={picked.icon} alt={picked.name_ko||picked.id} sheet={picked.sheet} />
                 </div>
                 {!hideName && (
                   <div className="slotText">
@@ -261,7 +258,7 @@ export default function Slot({
             <div className="slotPreview">
               {warnBackpack && <div className="stratWarnDot" />}
               <div className="slotImageWrap">
-                <SlotImg className="slotImage slotImageStratagem" src={picked.icon} alt={picked.name_ko||picked.id} />
+                <SlotImg className="slotImage slotImageStratagem" src={picked.icon} alt={picked.name_ko||picked.id} sheet={picked.sheet} />
               </div>
             </div>
           )}

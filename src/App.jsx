@@ -67,14 +67,12 @@ const KIND_COLOR = {
 };
 
 function WbItemIcon({ src, alt }) {
-  const exts = [src, src.replace(/\.png$/i,".webp"), src.replace(/\.png$/i,".svg")];
-  const [idx, setIdx] = useState(0);
   const [dead, setDead] = useState(false);
   if (dead) return null;
   return (
-    <img src={exts[idx] ?? src} alt={alt}
+    <img src={src} alt={alt}
       className="wbNoticeItemIcon" draggable={false}
-      onError={() => { const n=idx+1; if(n<exts.length) setIdx(n); else setDead(true); }}
+      onError={() => { setDead(true); }}
     />
   );
 }
@@ -91,7 +89,7 @@ function WbNoticeOverlay({ onClose }) {
   function resolveWbIcon(id) {
     if (!id) return null;
     if (id.startsWith("ar_")) return `/icons/armor/${id}.png`;
-    if (id.startsWith("st_")) return `/icons/stratagem/${id}.png`;
+    if (id.startsWith("st_")) return `/icons/stratagem/${id}.svg`;
     return `/icons/weapon/${id}.png`;
   }
 
@@ -217,22 +215,19 @@ function normalizeItem(it) {
   return { ...it, id:s(it?.id), type, icon:normalizeIcon({...it,type}) };
 }
 
-/* ── 무작위 결과 카드용 이미지 컴포넌트 (png→svg→webp fallback) ── */
+/* ── 무작위 결과 카드용 이미지 컴포넌트 (sheet 기반 단일 확장자) ── */
 function RandIcon({ item, className, style={} }) {
-  const primary = s(item?.icon) || normalizeIcon(item);
-  const fallbacks = [primary,
-    primary.replace(/\.(png|webp)$/i, ".svg"),
-    primary.replace(/\.(svg|webp)$/i, ".png"),
-    primary.replace(/\.(png|svg)$/i,  ".webp"),
-  ].filter((v,i,a) => v && a.indexOf(v)===i);
-  const [idx, setIdx] = useState(0);
+  const sheet   = s(item?.sheet || item?.sheetName || item?.type);
+  const ext     = sheet.toLowerCase() === "stratagem" ? ".svg" : ".png";
+  const base    = s(item?.icon) || normalizeIcon(item);
+  const primary = base.replace(/\.(png|svg|webp)$/i, ext);
   const [dead, setDead] = useState(false);
-  useEffect(()=>{ setIdx(0); setDead(false); }, [primary]);
+  useEffect(()=>{ setDead(false); }, [primary]);
   if (dead) return null;
   return (
-    <img src={fallbacks[idx]??primary} alt={s(item?.name_ko)||s(item?.id)}
+    <img src={primary} alt={s(item?.name_ko)||s(item?.id)}
       className={className} style={style} draggable={false}
-      onError={()=>{ const next=idx+1; if(next<fallbacks.length) setIdx(next); else setDead(true); }}
+      onError={()=>{ setDead(true); }}
     />
   );
 }
@@ -267,33 +262,26 @@ const TRAIT_TC_PNG  = {
 };
 
 /* URL의 확장자를 교체해 fallback 목록 생성 */
-function buildFallbackUrls(url) {
-  if (!url) return [];
+/* sheet 기반 단일 확장자 결정 (PNG 내보내기 canvas용) */
+function resolveIconUrl(url, sheet) {
+  if (!url) return null;
   const base = window.location.origin;
   const abs  = url.startsWith("http") ? url : base + (url.startsWith("/") ? url : "/" + url);
-  const noExt = abs.replace(/\.(png|svg|webp)$/i, "");
-  // png → svg → webp 순
-  return [abs, noExt + ".svg", noExt + ".webp", noExt + ".png"].filter((v,i,a)=>a.indexOf(v)===i);
+  const ext  = String(sheet || "").toLowerCase() === "stratagem" ? ".svg" : ".png";
+  return abs.replace(/\.(png|svg|webp)$/i, ext);
 }
 
-/* 이미지를 순차적으로 시도 → 성공한 첫 번째 반환 */
-async function loadImgWithFallback(url) {
-  if (!url) return null;
-  const urls = buildFallbackUrls(url);
-  for (const u of urls) {
-    const img = await new Promise(res => {
-      const el = new Image();
-      // SVG는 crossOrigin 없이 시도 (tainting 허용)
-      if (!/\.svg$/i.test(u)) el.crossOrigin = "anonymous";
-      el.onload  = () => res(el);
-      el.onerror = () => res(null);
-      el.src = u;
-    });
-    if (img && (img.naturalWidth > 0 || img.width > 0)) return img;
-    // SVG는 naturalWidth=0 이어도 실제로는 로드 성공인 경우 있음
-    if (img && /\.svg$/i.test(u)) return img;
-  }
-  return null;
+/* 이미지 단일 URL 로드 (폴백 없음) */
+async function loadImgWithFallback(url, sheet) {
+  const resolved = resolveIconUrl(url, sheet);
+  if (!resolved) return null;
+  return await new Promise(res => {
+    const el = new Image();
+    if (!/\.svg$/i.test(resolved)) el.crossOrigin = "anonymous";
+    el.onload  = () => res(el);
+    el.onerror = () => res(null);
+    el.src = resolved;
+  });
 }
 
 function rRect(ctx, x, y, w, h, r) {
@@ -358,11 +346,11 @@ async function exportLoadoutPng(captureRef, selected, wbSummary=[]) {
 
   /* ── 모든 이미지 병렬 로드 ── */
   const [stratImgs, armImg, priImg, secImg, thrImg] = await Promise.all([
-    Promise.all(selected.stratagem.map(it => loadImgWithFallback(it?.icon))),
-    loadImgWithFallback(selected.armor?.icon),
-    loadImgWithFallback(selected.primary?.icon),
-    loadImgWithFallback(selected.secondary?.icon),
-    loadImgWithFallback(selected.throwable?.icon),
+    Promise.all(selected.stratagem.map(it => loadImgWithFallback(it?.icon, it?.sheet))),
+    loadImgWithFallback(selected.armor?.icon,      selected.armor?.sheet),
+    loadImgWithFallback(selected.primary?.icon,    selected.primary?.sheet),
+    loadImgWithFallback(selected.secondary?.icon,  selected.secondary?.sheet),
+    loadImgWithFallback(selected.throwable?.icon,  selected.throwable?.sheet),
   ]);
 
   /* ── 드로잉 헬퍼 ── */

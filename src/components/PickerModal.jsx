@@ -191,35 +191,34 @@ function getItemSearchText(it) {
 function lsGet(key) { try { const r=localStorage.getItem(key); return r?JSON.parse(r):null; } catch { return null; } }
 function lsSet(key, val) { try { localStorage.setItem(key,JSON.stringify(val)); } catch {} }
 
-/* ── webp 폴백 이미지 (1번 요청) ── */
-function buildFallbacks(primary) {
-  const ext = (primary.match(/\.([^./?#]+)(?:[?#]|$)/i)?.[1]||"").toLowerCase();
-  if (ext==="png")  return [primary, primary.replace(/\.png$/i,".svg"),  primary.replace(/\.png$/i,".webp")];
-  if (ext==="webp") return [primary, primary.replace(/\.webp$/i,".png"), primary.replace(/\.webp$/i,".svg")];
-  if (ext==="svg")  return [primary];
-  return [primary, primary+".svg", primary+".webp"];
+/* ── sheet 기반 단일 확장자 결정 ──
+ * stratagem → .svg 단일 / 그 외 → .png 단일
+ */
+function resolveExt(sheet) {
+  return String(sheet || "").toLowerCase() === "stratagem" ? ".svg" : ".png";
+}
+function forceExt(url, ext) {
+  return url.replace(/\.(png|svg|webp)$/i, ext);
 }
 
 function ItemIcon({ item, style={} }) {
+  const sheet  = s(item?.sheet || item?.sheetName || item?.type);
+  const ext    = resolveExt(sheet);
   const resolve = (it) => {
     const raw = s(it?.icon);
-    if (raw) return /^https?:\/\//i.test(raw) ? raw : raw.startsWith("/") ? raw : `/${raw}`;
-    const id = s(it?.id);
-    if (!id) return "/icons/_default.png";
-    const folder = s(it?.sheet||it?.sheetName||it?.type)||"misc";
-    return `/icons/${folder}/${id}.png`;
+    const base = raw
+      ? (/^https?:\/\//i.test(raw) ? raw : raw.startsWith("/") ? raw : `/${raw}`)
+      : (() => { const id=s(it?.id); if(!id) return "/icons/_default.png"; const folder=sheet||"misc"; return `/icons/${folder}/${id}.png`; })();
+    return forceExt(base, ext);
   };
-  const primary   = resolve(item);
-  const fallbacks = buildFallbacks(primary);
-  const [idx,  setIdx]  = useState(0);
+  const primary = resolve(item);
   const [dead, setDead] = useState(false);
-  useEffect(() => { setIdx(0); setDead(false); }, [primary]);
-  const cur = fallbacks[idx] ?? primary;
+  useEffect(() => { setDead(false); }, [primary]);
   if (dead) return <span style={{ opacity:0.15, fontSize:14 }}>?</span>;
   return (
-    <img style={{ display:"block", background:"transparent", ...style }} src={cur}
+    <img style={{ display:"block", background:"transparent", ...style }} src={primary}
       alt={s(item?.name_ko)||s(item?.id)} draggable={false}
-      onError={() => { const next=idx+1; if(next<fallbacks.length) setIdx(next); else setDead(true); }}
+      onError={() => { setDead(true); }}
     />
   );
 }
