@@ -11,25 +11,31 @@ function normalizeIconPath(p) {
 }
 
 /* ── 아이템 sheet 기반 단일 확장자 결정 ──
- * stratagem → .svg 단일
+ * stratagem → .svg 단일 (단, PNG 미준비 항목은 .png 임시 사용)
  * armor / weapon 등 → .png 단일
  */
-function resolveExt(sheet) {
-  return String(sheet || "").toLowerCase() === "stratagem" ? ".svg" : ".png";
+const PNG_TEMP_STRATAGEM_IDS = new Set(["st_sw_mgx42","st_vh_exo51","st_vh_exo55"]);
+function resolveExt(sheet, id) {
+  if (String(sheet || "").toLowerCase() !== "stratagem") return ".png";
+  if (id && PNG_TEMP_STRATAGEM_IDS.has(String(id))) return ".png";
+  return ".svg";
 }
 function forceExt(url, ext) {
   return url.replace(/\.(png|svg|webp)$/i, ext);
 }
 
-function SlotImg({ src, alt, className, style, sheet }) {
+function SlotImg({ src, alt, className, style, sheet, itemId }) {
   const raw     = normalizeIconPath(src) || "/icons/_default.png";
-  const ext     = resolveExt(sheet);
+  const ext     = resolveExt(sheet, itemId);
   const primary = forceExt(raw, ext);
   const [dead, setDead] = useState(false);
   useEffect(() => { setDead(false); }, [primary]);
   if (dead) return (
-    <div style={{ display:"flex", alignItems:"center", justifyContent:"center",
-      width:"100%", height:"100%", color:"rgba(255,255,255,0.15)", fontSize:11 }}>?</div>
+    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+      width:"100%", height:"100%", color:"rgba(255,255,255,0.40)", fontSize:11,
+      gap:2, textAlign:"center", lineHeight:1.3 }}>
+      이미지<br/>준비중
+    </div>
   );
   return (
     <img className={className} src={primary} alt={alt} draggable={false}
@@ -152,7 +158,7 @@ export default function Slot({
               <div className="slotPreview">
                 {warnBackpack && <div className="stratWarnDot" />}
                 <div className="slotImageWrap">
-                  <SlotImg className="slotImage slotImageArmor" src={picked.icon} alt={picked.name_ko||picked.id} sheet={picked.sheet} />
+                  <SlotImg className="slotImage slotImageArmor" src={picked.icon} alt={picked.name_ko||picked.id} sheet={picked.sheet} itemId={picked.id} />
                 </div>
                 {/* 하단: 패시브 + 이름 */}
                 <div className="slotText slotTextArmor">
@@ -180,7 +186,7 @@ export default function Slot({
               <div className="slotPreview">
                 {warnBackpack && <div className="stratWarnDot" />}
                 <div className="slotImageWrap">
-                  <SlotImg className="slotImage slotImagePrimary" src={picked.icon} alt={picked.name_ko||picked.id} sheet={picked.sheet} />
+                  <SlotImg className="slotImage slotImagePrimary" src={picked.icon} alt={picked.name_ko||picked.id} sheet={picked.sheet} itemId={picked.id} />
                 </div>
               </div>
             )}
@@ -236,7 +242,7 @@ export default function Slot({
                 {warnBackpack && <div className="stratWarnDot" />}
                 {armorTag && <div className="slotBadge">{armorTag}</div>}
                 <div className="slotImageWrap">
-                  <SlotImg className="slotImage" src={picked.icon} alt={picked.name_ko||picked.id} sheet={picked.sheet} />
+                  <SlotImg className="slotImage" src={picked.icon} alt={picked.name_ko||picked.id} sheet={picked.sheet} itemId={picked.id} />
                 </div>
                 {!hideName && (
                   <div className="slotText">
@@ -258,7 +264,7 @@ export default function Slot({
             <div className="slotPreview">
               {warnBackpack && <div className="stratWarnDot" />}
               <div className="slotImageWrap">
-                <SlotImg className="slotImage slotImageStratagem" src={picked.icon} alt={picked.name_ko||picked.id} sheet={picked.sheet} />
+                <SlotImg className="slotImage slotImageStratagem" src={picked.icon} alt={picked.name_ko||picked.id} sheet={picked.sheet} itemId={picked.id} />
               </div>
             </div>
           )}

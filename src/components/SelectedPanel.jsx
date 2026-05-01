@@ -55,6 +55,7 @@ const PASSIVE_DESC = {
   "충격 방지 패드, 척탄병":   "폭발 피해 50% 감소, 수류탄 초기/최대 수량 2개 증가",
   "충격 방지 패드, 위험물":   "폭발 피해 50% 감소, 가스 피해 25% 감소, 보조무기 반동 30% 감소",
   "충격 방지 패드, 강화 버전":"폭발 피해 50% 감소, 장갑 등급 +30",
+  "산소호흡기":              "걷기, 달리기 속도 및 슬라이딩 거리 및 속도 증가",
 };
 
 const TRAIT_BG = {
@@ -157,7 +158,6 @@ function Badge({ label, bg, color, title: tt }) {
   return (
     <span
       ref={spanRef}
-      title={tooltip}
       onClick={handleClick}
       style={{
         display:"inline-block", padding:"2px 7px", borderRadius:"999px",

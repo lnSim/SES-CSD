@@ -28,29 +28,27 @@ function lsSet(data)   { try { localStorage.setItem(LS_KEY, JSON.stringify(data)
 
 /* ── 신규 채권 미리보기 오버레이 ── */
 // ★ 채권 업데이트 시 WB_NOTICE_VERSION을 바꾸면 모든 사용자에게 재표시됨
-const WB_NOTICE_VERSION = "v_견고한참호사단";
+const WB_NOTICE_VERSION = "v_외계전문가";
 const WB_NOTICE_KEY     = `wb_notice_dismissed_${WB_NOTICE_VERSION}`;
 function wbNoticeDismissed()  { try { return localStorage.getItem(WB_NOTICE_KEY) === "true"; } catch { return false; } }
 function wbNoticeSetDismiss() { try { localStorage.setItem(WB_NOTICE_KEY, "true"); } catch {} }
 
 // ★ 채권 업데이트 시 아래 데이터 수정
 const WB_NOTICE_DATA = {
-  name: "견고한 참호 사단",
+  name: "외계 전문가",
   // ★ 채권 업데이트 시 항목 수정
-  // DB G열(wbrequirement) = '견고한 참호 사단' 기준으로 각 시트에서 조회 후 추가
+  // DB G열(wbrequirement) = '외계 전문가' 기준으로 각 시트에서 조회 후 추가
   items: [
-    { label: "SMG/FLAM-34 스토커",        kind: "주무기",     id: "pr_sm_smg34"   },
-    { label: "CQC-73 참호 도구",           kind: "보조무기",   id: "se_cq_cqc73"   },
-    { label: "P-69 비토",                  kind: "보조무기",   id: "se_ps_p69"     },
-    { label: "G-48 기가 수류탄",           kind: "투척무기",   id: "th_sp_g48"     },
-    { label: "CPG-48 공병",               kind: "방어구",     id: "ar_cp_cpg48"   },
-    { label: "CPH-26 사령관",             kind: "방어구",     id: "ar_cp_cph26"   },
-    { label: "B/FLAM-80 크리메이터",      kind: "스트라타젬", id: "st_sw_bflam80" },
-    { label: "A/GM-17 가스 박격포 센트리", kind: "스트라타젬", id: "st_st_gm17"    },
+    { label: "SMG-203 갤런트",          kind: "주무기",     id: "pr_sm_smg203"  },
+    { label: "P-33 미사일 권총",        kind: "보조무기",   id: "se_sp_p33"     },
+    { label: "O-3 자유로운 영혼",       kind: "방어구",     id: "ar_og_o3"      },
+    { label: "O-2 중장비 운전원",       kind: "방어구",     id: "ar_og_o2"      },
+    { label: "MGX-42 불릿 스톰",        kind: "스트라타젬", id: "st_sw_mgx42"   },
+    { label: "EXO-51 벌목꾼 엑소슈트", kind: "스트라타젬", id: "st_vh_exo51"   },
+    { label: "EXO-55 돌파구 엑소슈트", kind: "스트라타젬", id: "st_vh_exo55"   },
   ],
   superStore: [
-    { label: "CPR-80 방벽",   kind: "방어구", id: "ar_cp_cpr80" },
-    { label: "SG-97 스위퍼",  kind: "주무기", id: "pr_sg_sg97"  },
+    { label: "O-44 조종사와의 유대감", kind: "방어구", id: "ar_og_o44" },
   ],
 };
 
@@ -89,7 +87,12 @@ function WbNoticeOverlay({ onClose }) {
   function resolveWbIcon(id) {
     if (!id) return null;
     if (id.startsWith("ar_")) return `/icons/armor/${id}.png`;
-    if (id.startsWith("st_")) return `/icons/stratagem/${id}.svg`;
+    if (id.startsWith("st_")) {
+      // .svg 파일 미준비 항목: .png 임시 사용
+      const PNG_TEMP_IDS = ["st_sw_mgx42","st_vh_exo51","st_vh_exo55"];
+      if (PNG_TEMP_IDS.includes(id)) return `/icons/stratagem/${id}.png`;
+      return `/icons/stratagem/${id}.svg`;
+    }
     return `/icons/weapon/${id}.png`;
   }
 
@@ -128,7 +131,7 @@ function WbNoticeOverlay({ onClose }) {
         </div>
 
         {/* 채권명 */}
-        <div className="wbNoticeWbName">{WB_NOTICE_DATA.name}</div>
+        <div className="wbNoticeWbName" style={{ color:"#fffbe5", textShadow:"0 0 10px rgba(255,251,229,.70), 0 0 24px rgba(255,251,229,.35)" }}>{WB_NOTICE_DATA.name}</div>
 
         {/* 항목 카드 — 개인장비 → 스트라타젬 → 슈퍼스토어 순 */}
         <div className="wbNoticeScrollArea">
@@ -216,14 +219,22 @@ function normalizeItem(it) {
 }
 
 /* ── 무작위 결과 카드용 이미지 컴포넌트 (sheet 기반 단일 확장자) ── */
+const PNG_TEMP_STRATAGEM_IDS_APP = new Set(["st_sw_mgx42","st_vh_exo51","st_vh_exo55"]);
 function RandIcon({ item, className, style={} }) {
   const sheet   = s(item?.sheet || item?.sheetName || item?.type);
-  const ext     = sheet.toLowerCase() === "stratagem" ? ".svg" : ".png";
+  const itemId  = s(item?.id);
+  const isPngTemp = sheet.toLowerCase() === "stratagem" && PNG_TEMP_STRATAGEM_IDS_APP.has(itemId);
+  const ext     = (sheet.toLowerCase() === "stratagem" && !isPngTemp) ? ".svg" : ".png";
   const base    = s(item?.icon) || normalizeIcon(item);
   const primary = base.replace(/\.(png|svg|webp)$/i, ext);
   const [dead, setDead] = useState(false);
   useEffect(()=>{ setDead(false); }, [primary]);
-  if (dead) return null;
+  if (dead) return (
+    <div className={className} style={{ display:"flex", alignItems:"center", justifyContent:"center",
+      color:"rgba(255,255,255,.40)", fontSize:11, textAlign:"center", lineHeight:1.3, ...style }}>
+      이미지<br/>준비중
+    </div>
+  );
   return (
     <img src={primary} alt={s(item?.name_ko)||s(item?.id)}
       className={className} style={style} draggable={false}
@@ -248,14 +259,16 @@ const PEN_BG_PNG    = { "2":"#565656","3":"#cd8527","4":"#cd8527","5":"#8a080d",
 const TRAIT_BG_PNG  = {
   "소이":"#ffcfc9","폭발성":"#ffc8aa","레이저":"#ffe5a0","플라즈마":"#e6cff2",
   "아크":"#0a53a8","가스":"#d4edbc","기절":"#d4edbc","치유":"#d4edbc",
-  /* 흰색 배경 태그 */
+  /* 밝은 배경 태그 */
+  "방어막":"#d0eeff",
   "유도":"#f0f0f0",
   "한 손 파지":"#e8e8e8","단발 장전":"#e8e8e8","탄종/발사형식 변경":"#e8e8e8",
   "차지 업":"#e8e8e8","과열":"#e8e8e8","총검":"#e8e8e8","소음기":"#e8e8e8",
 };
 const TRAIT_TC_PNG  = {
   "아크":"#fff",
-  /* 흰색 배경 → 어두운 텍스트 */
+  /* 밝은 배경 → 어두운 텍스트 */
+  "방어막":"#1a5080",
   "유도":"#1a1a1a",
   "한 손 파지":"#1a1a1a","단발 장전":"#1a1a1a","탄종/발사형식 변경":"#1a1a1a",
   "차지 업":"#1a1a1a","과열":"#1a1a1a","총검":"#1a1a1a","소음기":"#1a1a1a",
@@ -263,17 +276,19 @@ const TRAIT_TC_PNG  = {
 
 /* URL의 확장자를 교체해 fallback 목록 생성 */
 /* sheet 기반 단일 확장자 결정 (PNG 내보내기 canvas용) */
-function resolveIconUrl(url, sheet) {
+const PNG_TEMP_STRAT_EXPORT = new Set(["st_sw_mgx42","st_vh_exo51","st_vh_exo55"]);
+function resolveIconUrl(url, sheet, itemId) {
   if (!url) return null;
   const base = window.location.origin;
   const abs  = url.startsWith("http") ? url : base + (url.startsWith("/") ? url : "/" + url);
-  const ext  = String(sheet || "").toLowerCase() === "stratagem" ? ".svg" : ".png";
+  const isPngTemp = String(sheet||"").toLowerCase() === "stratagem" && itemId && PNG_TEMP_STRAT_EXPORT.has(String(itemId));
+  const ext  = (String(sheet || "").toLowerCase() === "stratagem" && !isPngTemp) ? ".svg" : ".png";
   return abs.replace(/\.(png|svg|webp)$/i, ext);
 }
 
 /* 이미지 단일 URL 로드 (폴백 없음) */
-async function loadImgWithFallback(url, sheet) {
-  const resolved = resolveIconUrl(url, sheet);
+async function loadImgWithFallback(url, sheet, itemId) {
+  const resolved = resolveIconUrl(url, sheet, itemId);
   if (!resolved) return null;
   return await new Promise(res => {
     const el = new Image();
@@ -346,11 +361,11 @@ async function exportLoadoutPng(captureRef, selected, wbSummary=[]) {
 
   /* ── 모든 이미지 병렬 로드 ── */
   const [stratImgs, armImg, priImg, secImg, thrImg] = await Promise.all([
-    Promise.all(selected.stratagem.map(it => loadImgWithFallback(it?.icon, it?.sheet))),
-    loadImgWithFallback(selected.armor?.icon,      selected.armor?.sheet),
-    loadImgWithFallback(selected.primary?.icon,    selected.primary?.sheet),
-    loadImgWithFallback(selected.secondary?.icon,  selected.secondary?.sheet),
-    loadImgWithFallback(selected.throwable?.icon,  selected.throwable?.sheet),
+    Promise.all(selected.stratagem.map(it => loadImgWithFallback(it?.icon, it?.sheet, it?.id))),
+    loadImgWithFallback(selected.armor?.icon,      selected.armor?.sheet,     selected.armor?.id),
+    loadImgWithFallback(selected.primary?.icon,    selected.primary?.sheet,   selected.primary?.id),
+    loadImgWithFallback(selected.secondary?.icon,  selected.secondary?.sheet, selected.secondary?.id),
+    loadImgWithFallback(selected.throwable?.icon,  selected.throwable?.sheet, selected.throwable?.id),
   ]);
 
   /* ── 드로잉 헬퍼 ── */
@@ -572,6 +587,7 @@ async function exportLoadoutPng(captureRef, selected, wbSummary=[]) {
         "슈퍼시민권 업그레이드":   { bg:"#000000", border:"#fee800",               tc:"#fee800" },
         "슈퍼스토어 구매":         { bg:"#001c2e", border:"rgba(0,246,255,.65)",   tc:"#00f6ff" },
         "견고한 참호 사단":        { bg:"#040200", border:"#978642",               tc:"#c7b243" },
+        "외계 전문가":             { bg:"#fffbe5", border:"#c4a882",               tc:"#654632" },
       };
       const fallbackColors = ["#f7f352","#fb923c","#f87171","#c084fc","#60a5fa","#34d399"];
       let fbIdx = 0;
@@ -749,7 +765,7 @@ const WB_ORDER = [
   "독사 특공대","자유의 불꽃","화학 요원","진리의 집행자","도시 전설",
   "자유의 종복","정의의 경계선","의장의 달인","법의 위력","대조군",
   "먼지 폭풍","금사 특공대","존재하지 않는 부대","공성 파괴자",
-  "민주적 궤도 강하 타격대","정의로운 망령","견고한 참호 사단",
+  "민주적 궤도 강하 타격대","정의로운 망령","견고한 참호 사단","외계 전문가",
 ];
 function sortByWbOrder(entries) {
   return [...entries].sort(([a],[b]) => {
@@ -786,7 +802,7 @@ const WB_STYLES = {
   "슈퍼시민권 업그레이드":  { color:"#fee800", background:"#000000", borderColor:"#fee800"              },
   "슈퍼스토어 구매":        { color:"#00f6ff", background:"#001c2e", borderColor:"rgba(0,246,255,.65)", textShadow:"0 0 8px rgba(0,246,255,.5)" },
   "견고한 참호 사단":       { color:"#c7b243", background:"#040200", borderColor:"#978642"              },
-  "견고한 참호 사단":       { color:"#c7b243", background:"#040200", borderColor:"#978642"              },
+  "외계 전문가":            { color:"#654632", background:"#fffbe5", borderColor:"#c4a882"              },
 };
 function getWbBadgeStyle(wb) {
   return WB_STYLES[wb] ?? { color:"rgba(255,255,255,.8)", background:"rgba(255,255,255,.07)", borderColor:"rgba(255,255,255,.18)" };

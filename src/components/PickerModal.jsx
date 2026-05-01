@@ -6,7 +6,7 @@ const WB_ORDER = [
   "독사 특공대","자유의 불꽃","화학 요원","진리의 집행자","도시 전설",
   "자유의 종복","정의의 경계선","의장의 달인","법의 위력","대조군",
   "먼지 폭풍","금사 특공대","존재하지 않는 부대","공성 파괴자",
-  "민주적 궤도 강하 타격대","정의로운 망령","견고한 참호 사단",
+  "민주적 궤도 강하 타격대","정의로운 망령","견고한 참호 사단","외계 전문가",
 ];
 function sortWbList(list) {
   return [...list].sort((a, b) => {
@@ -43,6 +43,7 @@ const WB_STYLES = {
   "정의로운 망령":          { color:"#ffffff", background:"#1e1d1b", borderColor:"#fbee6b" },
   "슈퍼시민권 업그레이드":  { color:"#fee800", background:"#000000", borderColor:"#fee800" },
   "견고한 참호 사단":       { color:"#c7b243", background:"#040200", borderColor:"#978642" },
+  "외계 전문가":            { color:"#654632", background:"#fffbe5", borderColor:"#c4a882" },
 };
 function getWbFilterStyle(wb, active) {
   const st = WB_STYLES[wb];
@@ -192,10 +193,13 @@ function lsGet(key) { try { const r=localStorage.getItem(key); return r?JSON.par
 function lsSet(key, val) { try { localStorage.setItem(key,JSON.stringify(val)); } catch {} }
 
 /* ── sheet 기반 단일 확장자 결정 ──
- * stratagem → .svg 단일 / 그 외 → .png 단일
+ * stratagem → .svg 단일 (단, PNG 미준비 항목은 .png 임시 사용) / 그 외 → .png 단일
  */
-function resolveExt(sheet) {
-  return String(sheet || "").toLowerCase() === "stratagem" ? ".svg" : ".png";
+const PNG_TEMP_STRATAGEM_IDS = new Set(["st_sw_mgx42","st_vh_exo51","st_vh_exo55"]);
+function resolveExt(sheet, id) {
+  if (String(sheet || "").toLowerCase() !== "stratagem") return ".png";
+  if (id && PNG_TEMP_STRATAGEM_IDS.has(String(id))) return ".png";
+  return ".svg";
 }
 function forceExt(url, ext) {
   return url.replace(/\.(png|svg|webp)$/i, ext);
@@ -203,7 +207,8 @@ function forceExt(url, ext) {
 
 function ItemIcon({ item, style={} }) {
   const sheet  = s(item?.sheet || item?.sheetName || item?.type);
-  const ext    = resolveExt(sheet);
+  const itemId = s(item?.id);
+  const ext    = resolveExt(sheet, itemId);
   const resolve = (it) => {
     const raw = s(it?.icon);
     const base = raw
@@ -214,7 +219,9 @@ function ItemIcon({ item, style={} }) {
   const primary = resolve(item);
   const [dead, setDead] = useState(false);
   useEffect(() => { setDead(false); }, [primary]);
-  if (dead) return <span style={{ opacity:0.15, fontSize:14 }}>?</span>;
+  if (dead) return (
+    <span style={{ opacity:0.45, fontSize:11, color:"rgba(255,255,255,.5)", textAlign:"center", lineHeight:1.3, whiteSpace:"nowrap" }}>이미지<br/>준비중</span>
+  );
   return (
     <img style={{ display:"block", background:"transparent", ...style }} src={primary}
       alt={s(item?.name_ko)||s(item?.id)} draggable={false}
