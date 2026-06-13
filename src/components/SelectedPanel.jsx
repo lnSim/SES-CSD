@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const s = (v) => (v == null ? "" : String(v));
 
@@ -17,8 +17,8 @@ const ARMOR_PEN_STYLE = {
 };
 const ARMOR_PEN_LABEL = {
   "2":"경장갑 관통","3":"일반 장갑 관통","4":"중장갑 관통",
-  "5":"대전차1","6":"대전차2","7":"대전차3",
-  "8":"대전차4","9":"대전차5","10":"대전차6",
+  "5":"대전차 1","6":"대전차 2","7":"대전차 3",
+  "8":"대전차 4","9":"대전차 5","10":"대전차 6",
 };
 /* ── 방어구 등급 설명 ── */
 const ARMOR_GRADE_DESC = {
@@ -168,7 +168,7 @@ function Badge({ label, bg, color, title: tt }) {
         position:"relative",
       }}>
       {label}
-      {showTip && tooltip !== label && (
+      {showTip && tooltip && tooltip !== label && (
         <span style={{
           position:"absolute", bottom:"calc(100% + 6px)", left:"50%",
           transform:"translateX(-50%)",
@@ -208,7 +208,31 @@ const WEAPON_KINDS = new Set(["primary","secondary","throwable"]);
    투척무기 [이름]
            [뱃지들]
 */
-export default function SelectedPanel({ selected, activeLoadoutName }) {
+export default function SelectedPanel({ selected, activeLoadoutName, tagInfo = [] }) {
+  // tagInfo DB → 태그별 { desc, bg, color } 맵 생성
+  const tagMap = useMemo(() => {
+    const m = {};
+    for (const t of tagInfo) {
+      const tag = s(t.tag ?? "");
+      if (!tag) continue;
+      m[tag] = {
+        desc:  s(t.desc        ?? ""),
+        bg:    s(t.tagcolor    ?? ""),
+        color: s(t["tagTextCol."] ?? ""),
+      };
+    }
+    return m;
+  }, [tagInfo]);
+
+  // 태그 스타일 헬퍼 (DB 우선, 없으면 하드코딩 폴백)
+  function getTraitStyleDyn(trait) {
+    if (tagMap[trait]) return { bg: tagMap[trait].bg || TRAIT_COLOR_DEFAULT, color: tagMap[trait].color || "#1a1a1a" };
+    return getTraitStyle(trait);
+  }
+  function getTagTooltipDyn(tag) {
+    if (tagMap[tag]?.desc) return tagMap[tag].desc;
+    return TAG_TOOLTIP[tag] || tag;
+  }
   const sel   = selected || { stratagem:[null,null,null,null], armor:null, primary:null, secondary:null, throwable:null };
   const strat = Array.isArray(sel.stratagem) ? sel.stratagem : [null,null,null,null];
 
@@ -271,7 +295,7 @@ export default function SelectedPanel({ selected, activeLoadoutName }) {
                           {it.armorValue && (
                             <Badge
                               label={s(it.armorValue)}
-                              title={ARMOR_GRADE_DESC[s(it.armorValue)] || s(it.armorValue)}
+                              title={tagMap[s(it.armorValue)]?.desc || ARMOR_GRADE_DESC[s(it.armorValue)] || s(it.armorValue)}
                             />
                           )}
                           {it.passive && (
@@ -279,7 +303,7 @@ export default function SelectedPanel({ selected, activeLoadoutName }) {
                               label={s(it.passive)}
                               bg="rgba(240,196,0,0.15)"
                               color="var(--yellow)"
-                              title={PASSIVE_DESC[s(it.passive)] || s(it.passive)}
+                              title={s(it.passiveInfo) || PASSIVE_DESC[s(it.passive)] || s(it.passive)}
                             />
                           )}
                         </div>
@@ -291,10 +315,10 @@ export default function SelectedPanel({ selected, activeLoadoutName }) {
                         if (!pen&&!traits.length) return null;
                         return (
                           <div style={{display:"flex",gap:4,flexWrap:"wrap",marginTop:3}}>
-                            {pen && <Badge label={pen.label} bg={pen.bg} color={pen.color} title={pen.label} />}
+                            {pen && <Badge label={pen.label} bg={pen.bg} color={pen.color} title={tagMap[pen.label]?.desc || null} />}
                             {traits.map(t => {
-                              const ts=getTraitStyle(t);
-                              return <Badge key={t} label={t} bg={ts.bg} color={ts.color} title={TAG_TOOLTIP[t]||t} />;
+                              const ts = getTraitStyleDyn(t);
+                              return <Badge key={t} label={t} bg={ts.bg} color={ts.color} title={getTagTooltipDyn(t)} />;
                             })}
                           </div>
                         );

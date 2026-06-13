@@ -429,6 +429,18 @@ body {
   padding:18px 20px 18px;
   min-height:0;
 }
+
+/* 레이더 차트 섹션 */
+.radarChartSection {
+  padding:14px 16px 18px;
+}
+.radarChartSection .statLabel {
+  font-size:13px;
+  font-weight:800;
+  color:var(--yellow);
+  margin-bottom:10px;
+  letter-spacing:.02em;
+}
 .reqSection .statLabel {
   font-size:14px;
   font-weight:800;
@@ -1720,4 +1732,62 @@ body:has(.modalOverlay) {
 .wbNoticeHint {
   text-align:center;
   font-size:12px; color:rgba(255,255,255,.28);
+}
+
+/* 분석 하단 2열 그리드 (교전 범위 좌 | 구조물+기동력 우) */
+.analysisBottomGrid {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+@media (max-width: 600px) {
+  .analysisBottomGrid {
+    flex-direction: column;
+    gap: 10px;
+  }
+}
+
+/* 로드아웃 분석 Beta 느낌표 버튼 글로우 애니메이션 */
+@keyframes betaBtnGlow {
+  0%, 100% { box-shadow: 0 0 8px rgba(253,224,71,.5), 0 0 18px rgba(253,224,71,.25); }
+  50%       { box-shadow: 0 0 14px rgba(253,224,71,.85), 0 0 30px rgba(253,224,71,.45); }
+}
+
+/* ── 모바일 축 설명 버튼 ── */
+.axisInfoMobileBtn {
+  display: none; /* 기본: 숨김 (데스크탑) */
+  position: absolute;
+  top: 6px; right: 6px;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: rgba(250,204,21,.15);
+  border: 1px solid rgba(250,204,21,.5);
+  color: #fde047;
+  font-size: 13px; font-weight: 900;
+  cursor: pointer; line-height: 1;
+  align-items: center; justify-content: center;
+  z-index: 10;
+}
+
+/* ── 종족 선택 — 데스크탑/모바일 전환 ── */
+.raceSelectDesktop { display: flex; }
+.raceSelectMobile  { display: none; }
+
+/* ── 모바일 (≤600px) ── */
+@media (max-width: 600px) {
+  /* 축 설명 버튼 표시 */
+  .axisInfoMobileBtn { display: flex; }
+
+  /* 종족 선택 전환 */
+  .raceSelectDesktop { display: none; }
+  .raceSelectMobile  { display: block; }
+
+  /* 교전 범위 하단 그리드 — 모바일에서 구조물 먼저, 교전범위+방어구 다음 */
+  .analysisBottomGrid {
+    flex-direction: column;
+    gap: 10px;
+  }
+  /* 구조물(RightBlock) 먼저, 교전범위(RangeBlock) 나중 */
+  .analysisBottomGrid > :first-child { order: 2; } /* RangeBlock */
+  .analysisBottomGrid > :last-child  { order: 1; } /* RightBlock (구조물+기동력) */
 }

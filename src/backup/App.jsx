@@ -817,7 +817,7 @@ function getErgoBadgeStyle(ergo) {
    ───────────────────────────────────────────── */
 const TUTORIAL_STEPS = [
   {
-    title: null, // 인트로 — 강조 없음, 중앙 표시
+    title: null,
     desc:  "반갑다! 헬다이버 제군.\n나는 브라쉬 장군이다, 헬다이버에게 끝없는 기개만큼이나 중요한 것은 자신만의 장비를 구성하는 것이다!",
     area:  null,
     image: "/brash.png",
@@ -863,7 +863,7 @@ const TUTORIAL_STEPS = [
     area:  "loadoutMgmtBtns",
   },
   {
-    title: null, // 아웃트로 — 강조 없음, 중앙 표시
+    title: null,
     desc:  "설명은 여기까지다. 제군만의 방법으로 민주주의를 은하계 전체에 전파하도록!\n브라쉬 장군, 통신 종료!",
     area:  null,
     image: "/brash.png",
@@ -1385,13 +1385,7 @@ export default function App() {
   );
 
   const stats = useMemo(() => {
-    // 선택 항목이 없거나 stratagem이 배열이 아닌 경우 방어 처리
-    if (!selected || !Array.isArray(selected.stratagem)) return {
-      uniqueTraits:[], wbSummary:[], roleTags:[], missionTags:[],
-      fireformGear:[], fireformStrat:[], hasIdealBody:false,
-      armorPassive:"", armorPersonalNotes:[], radarData:null,
-    };
-    try {
+    /* ── 무기 특성 ── */
     const allTraits = [];
     for (const k of ["primary","secondary","throwable"]) {
       const it = selected[k]; if (!it) continue;
@@ -2138,39 +2132,43 @@ export default function App() {
       if (armorPassive === "충격 방지 패드, 강화 버전") {
         if (hasTrait(it, "폭발성")) posNotes.push("폭발 피해 감소");
       }
-      // ── 이상적인 체형 → 핸들링 향상 (Ergo=낮음/보통인 주무기, 보조무기, 지원무기)
-      if (armorPassive === "이상적인 체형") {
-        const ergoEligible = rowErgo === "낮음" || rowErgo === "보통";
-        if ((isPrimary || isSecondary || isSupportRow) && ergoEligible)
-          posNotes.push("핸들링 향상");
-      }
       // ── 강화 → 반동 감소 (주무기, 보조무기, 지원무기)
       if (armorPassive === "강화") {
-        if (isPrimary || isSecondary || isSupportRow) posNotes.push("반동 감소");
+        if (isPrimary || isSecondary || isSupportRow)
+          posNotes.push("반동 감소");
       }
       // ── 굳건한 바위 → 레그돌 억제 (폭발성 trait, 블랙리스트 제외)
       if (armorPassive === "굳건한 바위") {
         const ROCK_BL = ["sp_gp20","sp_g50","sp_ted63","th_gr_g7","sp_g48","sp_p33","sw_eat411"];
-        if (hasTrait(it,"폭발성") && !ROCK_BL.some(r => itId.includes(r))) posNotes.push("레그돌 억제");
+        if (hasTrait(it,"폭발성") && !ROCK_BL.some(r => itId.includes(r)))
+          posNotes.push("레그돌 억제");
       }
-      // ── 전도성 / 아드레노-제세동기 → 아크 피해 감소
-      if (["전도성","아드레노-제세동기"].includes(armorPassive)) {
+      // ── 전도성 → 아크 피해 감소 (아크 trait, arc12/sw_arc 제외)
+      if (armorPassive === "전도성") {
+        if (hasTrait(it,"아크") && !itId.includes("en_arc") && !itId.includes("sw_arc"))
+          posNotes.push("아크 피해 감소");
+      }
+      // ── 아드레노-제세동기 → 아크 피해 감소 (arc12/sw_arc 제외)
+      if (armorPassive === "아드레노-제세동기") {
         if (hasTrait(it,"아크") && !itId.includes("en_arc") && !itId.includes("sw_arc"))
           posNotes.push("아크 피해 감소");
       }
       // ── 포위 준비 완료 → 보조무기 추가 탄약
       if (armorPassive === "포위 준비 완료" && isSecondary) {
-        if (!["sp_gp20","sw_arc","sw_cqc1","sw_cqc9"].some(r => itId.includes(r))) posNotes.push("추가 탄약");
+        const excSiege = ["sp_gp20","sw_arc","sw_cqc1","sw_cqc9"].some(r => itId.includes(r));
+        if (!excSiege) posNotes.push("추가 탄약");
       }
-      // ── 고급 여과 / 충격 방지 패드, 위험물 → 가스 피해 감소
+      // ── 고급 여과 / 충격 방지 패드, 위험물 → 가스 피해 감소 (p35 제외)
       if (["고급 여과","충격 방지 패드, 위험물"].includes(armorPassive)) {
-        if (hasTrait(it,"가스") && !itId.includes("p35")) posNotes.push("가스 피해 감소");
+        if (hasTrait(it,"가스") && !itId.includes("p35"))
+          posNotes.push("가스 피해 감소");
       }
       // ── 적응력 / 사막 돌격대 → 상태이상 피해 감소
       if (["적응력","사막 돌격대"].includes(armorPassive)) {
-        const BL = ["pr_sg_sg225ie","pr_sg_sg451","pr_ar_ar2","pr_en_las5","se_sp_las7","se_sp_p35","pr_en_arc12","st_sw_arc3"];
-        if (!BL.some(r => itId.includes(r.toLowerCase()))) {
-          if (hasTrait(it,"소이") || hasTrait(it,"아크") || hasTrait(it,"가스")) posNotes.push("상태이상 피해 감소");
+        const BL_STAT = ["pr_sg_sg225ie","pr_sg_sg451","pr_ar_ar2","pr_en_las5","se_sp_las7","se_sp_p35","pr_en_arc12","st_sw_arc3"];
+        if (!BL_STAT.some(r => itId.includes(r.toLowerCase()))) {
+          if (hasTrait(it,"소이") || hasTrait(it,"아크") || hasTrait(it,"가스"))
+            posNotes.push("상태이상 피해 감소");
         }
       }
       return posNotes.map(t => ({ text: t, kind:"pos" }));
@@ -2265,14 +2263,6 @@ export default function App() {
       armorPersonalNotes: normalizedPersonalNotes,
       radarData: calcRadarLayers(selected),
     };
-    } catch(e) {
-      console.error("stats useMemo error:", e);
-      return {
-        uniqueTraits:[], wbSummary:[], roleTags:[], missionTags:[],
-        fireformGear:[], fireformStrat:[], hasIdealBody:false,
-        armorPassive:"", armorPersonalNotes:[], radarData:null,
-      };
-    }
   }, [selected]);
 
   const activeLoadoutName = useMemo(()=>{
@@ -2483,7 +2473,22 @@ export default function App() {
                 <div className="statsPanel">
                   <div className="statsPanelTitle" style={{ display:"flex", alignItems:"center", gap:8 }}>
                   로드아웃 분석 Beta
-                  <button type="button" onClick={() => setShowBetaNotice(true)} style={{ width:22, height:22, borderRadius:"50%", background:"rgba(250,204,21,.15)", border:"1px solid rgba(250,204,21,.6)", color:"#fde047", fontSize:12, fontWeight:900, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 0 8px rgba(253,224,71,.5), 0 0 18px rgba(253,224,71,.25)", animation:"betaBtnGlow 1.8s ease-in-out infinite", flexShrink:0, padding:0 }} title="로드아웃 분석 Beta 안내">!</button>
+                  <button
+                    type="button"
+                    onClick={() => setShowBetaNotice(true)}
+                    style={{
+                      width:22, height:22, borderRadius:"50%",
+                      background:"rgba(250,204,21,.15)",
+                      border:"1px solid rgba(250,204,21,.6)",
+                      color:"#fde047",
+                      fontSize:12, fontWeight:900, cursor:"pointer",
+                      display:"flex", alignItems:"center", justifyContent:"center",
+                      boxShadow:"0 0 8px rgba(253,224,71,.5), 0 0 18px rgba(253,224,71,.25)",
+                      animation:"betaBtnGlow 1.8s ease-in-out infinite",
+                      flexShrink:0, padding:0,
+                    }}
+                    title="로드아웃 분석 Beta 안내"
+                  >!</button>
                 </div>
                   <div className="statsGrid statsGridAnalysis">
 
@@ -2704,15 +2709,46 @@ export default function App() {
 
       {/* ── 로드아웃 분석 Beta 안내 모달 ── */}
       {showBetaNotice && (
-        <div style={{ position:"fixed", inset:0, zIndex:2100, background:"rgba(0,0,0,.72)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }} onClick={() => setShowBetaNotice(false)}>
-          <div onClick={e => e.stopPropagation()} style={{ background:"#1a1a1a", border:"1px solid rgba(248,113,113,.35)", borderRadius:16, padding:"28px 30px", maxWidth:560, width:"100%", display:"flex", flexDirection:"column", gap:16, boxShadow:"0 0 32px rgba(248,113,113,.18), 0 8px 40px rgba(0,0,0,.7)" }}>
-            <div style={{ fontSize:15, fontWeight:800, color:"#e9e9e9", letterSpacing:".02em" }}>로드아웃 분석 안내</div>
+        <div style={{
+          position:"fixed", inset:0, zIndex:2100,
+          background:"rgba(0,0,0,.72)",
+          display:"flex", alignItems:"center", justifyContent:"center",
+          padding:16,
+        }} onClick={() => setShowBetaNotice(false)}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background:"#1a1a1a",
+            border:"1px solid rgba(248,113,113,.35)",
+            borderRadius:16,
+            padding:"28px 30px",
+            maxWidth:560, width:"100%",
+            display:"flex", flexDirection:"column", gap:16,
+            boxShadow:"0 0 32px rgba(248,113,113,.18), 0 8px 40px rgba(0,0,0,.7)",
+          }}>
+            <div style={{ fontSize:15, fontWeight:800, color:"#e9e9e9", letterSpacing:".02em" }}>
+              로드아웃 분석 안내
+            </div>
             <div style={{ fontSize:13, lineHeight:1.7, color:"rgba(255,255,255,.75)" }}>
-              <span style={{ color:"#f87171", fontWeight:800, filter:"drop-shadow(0 0 4px rgba(248,113,113,.6))" }}>로드아웃 분석 기능은 Beta 기능으로, 완벽한 분석 기능을 보장하지 않습니다.</span>
+              <span style={{
+                color:"#f87171", fontWeight:800,
+                filter:"drop-shadow(0 0 4px rgba(248,113,113,.6))",
+              }}>
+                로드아웃 분석 기능은 Beta 기능으로, 완벽한 분석 기능을 보장하지 않습니다.
+              </span>
               <br /><br />
               이후 게임의 밸런싱으로 인해 내부 데이터 값이 언제든 조정될 수 있으므로 어디까지나 참고 목적으로만 사용하시기 바랍니다.
             </div>
-            <button type="button" onClick={() => setShowBetaNotice(false)} style={{ alignSelf:"flex-end", padding:"8px 24px", borderRadius:8, background:"rgba(255,255,255,.08)", border:"1px solid rgba(255,255,255,.20)", color:"rgba(255,255,255,.75)", fontSize:13, fontWeight:700, cursor:"pointer" }}>확인</button>
+            <button
+              type="button"
+              onClick={() => setShowBetaNotice(false)}
+              style={{
+                alignSelf:"flex-end",
+                padding:"8px 24px", borderRadius:8,
+                background:"rgba(255,255,255,.08)",
+                border:"1px solid rgba(255,255,255,.20)",
+                color:"rgba(255,255,255,.75)",
+                fontSize:13, fontWeight:700, cursor:"pointer",
+              }}
+            >확인</button>
           </div>
         </div>
       )}
