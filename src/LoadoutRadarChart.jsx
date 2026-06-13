@@ -443,28 +443,69 @@ export function calcRadarLayers(selected, raceHint = "") {
   const layer1 = { vsHorde:gearVsHorde, vsTarget:gearVsTarget, vsAntitank:gearVsAntitank, demolition:gearDemoNum, stability:gearStab, minRange:gearMinRange };
 
   /* 레이어2: layer1 + 지원무장&배낭 누적합산
-   * 지원무기는 임무 내내 사용하므로 개인장비에 더하는 방식으로 계산
-   * 비일회성 우선, 없으면 일회성 사용 (최고값 1개만 반영)
+   *
+   * ─ 규칙 ─────────────────────────────────────────────────────────
+   * A. 일회용만 여러 개   : 각 축별 최고값 1개만 반영 (재사용 불가)
+   * B. 일회용 + 비일회용  : 비일회용 수치(최고값) + 일회용 수치 합산
+   *    (비일회용 = 지원무기/지원배낭무기/배낭/탑승물)
+   * C. 비일회용만         : 기존과 동일 (각 축 최고값)
+   * ────────────────────────────────────────────────────────────────
    */
   let supVsHorde = 0, supVsTarget = 0, supVsAntitank = 0, supDemoNum = 0, supStab = 0, supMinRange = 0;
-  const nonDisposable = supportWeapons.filter(it => getSubType(it) !== "일회용 지원무기");
-  const supCandidates = nonDisposable.length > 0 ? nonDisposable : supportWeapons;
-  for (const it of supCandidates) {
-    const st = getItemStats(it);
-    if (st.vsHorde    > supVsHorde)    supVsHorde    = st.vsHorde;
-    if (st.vsTarget   > supVsTarget)   supVsTarget   = st.vsTarget;
-    if (st.vsAntitank > supVsAntitank) supVsAntitank = st.vsAntitank;
-    if (st.demoNum    > supDemoNum)    supDemoNum    = st.demoNum;
-    if (st.stab       > supStab)       supStab       = st.stab;
-    if (st.minRange   > supMinRange)   supMinRange   = st.minRange;
-    // 원거리 보너스 — Autofire = No인 지원무기(지정사수소총 포함): range÷2
+
+  const disposables    = supportWeapons.filter(it => getSubType(it) === "일회용 지원무기");
+  const nonDisposables = supportWeapons.filter(it => getSubType(it) !== "일회용 지원무기");
+
+  // 원거리 보너스 헬퍼
+  function applyRangeBonus(it, curTarget) {
     const autofire = s(it?.autofire ?? "");
     const wt = s(it?.weaponType ?? "");
     if (autofire === "No" && (RANGE_BONUS_TYPES.has(wt) || getSubType(it) === "지원무기")) {
-      const rangeVal = num(it?.range ?? 0);
-      supVsTarget += Math.floor(rangeVal / 2);
+      return curTarget + Math.floor(num(it?.range ?? 0) / 2);
+    }
+    return curTarget;
+  }
+
+  if (nonDisposables.length === 0) {
+    // ── 케이스 A: 일회용만 ── 각 축 최고값
+    for (const it of disposables) {
+      const st = getItemStats(it);
+      if (st.vsHorde    > supVsHorde)    supVsHorde    = st.vsHorde;
+      if (st.vsTarget   > supVsTarget)   supVsTarget   = st.vsTarget;
+      if (st.vsAntitank > supVsAntitank) supVsAntitank = st.vsAntitank;
+      if (st.demoNum    > supDemoNum)    supDemoNum    = st.demoNum;
+      if (st.stab       > supStab)       supStab       = st.stab;
+      if (st.minRange   > supMinRange)   supMinRange   = st.minRange;
+      supVsTarget = applyRangeBonus(it, supVsTarget);
+    }
+  } else {
+    // ── 케이스 B/C: 비일회용 있음 ── 비일회용 최고값 + 일회용 합산
+    for (const it of nonDisposables) {
+      const st = getItemStats(it);
+      if (st.vsHorde    > supVsHorde)    supVsHorde    = st.vsHorde;
+      if (st.vsTarget   > supVsTarget)   supVsTarget   = st.vsTarget;
+      if (st.vsAntitank > supVsAntitank) supVsAntitank = st.vsAntitank;
+      if (st.demoNum    > supDemoNum)    supDemoNum    = st.demoNum;
+      if (st.stab       > supStab)       supStab       = st.stab;
+      if (st.minRange   > supMinRange)   supMinRange   = st.minRange;
+      supVsTarget = applyRangeBonus(it, supVsTarget);
+    }
+    // 일회용 수치 합산 (비일회용과 별개로 추가)
+    for (const it of disposables) {
+      const st = getItemStats(it);
+      supVsHorde    += st.vsHorde;
+      supVsTarget   += st.vsTarget;
+      supVsAntitank += st.vsAntitank;
+      supDemoNum    += st.demoNum;
+      supStab       += st.stab;
+      supMinRange   += st.minRange;
     }
   }
+
+  // supCandidates: vsAntitank 재계산(calcAntitankScore)용 아이템 목록
+  const supCandidates = nonDisposables.length > 0
+    ? [...nonDisposables, ...disposables]
+    : disposables;
   // Stability 보너스: 스트라타젬 분류에 맞게 각 레이어에 반영
   // (레이어2=지원무기/배낭/탑승물, 레이어3=공격, 레이어4=방어)
   let supStabBonus = 0, atkStabBonus = 0, defStabBonus = 0;
@@ -836,33 +877,15 @@ export default function LoadoutRadarChart({ selected, requirements = [], flyingE
     const isSup    = slot === "지원무기";
     const isWeapon = isPri || isSec || isSup; // 주/보조/지원 공통
 
-    // ── 반동 감소 블랙리스트 / 화이트리스트 ──
-    const RANGE_RECOIL_BL_SUBTYPES = new Set(["일회용 지원무기", "배낭", "탑승물"]);
-    const RANGE_RECOIL_BL_IDS = new Set([
-      "pr_en_arc12","se_sp_las7","pr_en_las5","pr_ex_r36","pr_ex_cb9",
-      "se_sp_gp31","pr_sp_flam66","se_sp_p72","se_sp_p33",
-      "st_sw_las98","st_sw_gr8","st_sw_flam40","st_sw_arc3","st_sw_rl77",
-      "st_sw_las99","st_sw_faf14","st_sw_rs422","st_sw_stax3","st_sw_tx41",
-      "st_sw_cqc1","st_sw_plas45","st_sw_s11","st_sw_cqc9","st_sw_c4",
-      "st_sw_cqc20","st_sw_bflam80","st_ep_at12",
-    ]);
-    const RANGE_RECOIL_WL_IDS = new Set(["st_sw_mls4x","st_sw_mgx42"]);
-    function canApplyRangeRecoil() {
-      if (RANGE_RECOIL_WL_IDS.has(id)) return true;
-      if (RANGE_RECOIL_BL_IDS.has(id)) return false;
-      if (RANGE_RECOIL_BL_SUBTYPES.has(sub)) return false;
-      return true;
-    }
-
     /* ── 강화 ──────────────────────────────────── */
     if (armorPassive === "강화") {
       if ((traits.includes("폭발성") || traits.includes("플라즈마")) && !id.includes("sp_g123"))
         notes.push(pos2("폭발 피해 감소"));
-      if (isWeapon && canApplyRangeRecoil()) notes.push(pos("반동 감소"));
+      if (isWeapon) notes.push(pos("반동 감소"));
     }
     /* ── 공병 키트 ─────────────────────────────── */
     if (armorPassive === "공병 키트") {
-      if (isWeapon && canApplyRangeRecoil())  notes.push(pos("반동 감소"));
+      if (isWeapon)  notes.push(pos("반동 감소"));
       if (isThrow)   notes.push(pos("최대 소지수"), pos("초기 보유량"));
     }
     /* ── 서보 보조 ─────────────────────────────── */
