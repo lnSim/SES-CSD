@@ -1791,3 +1791,23 @@ body:has(.modalOverlay) {
   .analysisBottomGrid > :first-child { order: 2; } /* RangeBlock */
   .analysisBottomGrid > :last-child  { order: 1; } /* RightBlock (구조물+기동력) */
 }
+
+/* ── 종족 선택 래퍼 통합 (raceSelectWrap) ── */
+.raceSelectWrap { width: 100%; }
+
+/* 기본(PC): 데스크탑 표시, 모바일 숨김 */
+.raceSelectDesktop {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.raceSelectMobile {
+  display: none;
+  gap: 8px;
+  width: 100%;
+}
+
+@media (max-width: 600px) {
+  .raceSelectDesktop { display: none !important; }
+  .raceSelectMobile  { display: flex !important; }
+}

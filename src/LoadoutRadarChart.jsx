@@ -1416,47 +1416,47 @@ export default function LoadoutRadarChart({ selected, requirements = [], flyingE
           팩션별 요구 수치 비교
         </div>
 
-        {/* 종족 선택 — 데스크탑: 텍스트 버튼 / 모바일: 아이콘 스크롤 */}
-        {/* 데스크탑 버전 */}
-        <div className="raceSelectDesktop" style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
-          {races.map(race => {
-            const col = RACE_COLORS[race];
-            const isActive = selectedRace === race;
-            return (
-              <button key={race} type="button"
-                onClick={() => {
-                  if (selectedRace === race) { setSelectedRace(null); setSelectedFaction(null); }
-                  else { setSelectedRace(race); setSelectedFaction(null); }
-                }}
+        {/* 종족 선택 — PC: 아이콘+텍스트 / 모바일: 아이콘 꽉 채움 (단일 컴포넌트, CSS로 전환) */}
+        <div className="raceSelectWrap">
+          {/* PC용: 아이콘+텍스트 pill 버튼 */}
+          <div className="raceSelectDesktop">
+            {races.map(race => {
+              const col = RACE_COLORS[race];
+              const isActive = selectedRace === race;
+              return (
+                <button key={race} type="button"
+                  onClick={() => {
+                    if (selectedRace === race) { setSelectedRace(null); setSelectedFaction(null); }
+                    else { setSelectedRace(race); setSelectedFaction(null); }
+                  }}
+                  style={{
+                    padding:"5px 14px", borderRadius:999,
+                    border:`1px solid ${isActive ? col.border : "rgba(255,255,255,.14)"}`,
+                    background: isActive ? col.bg : "rgba(255,255,255,.04)",
+                    color: isActive ? col.text : "rgba(255,255,255,.55)",
+                    fontSize:12, fontWeight:700, cursor:"pointer",
+                    transition:"all .15s",
+                    display:"flex", alignItems:"center", gap:5,
+                  }}>
+                  <RaceIcon race={race} size={15} />
+                  {race}
+                </button>
+              );
+            })}
+            {selectedRace && (
+              <button type="button"
+                onClick={() => { setSelectedRace(null); setSelectedFaction(null); }}
                 style={{
-                  padding:"5px 14px", borderRadius:999,
-                  border:`1px solid ${isActive ? col.border : "rgba(255,255,255,.14)"}`,
-                  background: isActive ? col.bg : "rgba(255,255,255,.04)",
-                  color: isActive ? col.text : "rgba(255,255,255,.55)",
-                  fontSize:12, fontWeight:700, cursor:"pointer",
-                  transition:"all .15s",
-                  display:"flex", alignItems:"center", gap:5,
-                }}>
-                <RaceIcon race={race} size={15} />
-                {race}
-              </button>
-            );
-          })}
-          {selectedRace && (
-            <button type="button"
-              onClick={() => { setSelectedRace(null); setSelectedFaction(null); }}
-              style={{
-                padding:"5px 10px", borderRadius:999,
-                border:"1px solid rgba(255,255,255,.12)",
-                background:"transparent",
-                color:"rgba(255,255,255,.35)",
-                fontSize:11, fontWeight:700, cursor:"pointer",
-              }}>✕ 초기화</button>
-          )}
-        </div>
-        {/* 모바일 버전 — 아이콘만, 가로 스크롤 */}
-        <div className="raceSelectMobile">
-          <div style={{ display:"flex", gap:8 }}>
+                  padding:"5px 10px", borderRadius:999,
+                  border:"1px solid rgba(255,255,255,.12)",
+                  background:"transparent",
+                  color:"rgba(255,255,255,.35)",
+                  fontSize:11, fontWeight:700, cursor:"pointer",
+                }}>✕ 초기화</button>
+            )}
+          </div>
+          {/* 모바일용: 아이콘 전용, 동일 너비 3버튼 */}
+          <div className="raceSelectMobile">
             {races.map(race => {
               const col = RACE_COLORS[race];
               const isActive = selectedRace === race;
@@ -1479,17 +1479,18 @@ export default function LoadoutRadarChart({ selected, requirements = [], flyingE
                 </button>
               );
             })}
+            {selectedRace && (
+              <button type="button"
+                onClick={() => { setSelectedRace(null); setSelectedFaction(null); }}
+                style={{
+                  flex:"0 0 44px", height:48, borderRadius:12,
+                  border:"1px solid rgba(255,255,255,.12)",
+                  background:"transparent", color:"rgba(255,255,255,.35)",
+                  fontSize:16, cursor:"pointer",
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                }}>✕</button>
+            )}
           </div>
-          {selectedRace && (
-            <button type="button"
-              onClick={() => { setSelectedRace(null); setSelectedFaction(null); }}
-              style={{
-                width:"100%", marginTop:6, padding:"5px 0",
-                borderRadius:8, border:"1px solid rgba(255,255,255,.12)",
-                background:"transparent", color:"rgba(255,255,255,.35)",
-                fontSize:12, fontWeight:700, cursor:"pointer",
-              }}>✕ 초기화</button>
-          )}
         </div>
 
         {/* 팩션 선택 */}
@@ -1637,11 +1638,13 @@ export default function LoadoutRadarChart({ selected, requirements = [], flyingE
             marginBottom:5, letterSpacing:".04em" }}>{children}</div>
         );
         const GradeRow = ({ label, grade }) => (
-          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
+          <div style={{ display:"flex", alignItems:"center",
             gap:8, padding:"4px 0", borderBottom:"1px solid rgba(255,255,255,.05)" }}>
             <span style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,.55)",
-              flex:1, minWidth:0 }}>{label}</span>
-            <span style={{ flexShrink:0 }}>{tag(grade.label, grade.color, grade.bg)}</span>
+              flex:1 }}>{label}</span>
+            <span style={{ marginLeft:"auto", flexShrink:0 }}>
+              {tag(grade.label, grade.color, grade.bg)}
+            </span>
           </div>
         );
 
