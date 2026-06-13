@@ -1456,10 +1456,7 @@ export default function LoadoutRadarChart({ selected, requirements = [], flyingE
         </div>
         {/* 모바일 버전 — 아이콘만, 가로 스크롤 */}
         <div className="raceSelectMobile">
-          <div style={{
-            display:"flex", gap:10, overflowX:"auto", paddingBottom:4,
-            scrollbarWidth:"none", msOverflowStyle:"none",
-          }}>
+          <div style={{ display:"flex", gap:8 }}>
             {races.map(race => {
               const col = RACE_COLORS[race];
               const isActive = selectedRace === race;
@@ -1470,8 +1467,7 @@ export default function LoadoutRadarChart({ selected, requirements = [], flyingE
                     else { setSelectedRace(race); setSelectedFaction(null); }
                   }}
                   style={{
-                    flexShrink:0,
-                    width:44, height:44, borderRadius:12,
+                    flex:"1 1 0", height:48, borderRadius:12,
                     border:`2px solid ${isActive ? col.border : "rgba(255,255,255,.14)"}`,
                     background: isActive ? col.bg : "rgba(255,255,255,.04)",
                     display:"flex", alignItems:"center", justifyContent:"center",
@@ -1479,24 +1475,21 @@ export default function LoadoutRadarChart({ selected, requirements = [], flyingE
                     boxShadow: isActive ? `0 0 10px ${col.border}` : "none",
                     padding:0,
                   }}>
-                  <RaceIcon race={race} size={26} />
+                  <RaceIcon race={race} size={28} />
                 </button>
               );
             })}
-            {selectedRace && (
-              <button type="button"
-                onClick={() => { setSelectedRace(null); setSelectedFaction(null); }}
-                style={{
-                  flexShrink:0,
-                  width:44, height:44, borderRadius:12,
-                  border:"1px solid rgba(255,255,255,.12)",
-                  background:"transparent",
-                  color:"rgba(255,255,255,.35)",
-                  fontSize:16, cursor:"pointer",
-                  display:"flex", alignItems:"center", justifyContent:"center",
-                }}>✕</button>
-            )}
           </div>
+          {selectedRace && (
+            <button type="button"
+              onClick={() => { setSelectedRace(null); setSelectedFaction(null); }}
+              style={{
+                width:"100%", marginTop:6, padding:"5px 0",
+                borderRadius:8, border:"1px solid rgba(255,255,255,.12)",
+                background:"transparent", color:"rgba(255,255,255,.35)",
+                fontSize:12, fontWeight:700, cursor:"pointer",
+              }}>✕ 초기화</button>
+          )}
         </div>
 
         {/* 팩션 선택 */}
@@ -1645,9 +1638,10 @@ export default function LoadoutRadarChart({ selected, requirements = [], flyingE
         );
         const GradeRow = ({ label, grade }) => (
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
-            padding:"3px 0", borderBottom:"1px solid rgba(255,255,255,.05)" }}>
-            <span style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,.55)" }}>{label}</span>
-            {tag(grade.label, grade.color, grade.bg)}
+            gap:8, padding:"4px 0", borderBottom:"1px solid rgba(255,255,255,.05)" }}>
+            <span style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,.55)",
+              flex:1, minWidth:0 }}>{label}</span>
+            <span style={{ flexShrink:0 }}>{tag(grade.label, grade.color, grade.bg)}</span>
           </div>
         );
 
@@ -1777,26 +1771,29 @@ export default function LoadoutRadarChart({ selected, requirements = [], flyingE
                   grade={strongGrade ?? { label:"없음", color:"#f87171", bg:"rgba(248,113,113,.15)" }} />}
               </div>
             )}
-            {/* 방어구 개인 효과 */}
-            {armorPersonalNotes.length > 0 && (
-              <div>
-                <SubLabel>방어구 개인 효과</SubLabel>
-                <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
-                  {armorPersonalNotes.map((n, i) => (
-                    <span key={i} style={{
-                      fontSize:11, fontWeight:600,
-                      color: n.kind === "pos2" ? "#a78bfa"
-                           : n.kind === "neg"  ? "#f87171"
-                           :                    "#86efac",
-                    }}>
-                      {n.kind === "pos2" ? `++ ${n.text}`
-                       : n.kind === "neg" ? `- ${n.text}`
-                       :                   `+ ${n.text}`}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* 방어구 개인 효과 — 항상 표시 */}
+            <div>
+              <SubLabel>방어구 개인 효과</SubLabel>
+              {armorPersonalNotes.length === 0
+                ? <span style={{ fontSize:11, color:"rgba(255,255,255,.28)" }}>없음</span>
+                : (
+                  <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
+                    {armorPersonalNotes.map((n, i) => (
+                      <span key={i} style={{
+                        fontSize:11, fontWeight:600,
+                        color: n.kind === "pos2" ? "#a78bfa"
+                             : n.kind === "neg"  ? "#f87171"
+                             :                    "#86efac",
+                      }}>
+                        {n.kind === "pos2" ? `++ ${n.text}`
+                         : n.kind === "neg" ? `- ${n.text}`
+                         :                   `+ ${n.text}`}
+                      </span>
+                    ))}
+                  </div>
+                )
+              }
+            </div>
             <div>
               <SubLabel>기동력</SubLabel>
               <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
