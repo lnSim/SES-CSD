@@ -11,10 +11,9 @@ function normalizeIconPath(p) {
 }
 
 /* ── 아이템 sheet 기반 단일 확장자 결정 ──
- * stratagem → .svg 단일 (단, PNG 미준비 항목은 .png 임시 사용)
- * armor / weapon 등 → .png 단일
+ * stratagem → .svg 단일 / armor / weapon 등 → .png 단일
  */
-const PNG_TEMP_STRATAGEM_IDS = new Set(["st_sw_mgx42","st_vh_exo51","st_vh_exo55"]);
+const PNG_TEMP_STRATAGEM_IDS = new Set([]); // .svg 파일 준비 완료 항목은 여기서 제거
 function resolveExt(sheet, id) {
   if (String(sheet || "").toLowerCase() !== "stratagem") return ".png";
   if (id && PNG_TEMP_STRATAGEM_IDS.has(String(id))) return ".png";

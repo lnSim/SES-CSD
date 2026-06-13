@@ -836,15 +836,33 @@ export default function LoadoutRadarChart({ selected, requirements = [], flyingE
     const isSup    = slot === "지원무기";
     const isWeapon = isPri || isSec || isSup; // 주/보조/지원 공통
 
+    // ── 반동 감소 블랙리스트 / 화이트리스트 ──
+    const RANGE_RECOIL_BL_SUBTYPES = new Set(["일회용 지원무기", "배낭", "탑승물"]);
+    const RANGE_RECOIL_BL_IDS = new Set([
+      "pr_en_arc12","se_sp_las7","pr_en_las5","pr_ex_r36","pr_ex_cb9",
+      "se_sp_gp31","pr_sp_flam66","se_sp_p72","se_sp_p33",
+      "st_sw_las98","st_sw_gr8","st_sw_flam40","st_sw_arc3","st_sw_rl77",
+      "st_sw_las99","st_sw_faf14","st_sw_rs422","st_sw_stax3","st_sw_tx41",
+      "st_sw_cqc1","st_sw_plas45","st_sw_s11","st_sw_cqc9","st_sw_c4",
+      "st_sw_cqc20","st_sw_bflam80","st_ep_at12",
+    ]);
+    const RANGE_RECOIL_WL_IDS = new Set(["st_sw_mls4x","st_sw_mgx42"]);
+    function canApplyRangeRecoil() {
+      if (RANGE_RECOIL_WL_IDS.has(id)) return true;
+      if (RANGE_RECOIL_BL_IDS.has(id)) return false;
+      if (RANGE_RECOIL_BL_SUBTYPES.has(sub)) return false;
+      return true;
+    }
+
     /* ── 강화 ──────────────────────────────────── */
     if (armorPassive === "강화") {
       if ((traits.includes("폭발성") || traits.includes("플라즈마")) && !id.includes("sp_g123"))
         notes.push(pos2("폭발 피해 감소"));
-      if (isWeapon) notes.push(pos("반동 감소"));
+      if (isWeapon && canApplyRangeRecoil()) notes.push(pos("반동 감소"));
     }
     /* ── 공병 키트 ─────────────────────────────── */
     if (armorPassive === "공병 키트") {
-      if (isWeapon)  notes.push(pos("반동 감소"));
+      if (isWeapon && canApplyRangeRecoil())  notes.push(pos("반동 감소"));
       if (isThrow)   notes.push(pos("최대 소지수"), pos("초기 보유량"));
     }
     /* ── 서보 보조 ─────────────────────────────── */

@@ -27,6 +27,22 @@ const LS_KEY = "helldiver_loadouts_v2";
 function lsGet()       { try { const r=localStorage.getItem(LS_KEY); return r?JSON.parse(r):null; } catch { return null; } }
 function lsSet(data)   { try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch {} }
 
+/* ── GAS 데이터 sessionStorage 캐시 ──
+ * 같은 탭/세션 내 새로고침 시 GAS 재호출 방지 (Edge request 절약)
+ * WB_NOTICE_VERSION 변경 시 자동으로 캐시 무효화됨
+ */
+const GAS_CACHE_VERSION = "v_외계전문가"; // WB_NOTICE_VERSION과 동기화
+const GAS_CACHE_KEY     = `gas_cache_${GAS_CACHE_VERSION}`;
+function gasCacheGet() {
+  try {
+    const r = sessionStorage.getItem(GAS_CACHE_KEY);
+    return r ? JSON.parse(r) : null;
+  } catch { return null; }
+}
+function gasCacheSet(data) {
+  try { sessionStorage.setItem(GAS_CACHE_KEY, JSON.stringify(data)); } catch {}
+}
+
 /* ── 신규 채권 미리보기 오버레이 ── */
 // ★ 채권 업데이트 시 WB_NOTICE_VERSION을 바꾸면 모든 사용자에게 재표시됨
 const WB_NOTICE_VERSION = "v_외계전문가";
@@ -1299,6 +1315,59 @@ export default function App() {
       setErr("VITE_GAS_DEPLOYMENT_ID 가 설정되지 않았습니다 (.env.local 확인)");
       return;
     }
+
+    function applyData(d) {
+      setErr("");
+      const loaded=(Array.isArray(d?.items)?d.items:[]).map(normalizeItem);
+      setItems(loaded);
+      setStructures(Array.isArray(d?.structures)      ? d.structures      : []);
+      setRequirements(Array.isArray(d?.requirements)  ? d.requirements    : []);
+      setFlyingEnemies(Array.isArray(d?.flyingEnemies)? d.flyingEnemies   : []);
+      setTagInfo(Array.isArray(d?.tagInfo)            ? d.tagInfo         : []);
+      setIsLoading(false);
+
+      const stored=lsGet();
+      const byId=new Map(loaded.map(it=>[it.id,it]));
+
+      /* 기본 프리셋 매핑 */
+      const defSel = {
+        stratagem: DEFAULT_LOADOUT_IDS.stratagem.map(id=>id?(byId.get(id)??null):null),
+        armor:     byId.get(DEFAULT_LOADOUT_IDS.armor)     ?? null,
+        primary:   byId.get(DEFAULT_LOADOUT_IDS.primary)   ?? null,
+        secondary: byId.get(DEFAULT_LOADOUT_IDS.secondary) ?? null,
+        throwable: byId.get(DEFAULT_LOADOUT_IDS.throwable) ?? null,
+      };
+
+      /* defSel에 실제로 아이템이 있는지 검사 */
+      const defHasItems = defSel.armor || defSel.primary || defSel.stratagem.some(Boolean);
+
+      const defaultPreset = {
+        id:"__default__", name:"기본 제공 로드아웃",
+        selected:defSel, isDefault:true, createdAt:"",
+      };
+
+      const userList=(stored?.list??[]).filter(l=>l.id!=="__default__");
+      const merged=[defaultPreset,...userList];
+      setSavedLoadouts(merged);
+
+      /* 새로고침 시 항상 기본 제공 로드아웃으로 시작 */
+      setSelected({
+        stratagem:[...defSel.stratagem],
+        armor:    defSel.armor,
+        primary:  defSel.primary,
+        secondary:defSel.secondary,
+        throwable:defSel.throwable,
+      });
+      setActiveLoadoutId("__default__");
+    }
+
+    // sessionStorage 캐시 확인 → 있으면 즉시 적용 후 종료
+    const cached = gasCacheGet();
+    if (cached) {
+      applyData(cached);
+      return;
+    }
+
     fetch(`/api/macros/s/${DEPLOYMENT_ID}/exec`)
       .then(async r => {
         const text=await r.text();
@@ -1307,48 +1376,8 @@ export default function App() {
         catch { throw new Error(`Not JSON: ${text.slice(0,120)}`); }
       })
       .then(d => {
-        setErr("");
-        const loaded=(Array.isArray(d?.items)?d.items:[]).map(normalizeItem);
-        setItems(loaded);
-        setStructures(Array.isArray(d?.structures)      ? d.structures      : []);
-        setRequirements(Array.isArray(d?.requirements)  ? d.requirements    : []);
-        setFlyingEnemies(Array.isArray(d?.flyingEnemies)? d.flyingEnemies   : []);
-        setTagInfo(Array.isArray(d?.tagInfo)            ? d.tagInfo         : []);
-        setIsLoading(false);
-
-        const stored=lsGet();
-        const byId=new Map(loaded.map(it=>[it.id,it]));
-
-        /* 기본 프리셋 매핑 */
-        const defSel = {
-          stratagem: DEFAULT_LOADOUT_IDS.stratagem.map(id=>id?(byId.get(id)??null):null),
-          armor:     byId.get(DEFAULT_LOADOUT_IDS.armor)     ?? null,
-          primary:   byId.get(DEFAULT_LOADOUT_IDS.primary)   ?? null,
-          secondary: byId.get(DEFAULT_LOADOUT_IDS.secondary) ?? null,
-          throwable: byId.get(DEFAULT_LOADOUT_IDS.throwable) ?? null,
-        };
-
-        /* defSel에 실제로 아이템이 있는지 검사 */
-        const defHasItems = defSel.armor || defSel.primary || defSel.stratagem.some(Boolean);
-
-        const defaultPreset = {
-          id:"__default__", name:"기본 제공 로드아웃",
-          selected:defSel, isDefault:true, createdAt:"",
-        };
-
-        const userList=(stored?.list??[]).filter(l=>l.id!=="__default__");
-        const merged=[defaultPreset,...userList];
-        setSavedLoadouts(merged);
-
-        /* 새로고침 시 항상 기본 제공 로드아웃으로 시작 */
-        setSelected({
-          stratagem:[...defSel.stratagem],
-          armor:    defSel.armor,
-          primary:  defSel.primary,
-          secondary:defSel.secondary,
-          throwable:defSel.throwable,
-        });
-        setActiveLoadoutId("__default__");
+        gasCacheSet(d); // 세션 캐시 저장
+        applyData(d);
       })
       .catch(e=>{ setErr(String(e)); setIsLoading(false); });
   }, []);
@@ -2046,6 +2075,32 @@ export default function App() {
       "저지형","정밀형","근접","전진형 화력투사","횡방향 화력투사","구역 화력투사",
     ]);
 
+    // ── 반동 감소 블랙리스트 / 화이트리스트 ──
+    // subType 기반 블랙리스트 (일회용 지원무기, 배낭, 탑승물)
+    const RECOIL_BL_SUBTYPES = new Set(["일회용 지원무기", "배낭", "탑승물"]);
+    // ID 기반 블랙리스트 (소문자, itId와 직접 비교)
+    const RECOIL_BL_IDS = new Set([
+      "pr_en_arc12","se_sp_las7","pr_en_las5","pr_ex_r36","pr_ex_cb9",
+      "se_sp_gp31","pr_sp_flam66","se_sp_p72","se_sp_p33",
+      "st_sw_las98","st_sw_gr8","st_sw_flam40","st_sw_arc3","st_sw_rl77",
+      "st_sw_las99","st_sw_faf14","st_sw_rs422","st_sw_stax3","st_sw_tx41",
+      "st_sw_cqc1","st_sw_plas45","st_sw_s11","st_sw_cqc9","st_sw_c4",
+      "st_sw_cqc20","st_sw_bflam80","st_ep_at12",
+    ]);
+    // ID 기반 화이트리스트 (블랙리스트 subType이어도 반동 감소 적용)
+    const RECOIL_WL_IDS = new Set(["st_sw_mls4x","st_sw_mgx42"]);
+
+    // 반동 감소 적용 가능 여부 판별
+    // itId: s(it?.id).toLowerCase() 로 전처리된 소문자 ID 문자열
+    // it:   원본 아이템 객체 (subType 조회용)
+    function canApplyRecoil(itId, it) {
+      if (RECOIL_WL_IDS.has(itId)) return true;
+      if (RECOIL_BL_IDS.has(itId)) return false;
+      const subT = getSubType(it);
+      if (RECOIL_BL_SUBTYPES.has(subT)) return false;
+      return true;
+    }
+
     function calcPassiveNotes(it, rowLabel, rowForm, rowErgo) {
       if (!armorPassive || !it) return [];
       const posNotes = [];
@@ -2060,14 +2115,14 @@ export default function App() {
       const isStratRow  = !isPrimary && !isSecondary && !isThrowable && !isSupportRow;
       const isShootingStrat = isStratRow && SHOOTING_FORMS.has(s(rowForm));
 
-      // ── 강화 → 반동 감소 (플라즈마 특성 보유 항목만 / 슬롯 무관)
+      // ── 강화 → 반동 감소 (플라즈마 특성 보유 항목만 / 슬롯 무관 / 블랙리스트 제외)
       if (armorPassive === "강화") {
-        if (hasTrait(it, "플라즈마"))
+        if (hasTrait(it, "플라즈마") && canApplyRecoil(itId, it))
           posNotes.push("반동 감소");
       }
-      // ── 공병 키트 → 반동 감소 (주무기, 보조무기, 지원무기)
+      // ── 공병 키트 → 반동 감소 (주무기, 보조무기, 지원무기 / 블랙리스트 제외)
       if (armorPassive === "공병 키트") {
-        if (isPrimary || isSecondary || isSupportRow)
+        if ((isPrimary || isSecondary || isSupportRow) && canApplyRecoil(itId, it))
           posNotes.push("반동 감소");
       }
       // ── 공병 키트 / 통합 폭발물 → 투입시 추가 보유 + 최대 소지량 (투척무기)
@@ -2144,9 +2199,9 @@ export default function App() {
         if ((isPrimary || isSecondary || isSupportRow) && ergoEligible)
           posNotes.push("핸들링 향상");
       }
-      // ── 강화 → 반동 감소 (주무기, 보조무기, 지원무기)
+      // ── 강화 → 반동 감소 (주무기, 보조무기, 지원무기 / 블랙리스트 제외)
       if (armorPassive === "강화") {
-        if (isPrimary || isSecondary || isSupportRow) posNotes.push("반동 감소");
+        if ((isPrimary || isSecondary || isSupportRow) && canApplyRecoil(itId, it)) posNotes.push("반동 감소");
       }
       // ── 굳건한 바위 → 레그돌 억제 (폭발성 trait, 블랙리스트 제외)
       if (armorPassive === "굳건한 바위") {
@@ -2760,7 +2815,7 @@ export default function App() {
                   </div>
                   <div className="infoSection">
                     <div className="infoLabel">버그 및 건의 사항</div>
-                    <div className="infoValue infoPending">추후 업데이트 예정</div>
+                    <a className="infoLink" href="https://forms.gle/H6E3bH6z1KMRxxXWA" target="_blank" rel="noreferrer">구글 폼 바로가기</a>
                   </div>
                 </div>
               </div>
@@ -2769,7 +2824,7 @@ export default function App() {
 
               <div className="infoBuildRow">
                 <span className="infoBuildLabel">빌드 버전</span>
-                <span className="infoBuildValue">ver 26.06.13</span>
+                <span className="infoBuildValue">ver 26.06.14</span>
               </div>
               <div className="infoBuildRow">
                 <span className="infoBuildLabel">빌드 기준 최신 업데이트</span>
