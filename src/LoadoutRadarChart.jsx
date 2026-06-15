@@ -566,7 +566,10 @@ export function calcRadarLayers(selected, raceHint = "") {
     minRange:   layer2.minRange,
   };
 
-  /* 레이어4: + 방어 스트라타젬 */
+  /* 레이어4: + 방어 스트라타젬 (레이어3 = layer2+공격 위에 누적)
+   * → 공격/방어 스트라타젬을 동시에 선택해도 최종(가장 바깥) 레이어에
+   *   양쪽 효과가 모두 반영되도록 layer3을 기준으로 합산
+   */
   let defVsHorde = 0, defVsTarget = 0, defVsAntitank = 0, defStab = 0, defDemoNum = 0, defMinRange = 0;
   for (const it of defenseStrats) {
     const st = getItemStats(it);
@@ -574,14 +577,14 @@ export function calcRadarLayers(selected, raceHint = "") {
     defStab += st.stab; defDemoNum += st.demoNum;
     if (st.minRange > defMinRange) defMinRange = st.minRange;
   }
-  const defTotalItems = [...allLayer2Items, ...defenseStrats];
+  const defTotalItems = [...atkTotalItems, ...defenseStrats];
   const layer4 = {
-    vsHorde:    layer2.vsHorde    + defVsHorde,
-    vsTarget:   layer2.vsTarget   + defVsTarget,
+    vsHorde:    layer3.vsHorde    + defVsHorde,
+    vsTarget:   layer3.vsTarget   + defVsTarget,
     vsAntitank: Math.min(calcAntitankScore(defTotalItems), MAX_VAL),
-    demolition: layer2.demolition + defDemoNum,
-    stability:  layer2.stability  + defStab + defStabBonus,
-    minRange:   layer2.minRange   + defMinRange,
+    demolition: layer3.demolition + defDemoNum,
+    stability:  layer3.stability  + defStab + defStabBonus,
+    minRange:   layer3.minRange   + defMinRange,
   };
 
   /* 교전 범위 (관통등급 + Ergo) */
