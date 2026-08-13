@@ -31,7 +31,7 @@ function lsSet(data)   { try { localStorage.setItem(LS_KEY, JSON.stringify(data)
  * 같은 탭/세션 내 새로고침 시 GAS 재호출 방지 (Edge request 절약)
  * WB_NOTICE_VERSION 변경 시 자동으로 캐시 무효화됨
  */
-const GAS_CACHE_VERSION = "v_외계전문가"; // WB_NOTICE_VERSION과 동기화
+const GAS_CACHE_VERSION = "v_카스텔란의신조"; // WB_NOTICE_VERSION과 동기화
 const GAS_CACHE_KEY     = `gas_cache_${GAS_CACHE_VERSION}`;
 function gasCacheGet() {
   try {
@@ -45,40 +45,37 @@ function gasCacheSet(data) {
 
 /* ── 신규 채권 미리보기 오버레이 ── */
 // ★ 채권 업데이트 시 WB_NOTICE_VERSION을 바꾸면 모든 사용자에게 재표시됨
-const WB_NOTICE_VERSION = "v_외계전문가";
+const WB_NOTICE_VERSION = "v_카스텔란의신조";
 const WB_NOTICE_KEY     = `wb_notice_dismissed_${WB_NOTICE_VERSION}`;
 function wbNoticeDismissed()  { try { return localStorage.getItem(WB_NOTICE_KEY) === "true"; } catch { return false; } }
 function wbNoticeSetDismiss() { try { localStorage.setItem(WB_NOTICE_KEY, "true"); } catch {} }
 
 // ★ 채권 업데이트 시 아래 데이터 수정
 const WB_NOTICE_DATA = {
-  name: "외계 전문가",
+  name: "카스텔란의 신조",
   // ★ 채권 업데이트 시 항목 수정
-  // DB G열(wbrequirement) = '외계 전문가' 기준으로 각 시트에서 조회 후 추가
+  // DB G열(wbrequirement) = '카스텔란의 신조' 기준으로 각 시트에서 조회 후 추가
   items: [
-    { label: "SMG-203 갤런트",          kind: "주무기",     id: "pr_sm_smg203"  },
-    { label: "P-33 미사일 권총",        kind: "보조무기",   id: "se_sp_p33"     },
-    { label: "O-3 자유로운 영혼",       kind: "방어구",     id: "ar_og_o3"      },
-    { label: "O-2 중장비 운전원",       kind: "방어구",     id: "ar_og_o2"      },
-    { label: "MGX-42 불릿 스톰",        kind: "스트라타젬", id: "st_sw_mgx42"   },
-    { label: "EXO-51 벌목꾼 엑소슈트", kind: "스트라타젬", id: "st_vh_exo51"   },
-    { label: "EXO-55 돌파구 엑소슈트", kind: "스트라타젬", id: "st_vh_exo55"   },
+    { label: "R/40-K 핫 샷 마크맨 라이플", kind: "주무기",     id: "pr_en_r40k" },
+    { label: "P/40-K 볼트 피스톨",         kind: "보조무기",   id: "se_sp_p40k" },
+    { label: "G/40-K 멜타마인",            kind: "투척무기",   id: "th_sp_g40k" },
+    { label: "TG-8 샤프슈터",              kind: "방어구",     id: "ar_tg_tg8"  },
+    { label: "TG-122 데모-트루퍼",         kind: "방어구",     id: "ar_tg_tg122"},
+    { label: "40-K 멜타건",                kind: "스트라타젬", id: "st_sw_40k"  },
   ],
-  superStore: [
-    { label: "O-44 조종사와의 유대감", kind: "방어구", id: "ar_og_o44" },
-  ],
+  superStore: [],
 };
 
 const KIND_COLOR = {
-  "주무기":       { color:"#fde047", shadow:"rgba(253,224,71,.55)" },
-  "보조무기":     { color:"#fde047", shadow:"rgba(253,224,71,.55)" },
-  "투척무기":     { color:"#fde047", shadow:"rgba(253,224,71,.55)" },
-  "방어구":       { color:"#fde047", shadow:"rgba(253,224,71,.55)" },
-  "지원무기":     { color:"#bfe1f6", shadow:"rgba(191,225,246,.55)" },
-  "지원배낭 무기":{ color:"#bfe1f6", shadow:"rgba(191,225,246,.55)" },
-  "일회용 지원무기":{ color:"#bfe1f6", shadow:"rgba(191,225,246,.55)" },
-  "스트라타젬":   { color:"#fde047", shadow:"rgba(253,224,71,.55)" },
-  "슈퍼스토어":   { color:"#00f6ff", shadow:"rgba(0,246,255,.55)"  },
+  "주무기":       { color:"#dfdfe1", shadow:"rgba(223,223,225,.55)", glow:"#fde047", glowShadow:"rgba(253,224,71,.55)" },
+  "보조무기":     { color:"#dfdfe1", shadow:"rgba(223,223,225,.55)", glow:"#fde047", glowShadow:"rgba(253,224,71,.55)" },
+  "투척무기":     { color:"#dfdfe1", shadow:"rgba(223,223,225,.55)", glow:"#fde047", glowShadow:"rgba(253,224,71,.55)" },
+  "방어구":       { color:"#dfdfe1", shadow:"rgba(223,223,225,.55)", glow:"#fde047", glowShadow:"rgba(253,224,71,.55)" },
+  "지원무기":     { color:"#bfe1f6", shadow:"rgba(191,225,246,.55)", glow:"#bfe1f6", glowShadow:"rgba(191,225,246,.55)" },
+  "지원배낭 무기":{ color:"#bfe1f6", shadow:"rgba(191,225,246,.55)", glow:"#bfe1f6", glowShadow:"rgba(191,225,246,.55)" },
+  "일회용 지원무기":{ color:"#bfe1f6", shadow:"rgba(191,225,246,.55)", glow:"#bfe1f6", glowShadow:"rgba(191,225,246,.55)" },
+  "스트라타젬":   { color:"#dfdfe1", shadow:"rgba(223,223,225,.55)", glow:"#fde047", glowShadow:"rgba(253,224,71,.55)" },
+  "슈퍼스토어":   { color:"#00f6ff", shadow:"rgba(0,246,255,.55)",   glow:"#00f6ff", glowShadow:"rgba(0,246,255,.55)"  },
 };
 
 function WbItemIcon({ src, alt }) {
@@ -146,7 +143,7 @@ function WbNoticeOverlay({ onClose }) {
         </div>
 
         {/* 채권명 */}
-        <div className="wbNoticeWbName" style={{ color:"#fffbe5", textShadow:"0 0 10px rgba(255,251,229,.70), 0 0 24px rgba(255,251,229,.35)" }}>{WB_NOTICE_DATA.name}</div>
+        <div className="wbNoticeWbName" style={{ color:"#dfdfe1", textShadow:"0 0 10px rgba(223,223,225,.70), 0 0 24px rgba(223,223,225,.35)" }}>{WB_NOTICE_DATA.name}</div>
 
         {/* 항목 카드 — 개인장비 → 스트라타젬 → 슈퍼스토어 순 */}
         <div className="wbNoticeScrollArea">
@@ -156,11 +153,11 @@ function WbNoticeOverlay({ onClose }) {
             const allItems   = WB_NOTICE_DATA.items; // 개인장비 + 스트라타젬 모두
             const renderCard = (cs, iconSrc, label, kindLabel) => (
               <div key={label} className="wbNoticeItemCard"
-                style={{ borderColor:`${cs.color}44`, background:`${cs.color}0a`, boxShadow:`0 0 8px ${cs.shadow}` }}>
+                style={{ borderColor:`${cs.glow}44`, background:`${cs.glow}0a`, boxShadow:`0 0 8px ${cs.glowShadow}` }}>
                 <div className="wbNoticeItemImgWrap">
                   {iconSrc ? <WbItemIcon src={iconSrc} alt={label} /> : <div className="wbNoticeItemImgPlaceholder" />}
                 </div>
-                <div className="wbNoticeItemName" style={{ color:cs.color, textShadow:`0 0 8px ${cs.shadow}` }}>{label}</div>
+                <div className="wbNoticeItemName" style={{ color:cs.glow, textShadow:`0 0 8px ${cs.glowShadow}` }}>{label}</div>
                 <div className="wbNoticeItemKind">{kindLabel}</div>
               </div>
             );
@@ -575,7 +572,7 @@ async function exportLoadoutPng(captureRef, selected, wbSummary=[]) {
       const PNG_WB_STYLES = {
         "헬다이버 출동!":          { bg:"#0e2c2e", border:"rgba(247,243,82,.35)", tc:"#f7f352" },
         "결연한 베테랑":           { bg:"#ea630f", border:"rgba(255,255,255,.3)",  tc:"#ffffff" },
-        "최첨단":                  { bg:"#0044ab", border:"rgba(96,216,255,.50)",  tc:"#60d8ff" },
+        "최첨단":                  { bg:"#0044ab", border:"rgba(96,216,255,.50)",  tc:"#ffffff" },
         "민주적 폭파":             { bg:"#920f00", border:"rgba(239,143,0,.35)",   tc:"#ef8f00" },
         "극지의 애국자":           { bg:"#3eb0e8", border:"rgba(255,255,255,.3)",  tc:"#ffffff" },
         "독사 특공대":             { bg:"#103318", border:"rgba(255,255,255,.2)",  tc:"#ffffff" },
@@ -598,6 +595,7 @@ async function exportLoadoutPng(captureRef, selected, wbSummary=[]) {
         "슈퍼스토어 구매":         { bg:"#001c2e", border:"rgba(0,246,255,.65)",   tc:"#00f6ff" },
         "견고한 참호 사단":        { bg:"#040200", border:"#978642",               tc:"#c7b243" },
         "외계 전문가":             { bg:"#fffbe5", border:"#c4a882",               tc:"#654632" },
+        "카스텔란의 신조":         { bg:"#2c4658", border:"#f50301",               tc:"#dfdfe1" },
       };
       const fallbackColors = ["#f7f352","#fb923c","#f87171","#c084fc","#60a5fa","#34d399"];
       let fbIdx = 0;
@@ -775,7 +773,7 @@ const WB_ORDER = [
   "독사 특공대","자유의 불꽃","화학 요원","진리의 집행자","도시 전설",
   "자유의 종복","정의의 경계선","의장의 달인","법의 위력","대조군",
   "먼지 폭풍","금사 특공대","존재하지 않는 부대","공성 파괴자",
-  "민주적 궤도 강하 타격대","정의로운 망령","견고한 참호 사단","외계 전문가",
+  "민주적 궤도 강하 타격대","정의로운 망령","견고한 참호 사단","외계 전문가","카스텔란의 신조",
 ];
 function sortByWbOrder(entries) {
   return [...entries].sort(([a],[b]) => {
@@ -790,7 +788,7 @@ function sortByWbOrder(entries) {
 const WB_STYLES = {
   "헬다이버 출동!":        { color:"#f7f352", background:"#0e2c2e", borderColor:"rgba(247,243,82,.35)" },
   "결연한 베테랑":         { color:"#ffffff", background:"#ea630f", borderColor:"rgba(255,255,255,.3)" },
-  "최첨단":                { color:"#60d8ff", background:"#0044ab", borderColor:"rgba(96,216,255,.50)", textShadow:"0 0 10px #40efff" },
+  "최첨단":                { color:"#ffffff", background:"#0044ab", borderColor:"rgba(96,216,255,.50)", textShadow:"0 0 10px #40efff" },
   "민주적 폭파":           { color:"#ef8f00", background:"#920f00", borderColor:"rgba(239,143,0,.35)"  },
   "극지의 애국자":         { color:"#ffffff", background:"#3eb0e8", borderColor:"rgba(255,255,255,.3)" },
   "독사 특공대":           { color:"#ffffff", background:"#103318", borderColor:"rgba(255,255,255,.2)" },
@@ -813,6 +811,7 @@ const WB_STYLES = {
   "슈퍼스토어 구매":        { color:"#00f6ff", background:"#001c2e", borderColor:"rgba(0,246,255,.65)", textShadow:"0 0 8px rgba(0,246,255,.5)" },
   "견고한 참호 사단":       { color:"#c7b243", background:"#040200", borderColor:"#978642"              },
   "외계 전문가":            { color:"#654632", background:"#fffbe5", borderColor:"#c4a882"              },
+  "카스텔란의 신조":        { color:"#dfdfe1", background:"linear-gradient(180deg, #3a5568 0%, #203a49 100%)", borderColor:"#f50301" },
 };
 function getWbBadgeStyle(wb) {
   return WB_STYLES[wb] ?? { color:"rgba(255,255,255,.8)", background:"rgba(255,255,255,.07)", borderColor:"rgba(255,255,255,.18)" };
@@ -2458,7 +2457,7 @@ export default function App() {
       <nav className="topNav">
         <div className="topNavInner">
           <div className="topNavTitle">
-            SES 자기 결정의 전달자 <span className="topNavPatch">억압의 도구</span>
+            SES 자기 결정의 전달자 <span className="topNavPatch">자유의 공백</span>
             <span className="topNavPageTabs">
               <button
                 className={`topNavTab pageTab ${activePage==="loadout"?"active":""}`}
@@ -2824,11 +2823,11 @@ export default function App() {
 
               <div className="infoBuildRow">
                 <span className="infoBuildLabel">빌드 버전</span>
-                <span className="infoBuildValue">ver 26.06.14</span>
+                <span className="infoBuildValue">ver 26.08.13</span>
               </div>
               <div className="infoBuildRow">
                 <span className="infoBuildLabel">빌드 기준 최신 업데이트</span>
-                <span className="infoBuildValue">ver 01.006.251 " Machinery of Oppression " <span className="infoSub">(억압의 도구)</span></span>
+                <span className="infoBuildValue">ver 01.007.000 " Devoid of Liberty " <span className="infoSub">(자유의 공백)</span></span>
               </div>
 
             </div>

@@ -22,12 +22,13 @@ const PASSIVE_GRENADE   = new Set(["공병 키트","통합 폭발물","충격 �
 const PASSIVE_OXYGEN    = "산소공급기";
 const PASSIVE_SERVO     = "서보 보조";
 const PASSIVE_IDEAL_BODY = "이상적인 체형";
+const PASSIVE_TRUE_VALOR = "진정한 위용";
 const PASSIVE_VSRECOIL_SEC = "총잡이";
 
 // 자신에게 소이/가스/아크 피해를 줄 수 없는 무기 예외 id
 const SELF_FIRE_EXCEPTION_IDS = new Set([
   "pr_ar_ar2","pr_sg_sg225ie","pr_sg_sg451","pr_en_las5",
-  "se_sp_p35","pr_en_arc12","se_sp_las7",
+  "se_sp_p35","pr_en_arc12","se_sp_las7","pr_dm_r4",
 ]);
 // min.range GP-20 예외
 const MINRANGE_EXCEPTION_IDS = new Set(["se_sp_gp20"]);
@@ -161,6 +162,7 @@ export function calcRadarLayers(selected, raceHint = "") {
   let passiveSecStabBonus   = 0;
   let passiveVsTargetBonus  = 0;
   const hasIdealBody = passive === PASSIVE_IDEAL_BODY;
+  const hasTrueValor = passive === PASSIVE_TRUE_VALOR;
 
   switch (passive) {
 
@@ -222,6 +224,18 @@ export function calcRadarLayers(selected, raceHint = "") {
     // 7. 이상적인 체형 — 별도 처리 (isLowErgo)
     case "이상적인 체형":
       break;
+
+    // 7-1. 진정한 위용 — 핸들링 보너스는 별도 처리(isLowErgo) / 재장전 속도 적용 지원무기 → 안정성 +1
+    case "진정한 위용": {
+      const RELOAD_EXCLUDE_IDS = ["st_sw_arc3","st_sw_las99","st_sw_cqc","st_sw_m1000","st_sw_c4","st_sw_gl28","st_sw_bflam80"];
+      for (const it of supportWeapons) {
+        const itId = s(it?.id ?? "").toLowerCase();
+        const isDisp = getSubType(it) === "일회용 지원무기";
+        const excluded = isDisp || RELOAD_EXCLUDE_IDS.some(r => itId.includes(r));
+        if (!excluded) passiveStabilityBonus += 1;
+      }
+      break;
+    }
 
     // 8. 인화성 물질 — 소이 or 과열 태그 항목 있으면 +1 (예외 무기 제외)
     case "인화성 물질":
@@ -316,6 +330,12 @@ export function calcRadarLayers(selected, raceHint = "") {
     // 18. 적응력 — 소이/가스/아크 태그 있으면 +1 (예외 무기 제외)
     case "적응력":
       if (allWeapons.some(it => !SELF_FIRE_EXCEPTION_IDS.has(s(it?.id)) && hasTrait(it, "소이", "가스", "아크")))
+        passiveStabilityBonus += 1;
+      break;
+
+    // 18-1. 운동 에너지 변위 완화 — 소이 태그 있으면 +1 (예외 무기 제외)
+    case "운동 에너지 변위 완화":
+      if (allWeapons.some(it => !SELF_FIRE_EXCEPTION_IDS.has(s(it?.id)) && hasTrait(it, "소이")))
         passiveStabilityBonus += 1;
       break;
 
@@ -426,6 +446,15 @@ export function calcRadarLayers(selected, raceHint = "") {
       else if (ergo === "보통") gearStab += 1;
       if (hasTrait(it, "총검", "근접") || s(it?.weaponType ?? "") === "보조-근접")
         gearMinRange += 1;
+    }
+  }
+
+  // 진정한 위용: Ergo 낮음→+2, 보통→+1 (주/보조/지원무기) — 이상적인 체형과 동일한 핸들링 안정성 로직 (근접 피해 보너스는 없음)
+  if (hasTrueValor) {
+    for (const it of [...primaryAndSecondary, ...supportWeapons]) {
+      const ergo = s(it?.ergo ?? "");
+      if (ergo === "낮음") gearStab += 2;
+      else if (ergo === "보통") gearStab += 1;
     }
   }
 
@@ -624,9 +653,9 @@ export function calcRadarLayers(selected, raceHint = "") {
     if (!it) return null;
     const ergo = s(it.ergo ?? it.Ergo ?? "");
     if (!ergo) return null;
-    // 이상적인 체형: 낮음→보통, 보통→높음 (투척 제외: ergo가 "투척"이면 그대로)
+    // 이상적인 체형 / 진정한 위용: 낮음→보통, 보통→높음 (투척 제외: ergo가 "투척"이면 그대로)
     if (ergo === "투척") return { label:"투척", upgraded:false };
-    if (hasIdealBody) {
+    if (hasIdealBody || hasTrueValor) {
       if (ergo === "낮음")  return { label:"보통", upgraded:true };
       if (ergo === "보통")  return { label:"높음", upgraded:true };
       return { label:ergo, upgraded:false };
@@ -866,6 +895,7 @@ export default function LoadoutRadarChart({ selected, requirements = [], flyingE
     if (!armorPassive || !it) return [];
     const pos  = (text) => ({ text, kind:"pos"  });
     const pos2 = (text) => ({ text, kind:"pos2" });
+    const pos3 = (text) => ({ text, kind:"pos3" }); // 보라색 강조 + 단일 "+" 접두사
     const neg  = (text) => ({ text, kind:"neg"  });
     const notes = [];
     const id       = s(it?.id ?? "").toLowerCase();
@@ -925,10 +955,30 @@ export default function LoadoutRadarChart({ selected, requirements = [], flyingE
       if (traits.includes("총검") || traits.includes("근접") || id.includes("cqc"))
         notes.push(pos2("근접공격 피해량 증가"));
     }
+    /* ── 진정한 위용 ───────────────────────────── */
+    if (armorPassive === "진정한 위용") {
+      // 이상적인 체형과 동일 조건: Ergo 낮음/보통 무기 → 핸들링 개선
+      if (isWeapon && (ergoVal === "낮음" || ergoVal === "보통"))
+        notes.push(pos("핸들링 개선"));
+      // 지원무기 재장전 속도 — 일회용 지원무기 및 특정 ID 제외
+      if (isSup) {
+        const RELOAD_EXCLUDE_IDS = ["st_sw_arc3","st_sw_las99","st_sw_cqc","st_sw_m1000","st_sw_c4","st_sw_gl28","st_sw_bflam80"];
+        const excluded = isDisp || RELOAD_EXCLUDE_IDS.some(r => id.includes(r));
+        if (!excluded) notes.push(pos3("재장전 속도"));
+      }
+    }
+    /* ── 운동 에너지 변위 완화 ──────────────────── */
+    if (armorPassive === "운동 에너지 변위 완화") {
+      // 인화성 물질과 동일한 자가피해 면제 무기 제외 조건 (R-4 하이에나 포함)
+      const BL = ["pr_sg_sg225ie","pr_sg_sg451","pr_ar_ar2","pr_en_las5","se_sp_las7"];
+      if (!BL.some(r => id.includes(r.split("_").pop())) && !id.includes("pr_dm_r4")) {
+        if (traits.includes("소이")) notes.push(pos("화염 피해 감소"));
+      }
+    }
     /* ── 인화성 물질 ───────────────────────────── */
     if (armorPassive === "인화성 물질") {
       const BL = ["pr_sg_sg225ie","pr_sg_sg451","pr_ar_ar2","pr_en_las5","se_sp_las7"];
-      if (!BL.some(r => id.includes(r.split("_").pop()))) {
+      if (!BL.some(r => id.includes(r.split("_").pop())) && !id.includes("pr_dm_r4")) {
         if (traits.includes("소이") || traits.includes("과열"))
           notes.push(pos2("화염 피해 감소"));
       }
@@ -968,7 +1018,7 @@ export default function LoadoutRadarChart({ selected, requirements = [], flyingE
     /* ── 사막 돌격대 ───────────────────────────── */
     if (armorPassive === "사막 돌격대") {
       const BL = ["pr_sg_sg225ie","pr_sg_sg451","pr_ar_ar2","pr_en_las5","se_sp_las7","se_sp_p35","pr_en_arc12","st_sw_arc3"];
-      if (!BL.some(r => id.includes(r.split("_").pop()))) {
+      if (!BL.some(r => id.includes(r.split("_").pop())) && !id.includes("pr_dm_r4")) {
         if (traits.includes("소이") || traits.includes("아크") || traits.includes("가스"))
           notes.push(pos("상태이상 피해 감소"));
       }
@@ -991,7 +1041,7 @@ export default function LoadoutRadarChart({ selected, requirements = [], flyingE
     /* ── 적응력 ────────────────────────────────── */
     if (armorPassive === "적응력") {
       const BL = ["pr_sg_sg225ie","pr_sg_sg451","pr_ar_ar2","pr_en_las5","se_sp_las7","se_sp_p35","pr_en_arc12","st_sw_arc3"];
-      if (!BL.some(r => id.includes(r.split("_").pop()))) {
+      if (!BL.some(r => id.includes(r.split("_").pop())) && !id.includes("pr_dm_r4")) {
         if (traits.includes("소이") || traits.includes("아크") || traits.includes("가스"))
           notes.push(pos("상태이상 피해 감소"));
       }
@@ -1760,6 +1810,7 @@ export default function LoadoutRadarChart({ selected, requirements = [], flyingE
                             <span key={ni} style={{
                               fontSize:11, fontWeight:600,
                               color: kind === "pos2" ? "#a78bfa"
+                                   : kind === "pos3" ? "#a78bfa"
                                    : kind === "neg"  ? "#f87171"
                                    :                  "#86efac",
                             }}>
@@ -1821,6 +1872,8 @@ export default function LoadoutRadarChart({ selected, requirements = [], flyingE
               notes.push(p("받는 피해 감소")); break;
             case "산소공급기":
               notes.push(p("걷기/달리기 속도 증가"), p("슬라이딩 거리 증가"), ng("스태미나 소모량 증가")); break;
+            case "운동 에너지 변위 완화":
+              notes.push(p("충돌 피해 감소"), p("확률적으로 사지 부상 방지")); break;
             default: break;
           }
           return notes;

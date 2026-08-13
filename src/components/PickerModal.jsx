@@ -6,7 +6,7 @@ const WB_ORDER = [
   "독사 특공대","자유의 불꽃","화학 요원","진리의 집행자","도시 전설",
   "자유의 종복","정의의 경계선","의장의 달인","법의 위력","대조군",
   "먼지 폭풍","금사 특공대","존재하지 않는 부대","공성 파괴자",
-  "민주적 궤도 강하 타격대","정의로운 망령","견고한 참호 사단","외계 전문가",
+  "민주적 궤도 강하 타격대","정의로운 망령","견고한 참호 사단","외계 전문가","카스텔란의 신조",
 ];
 function sortWbList(list) {
   return [...list].sort((a, b) => {
@@ -22,7 +22,7 @@ function sortWbList(list) {
 const WB_STYLES = {
   "헬다이버 출동!":         { color:"#f7f352", background:"#0e2c2e" },
   "결연한 베테랑":          { color:"#ffffff", background:"#ea630f" },
-  "최첨단":                { color:"#60d8ff", background:"#0044ab", borderColor:"rgba(96,216,255,.50)", textShadow:"0 0 10px #40efff" },
+  "최첨단":                { color:"#ffffff", background:"#0044ab", borderColor:"rgba(96,216,255,.50)", textShadow:"0 0 10px #40efff" },
   "민주적 폭파":            { color:"#ef8f00", background:"#920f00" },
   "극지의 애국자":          { color:"#ffffff", background:"#3eb0e8" },
   "독사 특공대":            { color:"#ffffff", background:"#103318" },
@@ -44,6 +44,7 @@ const WB_STYLES = {
   "슈퍼시민권 업그레이드":  { color:"#fee800", background:"#000000", borderColor:"#fee800" },
   "견고한 참호 사단":       { color:"#c7b243", background:"#040200", borderColor:"#978642" },
   "외계 전문가":            { color:"#654632", background:"#fffbe5", borderColor:"#c4a882" },
+  "카스텔란의 신조":        { color:"#dfdfe1", background:"linear-gradient(180deg, #3a5568 0%, #203a49 100%)", borderColor:"#f50301" },
 };
 function getWbFilterStyle(wb, active) {
   const st = WB_STYLES[wb];
@@ -100,11 +101,16 @@ const getArmorPenLabelMerged = (it) => {
 };
 const getWeaponTraits = (it) => [s(it?.trait1??""),s(it?.trait2??""),s(it?.trait3??"")].filter(Boolean);
 
-const WB_ALWAYS_INCLUDE = new Set(["기본","헬다이버 출동!"]);
+/* 캠페인 보상 — 전쟁채권 칩에서 제거하고 상시 노출 */
+const CAMPAIGN_REWARD_WB = "캠페인 보상";
+const WB_ALWAYS_INCLUDE = new Set(["기본","헬다이버 출동!", CAMPAIGN_REWARD_WB]);
 const isSuperStore    = (it) => { const wb=getWB(it); return wb.includes("슈퍼")&&wb.includes("스토어"); };
 /* 슈퍼 시민권 에디션 — 전쟁채권 칩에서 제거하고 별도 토글로 분리 */
 const SUPER_CITIZEN_WB = "슈퍼시민권 업그레이드";
 const isSuperCitizen   = (it) => getWB(it) === SUPER_CITIZEN_WB;
+const isCampaignReward = (it) => getWB(it) === CAMPAIGN_REWARD_WB;
+/* R-4 하이에나 / KDM-500 아웃라이더 — MP-98 나이트와 동일한 글로우 강조 */
+const GLOW_ITEM_IDS = new Set(["pr_sm_mp98", "pr_dm_r4", "ar_kdm_kdm500"]);
 
 /* ── 스트라타젬 type 순서: 공격 > 지원 > 방어 ── */
 const STRAT_TYPE_ORDER = ["공격","지원","방어"];
@@ -116,6 +122,8 @@ const SUBTYPE_BACKPACK_WEAPON = "지원배낭 무기";
 
 /* ── 엑소슈트 판별 (4번 요청) ── */
 const isExoSuit = (it) => String(it?.id ?? "").includes("st_vh_exo");
+/* ── M-102/M-103 고속 정찰 차량 — 엑소슈트와 동일하게 하나만 선택 가능 ── */
+const isScoutCar = (it) => ["st_vh_m102","st_vh_m103"].includes(String(it?.id ?? ""));
 
 /* ── 스트라타젬 대분류: stratType 컬럼 (공격/지원/방어) ── */
 const getStratType  = (it) => s(it?.stratType ?? "");
@@ -318,6 +326,18 @@ export default function PickerModal({
   const exoSelectedId = useMemo(() => {
     if (!isStratagemMode) return null;
     const found = (stratagemSlots??[]).find(it => it && isExoSuit(it));
+    return found ? String(found.id) : null;
+  }, [stratagemSlots, isStratagemMode]);
+
+  /* ── M-102/M-103 고속 정찰 차량 선택 현황 (엑소슈트와 동일 로직) ── */
+  const hasScoutCarSelected = useMemo(() => {
+    if (!isStratagemMode) return false;
+    return (stratagemSlots??[]).some(it => it && isScoutCar(it));
+  }, [stratagemSlots, isStratagemMode]);
+
+  const scoutCarSelectedId = useMemo(() => {
+    if (!isStratagemMode) return null;
+    const found = (stratagemSlots??[]).find(it => it && isScoutCar(it));
     return found ? String(found.id) : null;
   }, [stratagemSlots, isStratagemMode]);
 
@@ -689,7 +709,15 @@ export default function PickerModal({
                         && !activeSlotIsExo   // 현재 슬롯이 이미 엑소슈트면 교체 허용
                         && exoSelectedId !== id;
 
-                      const disabled = (alreadyPicked && !isCurrent) || exoBlocked;
+                      /* M-102/M-103 고속 정찰 차량 중복 제한 — 엑소슈트와 동일 로직 */
+                      const activeSlotIsScoutCar = activeStratagemPickedId!=null
+                        && isScoutCar({ id: activeStratagemPickedId });
+                      const scoutCarBlocked = isScoutCar(it)
+                        && hasScoutCarSelected
+                        && !activeSlotIsScoutCar   // 현재 슬롯이 이미 정찰 차량이면 교체 허용
+                        && scoutCarSelectedId !== id;
+
+                      const disabled = (alreadyPicked && !isCurrent) || exoBlocked || scoutCarBlocked;
                       const showWarn = !disabled && getSubType(it)===SUBTYPE_BACKPACK && hasBackpackWeaponSelected;
 
                       return (
@@ -716,15 +744,24 @@ export default function PickerModal({
             {grouped.order.map(grpKey => {
               const list    = grouped.map.get(grpKey) || [];
               const isSuper = grpKey.includes("슈퍼") && grpKey.includes("스토어");
+              // 방어구 목록은 grpKey가 전쟁 채권명이므로 필터 칩과 동일한 색상 적용
+              const wbSectionStyle = (!isWeapon && !isSuper) ? getWbFilterStyle(grpKey, true) : null;
               return (
                 <div key={grpKey} className="pickSection">
-                  <div className={`pickSectionTitle ${isSuper?"super":""}`}>{grpKey}</div>
+                  <div className={`pickSectionTitle ${isSuper?"super":""}`}
+                    style={wbSectionStyle ? {
+                      background:  wbSectionStyle.background,
+                      color:       wbSectionStyle.color,
+                      borderColor: wbSectionStyle.borderColor,
+                      textShadow:  wbSectionStyle.textShadow,
+                    } : undefined}
+                  >{grpKey}</div>
                   <div className="pickSectionGrid">
                     {list.map(it => {
                       const active = pickedId!=null && String(it.id)===String(pickedId);
                       return (
                         <button key={it.id}
-                          className={`pickCard ${active?"active":""} ${isSuperStore(it)?"superItem":""} ${isSuperCitizen(it)?"superCitizenItem":""} ${String(it.id)==="pr_sm_mp98"?"glowItem":""}`}
+                          className={`pickCard ${active?"active":""} ${isSuperStore(it)?"superItem":""} ${isSuperCitizen(it)?"superCitizenItem":""} ${GLOW_ITEM_IDS.has(String(it.id))?"glowItem":""}`}
                           onClick={()=>onPick(it)} type="button"
                         >
                           <div className="pickThumb">
@@ -735,6 +772,9 @@ export default function PickerModal({
                             <div className="pickDesc">{it.desc||""}</div>
                             {isSuperCitizen(it) && (
                               <div className="pickUnlock" style={{color:"#fee800"}}>슈퍼 시민 에디션 업그레이드</div>
+                            )}
+                            {isCampaignReward(it) && (
+                              <div className="pickUnlock" style={{color:"#fee800"}}>캠페인 보상</div>
                             )}
                             {isSuperStore(it) && it.unlock!=null && it.unlock!=="" && (
                               <div className="pickUnlock">{String(it.unlock)}</div>

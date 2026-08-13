@@ -105,15 +105,15 @@ body {
   white-space:nowrap; flex-shrink:0;
   font-family:'Inter','Noto Sans KR',sans-serif;
 }
-/* "억압의 도구" — 정적 빨간 글로우 */
+/* "자유의 공백" — 일루미닛 강조색(#a419f8) 대비 명도를 높인 보라색 정적 글로우 */
 .topNavPatch {
   font-size:clamp(10px,1.1vw,14px); font-weight:800;
-  color:#ff4b4b;
+  color:#bf5efa;
   margin-left:8px; letter-spacing:0.01em;
   text-shadow:
-    0 0 8px rgba(255,60,60,.90),
-    0 0 18px rgba(255,60,60,.55),
-    0 0 32px rgba(255,60,60,.30);
+    0 0 8px rgba(191,94,250,.90),
+    0 0 18px rgba(191,94,250,.55),
+    0 0 32px rgba(191,94,250,.30);
 }
 .topNavTabs {
   display:flex; gap:8px; align-items:center;
@@ -914,7 +914,7 @@ body {
 .stratagemBtn:hover  { border-color:rgba(240,196,0,.45); background:rgba(240,196,0,.10); }
 .stratagemBtn.active { border-color:rgba(240,196,0,.75); box-shadow:0 0 0 2px rgba(240,196,0,.18); background:rgba(240,196,0,.12); }
 .stratagemBtn.disabled,.stratagemBtn:disabled { opacity:.28; filter:grayscale(1); cursor:not-allowed; }
-/* sm_mp98 pickCard 전용 글로우 — 노란색 정적 */
+/* 슈퍼시민/캠페인 보상 특전 무기(pr_sm_mp98, pr_dm_r4, ar_kdm_kdm500) 공용 글로우 — 노란색 정적 */
 .pickCard.glowItem {
   border-color:rgba(253,224,71,.70) !important;
   background:rgba(253,224,71,.07) !important;
