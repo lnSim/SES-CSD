@@ -1566,19 +1566,15 @@ export default function App() {
     setDraggingLoadoutId(null);
   }
 
-  /* ── 핸들 없이 행 전체로 드래그 시작 ──
-   * PC(mouse): 누른 채로 일정 거리 이상 움직이면 드래그 시작
-   * 모바일(touch): 2초간 지속해서 누르고 있으면 드래그 시작 (스크롤 의도면 자동 취소) */
-  const LOADOUT_LONG_PRESS_MS       = 2000;
-  const LOADOUT_MOUSE_DRAG_THRESHOLD= 6;
-  const LOADOUT_TOUCH_CANCEL_THRESHOLD = 10;
-  const [longPressLoadoutId, setLongPressLoadoutId] = useState(null); // 롱프레스 대기 중(모바일 시각 표시)
-  const pendingDragRef = useRef(null); // { id, startX, startY, pointerType, timer }
+  /* ── 행 전체로 드래그 시작 (PC 전용) ──
+   * PC(mouse): 누른 채로 일정 거리 이상 움직이면 드래그 시작.
+   * 모바일(touch)에서는 스크롤과 충돌/오작동 문제로 드래그를 지원하지 않고
+   * 대신 위/아래 버튼(moveLoadout)으로 순서를 바꾼다. */
+  const LOADOUT_MOUSE_DRAG_THRESHOLD = 6;
+  const pendingDragRef = useRef(null); // { id, startX, startY, pointerType }
 
   function clearPendingLoadoutDrag() {
-    if (pendingDragRef.current?.timer) clearTimeout(pendingDragRef.current.timer);
     pendingDragRef.current = null;
-    setLongPressLoadoutId(null);
     window.removeEventListener("pointermove", handleLoadoutRowPointerMove);
     window.removeEventListener("pointerup",   handleLoadoutRowPointerUp);
     window.removeEventListener("pointercancel", handleLoadoutRowPointerUp);
@@ -1595,38 +1591,40 @@ export default function App() {
     if (!st) return;
     const dx = e.clientX - st.startX, dy = e.clientY - st.startY;
     const dist = Math.hypot(dx, dy);
-    if (st.pointerType === "mouse") {
-      if (dist > LOADOUT_MOUSE_DRAG_THRESHOLD) {
-        const id = st.id;
-        clearPendingLoadoutDrag();
-        startActualLoadoutDrag(id);
-        handleLoadoutDragPointerMove(e);
-      }
-    } else {
-      if (dist > LOADOUT_TOUCH_CANCEL_THRESHOLD) clearPendingLoadoutDrag(); // 스크롤 의도로 판단, 롱프레스 취소
+    if (dist > LOADOUT_MOUSE_DRAG_THRESHOLD) {
+      const id = st.id;
+      clearPendingLoadoutDrag();
+      startActualLoadoutDrag(id);
+      handleLoadoutDragPointerMove(e);
     }
   }
   function handleLoadoutRowPointerUp() { clearPendingLoadoutDrag(); }
   function handleLoadoutRowPointerDown(e, id, isDefault) {
     if (isDefault) return;
     if (dragLoadoutRef.current) return; // 이미 드래그 중
+    if (e.pointerType !== "mouse") return; // 모바일(touch/pen)은 드래그 비활성화 — 위/아래 버튼 사용
     if (e.target && e.target.closest && e.target.closest("button, input, select, a, textarea")) return;
 
-    pendingDragRef.current = { id, startX:e.clientX, startY:e.clientY, pointerType:e.pointerType, timer:null };
-
-    if (e.pointerType === "touch" || e.pointerType === "pen") {
-      setLongPressLoadoutId(id);
-      pendingDragRef.current.timer = setTimeout(() => {
-        if (pendingDragRef.current?.id === id) {
-          clearPendingLoadoutDrag();
-          startActualLoadoutDrag(id);
-        }
-      }, LOADOUT_LONG_PRESS_MS);
-    }
-
+    pendingDragRef.current = { id, startX:e.clientX, startY:e.clientY, pointerType:e.pointerType };
     window.addEventListener("pointermove", handleLoadoutRowPointerMove);
     window.addEventListener("pointerup",   handleLoadoutRowPointerUp);
     window.addEventListener("pointercancel", handleLoadoutRowPointerUp);
+  }
+
+  /* ── 모바일용 위/아래 버튼으로 순서 변경 (전체 목록 기준) ── */
+  function moveLoadout(id, delta) {
+    const rest = savedLoadouts.filter(l=>!l.isDefault);
+    const defaultItem = savedLoadouts.find(l=>l.isDefault) ?? null;
+    const idx = rest.findIndex(l=>l.id===id);
+    if (idx===-1) return;
+    const newIdx = idx+delta;
+    if (newIdx<0 || newIdx>=rest.length) return;
+    const nextRest=[...rest];
+    const [moved]=nextRest.splice(idx,1);
+    nextRest.splice(newIdx,0,moved);
+    const next = defaultItem ? [defaultItem,...nextRest] : nextRest;
+    setSavedLoadouts(next);
+    persistList(next, activeLoadoutId);
   }
 
   /* ── 순서 번호 직접 입력으로 이동은 필터 정의 이후로 이동 (필터링된 순서를 반영하기 위함) ── */
@@ -3254,9 +3252,6 @@ export default function App() {
                 )}
               </div>
             )}
-            {isMobileUI && savedLoadouts.some(l=>!l.isDefault) && (
-              <div className="manageMobileHint">항목을 2초간 길게 눌러서 순서를 바꿀 수 있어요</div>
-            )}
             <div className="manageModalList">
               {savedLoadouts.length===0&&<div className="manageEmpty">저장된 로드아웃이 없습니다.</div>}
               {savedLoadouts.length>0&&filteredSavedLoadouts.length===0&&<div className="manageEmpty">필터에 맞는 로드아웃이 없습니다.</div>}
@@ -3264,18 +3259,20 @@ export default function App() {
                 const isActive=l.id===activeLoadoutId;
                 const isEditing=editingId===l.id;
                 const isDragging=draggingLoadoutId===l.id;
-                const isLongPressing=longPressLoadoutId===l.id;
                 const sw=getSupportWeaponInfo(l.selected);
                 const primaryName=s(l.selected?.primary?.name_ko||l.selected?.primary?.id||"");
+                const pos=userLoadoutPositions.get(l.id);
+                const isFirst=pos===1;
+                const isLast=pos===userLoadoutPositions.size;
                 return (
                   <div
                     key={l.id}
                     data-loadout-id={l.id}
-                    className={`manageItem ${isActive?"manageItemActive":""} ${isDragging?"manageItemDragging":""} ${isLongPressing?"manageItemLongPress":""}`}
+                    className={`manageItem ${isActive?"manageItemActive":""} ${isDragging?"manageItemDragging":""}`}
                     style={{touchAction:isDragging?"none":"pan-y"}}
                     onPointerDown={e=>handleLoadoutRowPointerDown(e,l.id,l.isDefault)}
                     onContextMenu={e=>{ e.preventDefault(); e.stopPropagation(); }}
-                    title={l.isDefault?undefined:(isMobileUI?"길게 눌러서 순서 변경":"클릭한 채로 끌어서 순서 변경")}
+                    title={l.isDefault||isMobileUI?undefined:"클릭한 채로 끌어서 순서 변경"}
                   >
                     {!l.isDefault ? (
                       positionEditId===l.id ? (
@@ -3296,10 +3293,27 @@ export default function App() {
                           onClick={e=>{ e.stopPropagation(); startPositionEdit(l.id); }}
                           type="button"
                           title="순서 번호를 입력해서 이 위치로 이동"
-                        >{userLoadoutPositions.get(l.id)}</button>
+                        >{pos}</button>
                       )
                     ) : (
                       <span className="managePositionSpacer" />
+                    )}
+
+                    {isMobileUI && !l.isDefault && (
+                      <div className="manageMoveBtns">
+                        <button
+                          type="button" className="manageMoveBtn"
+                          onClick={e=>{ e.stopPropagation(); moveLoadout(l.id,-1); }}
+                          disabled={isFirst}
+                          title="위로 이동"
+                        >▲</button>
+                        <button
+                          type="button" className="manageMoveBtn"
+                          onClick={e=>{ e.stopPropagation(); moveLoadout(l.id,1); }}
+                          disabled={isLast}
+                          title="아래로 이동"
+                        >▼</button>
+                      </div>
                     )}
 
                     {sw.mode==="none" && <div className="manageSupportIconLarge manageSupportIconEmpty" title="지원무기 없음">지원무기<br/>없음</div>}

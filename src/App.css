@@ -300,11 +300,6 @@ body {
   transition:background .12s, border-color .12s;
 }
 .manageFilterReset:hover { background:rgba(255,50,50,.16); border-color:rgba(255,80,80,.55); }
-.manageMobileHint {
-  padding:8px 18px; font-size:11px; color:rgba(240,196,0,.75);
-  background:rgba(240,196,0,.06); border-bottom:1px solid rgba(255,255,255,.06);
-  flex-shrink:0;
-}
 
 /* ── 필터 커스텀 드롭다운 (FilterSelect) ── */
 .filterSelectWrap { position:relative; }
@@ -378,15 +373,18 @@ body {
   opacity:.45; border-color:rgba(240,196,0,.45) !important;
   background:rgba(240,196,0,.05) !important; cursor:grabbing;
 }
-.manageItemLongPress {
-  border-color:rgba(240,196,0,.55) !important;
-  background:rgba(240,196,0,.09) !important;
-  animation:manageLongPressPulse 2s ease-out;
+.manageMoveBtns {
+  flex-shrink:0; display:flex; flex-direction:column; gap:3px;
 }
-@keyframes manageLongPressPulse {
-  0%   { box-shadow:0 0 0 0 rgba(240,196,0,0); }
-  100% { box-shadow:0 0 0 3px rgba(240,196,0,.35); }
+.manageMoveBtn {
+  width:22px; height:18px; display:flex; align-items:center; justify-content:center;
+  border-radius:5px; border:1px solid rgba(255,255,255,.14);
+  background:rgba(255,255,255,.05); color:rgba(255,255,255,.55);
+  font-size:9px; line-height:1; cursor:pointer;
+  transition:color .12s, border-color .12s, background .12s;
 }
+.manageMoveBtn:hover:not(:disabled) { color:var(--yellow); border-color:rgba(240,196,0,.45); background:rgba(240,196,0,.08); }
+.manageMoveBtn:disabled { opacity:.30; cursor:default; }
 .managePositionBadge {
   flex-shrink:0; min-width:22px; height:22px; padding:0 5px;
   display:flex; align-items:center; justify-content:center;
@@ -466,6 +464,11 @@ body {
   transition:background .12s, border-color .12s;
 }
 .manageBtnDel:hover { background:rgba(255,50,50,.18); border-color:rgba(255,80,80,.65); }
+
+@media(max-width:700px) {
+  .manageItem { flex-wrap:wrap; }
+  .manageItemActions { flex-basis:100%; justify-content:flex-end; margin-top:6px; }
+}
 
 /* ── 이름 편집 인라인 UI ── */
 .manageBtnEdit {
