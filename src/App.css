@@ -371,7 +371,7 @@ body {
   padding:12px 14px; border-radius:12px;
   border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.04);
   transition:border-color .12s, background .12s;
-  user-select:none;
+  user-select:none; -webkit-touch-callout:none;
 }
 .manageItem:hover { border-color:rgba(255,255,255,.14); background:rgba(255,255,255,.07); }
 .manageItemDragging {

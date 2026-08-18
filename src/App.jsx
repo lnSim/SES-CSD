@@ -3274,6 +3274,7 @@ export default function App() {
                     className={`manageItem ${isActive?"manageItemActive":""} ${isDragging?"manageItemDragging":""} ${isLongPressing?"manageItemLongPress":""}`}
                     style={{touchAction:isDragging?"none":"pan-y"}}
                     onPointerDown={e=>handleLoadoutRowPointerDown(e,l.id,l.isDefault)}
+                    onContextMenu={e=>{ e.preventDefault(); e.stopPropagation(); }}
                     title={l.isDefault?undefined:(isMobileUI?"길게 눌러서 순서 변경":"클릭한 채로 끌어서 순서 변경")}
                   >
                     {!l.isDefault ? (
