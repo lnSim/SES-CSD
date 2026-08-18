@@ -3275,45 +3275,46 @@ export default function App() {
                     title={l.isDefault||isMobileUI?undefined:"클릭한 채로 끌어서 순서 변경"}
                   >
                     {!l.isDefault ? (
-                      positionEditId===l.id ? (
-                        <input
-                          type="number"
-                          className="managePositionInput"
-                          value={positionEditValue}
-                          onChange={e=>setPositionEditValue(e.target.value)}
-                          onKeyDown={e=>{ if(e.key==="Enter") commitPositionEdit(l.id); if(e.key==="Escape") cancelPositionEdit(); }}
-                          onBlur={()=>commitPositionEdit(l.id)}
-                          onClick={e=>e.stopPropagation()}
-                          min={1} max={userLoadoutPositions.size}
-                          autoFocus
-                        />
-                      ) : (
-                        <button
-                          className="managePositionBadge"
-                          onClick={e=>{ e.stopPropagation(); startPositionEdit(l.id); }}
-                          type="button"
-                          title="순서 번호를 입력해서 이 위치로 이동"
-                        >{pos}</button>
-                      )
+                      <div className="managePositionStack">
+                        {isMobileUI && (
+                          <button
+                            type="button" className="manageMoveBtn"
+                            onClick={e=>{ e.stopPropagation(); moveLoadout(l.id,-1); }}
+                            disabled={isFirst}
+                            title="위로 이동"
+                          >▲</button>
+                        )}
+                        {positionEditId===l.id ? (
+                          <input
+                            type="number"
+                            className="managePositionInput"
+                            value={positionEditValue}
+                            onChange={e=>setPositionEditValue(e.target.value)}
+                            onKeyDown={e=>{ if(e.key==="Enter") commitPositionEdit(l.id); if(e.key==="Escape") cancelPositionEdit(); }}
+                            onBlur={()=>commitPositionEdit(l.id)}
+                            onClick={e=>e.stopPropagation()}
+                            min={1} max={userLoadoutPositions.size}
+                            autoFocus
+                          />
+                        ) : (
+                          <button
+                            className="managePositionBadge"
+                            onClick={e=>{ e.stopPropagation(); startPositionEdit(l.id); }}
+                            type="button"
+                            title="순서 번호를 입력해서 이 위치로 이동"
+                          >{pos}</button>
+                        )}
+                        {isMobileUI && (
+                          <button
+                            type="button" className="manageMoveBtn"
+                            onClick={e=>{ e.stopPropagation(); moveLoadout(l.id,1); }}
+                            disabled={isLast}
+                            title="아래로 이동"
+                          >▼</button>
+                        )}
+                      </div>
                     ) : (
                       <span className="managePositionSpacer" />
-                    )}
-
-                    {isMobileUI && !l.isDefault && (
-                      <div className="manageMoveBtns">
-                        <button
-                          type="button" className="manageMoveBtn"
-                          onClick={e=>{ e.stopPropagation(); moveLoadout(l.id,-1); }}
-                          disabled={isFirst}
-                          title="위로 이동"
-                        >▲</button>
-                        <button
-                          type="button" className="manageMoveBtn"
-                          onClick={e=>{ e.stopPropagation(); moveLoadout(l.id,1); }}
-                          disabled={isLast}
-                          title="아래로 이동"
-                        >▼</button>
-                      </div>
                     )}
 
                     {sw.mode==="none" && <div className="manageSupportIconLarge manageSupportIconEmpty" title="지원무기 없음">지원무기<br/>없음</div>}
