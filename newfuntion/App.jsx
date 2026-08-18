@@ -252,144 +252,10 @@ function RandIcon({ item, className, style={} }) {
   );
 }
 
-/* ── 필터용 커스텀 드롭다운 (사이트 시그니처 다크+옐로우 테마) ──
- * 데스크톱: 버튼 아래 패널 / 모바일: 하단 시트 팝업 */
-function FilterSelect({ label, value, options, onChange, allLabel }) {
-  const [open, setOpen] = useState(false);
-  const [panelPos, setPanelPos] = useState(null); // { left, width, maxHeight, top?, bottom? }
-  const wrapRef = useRef(null);
-  const isMobile = typeof window !== "undefined" && window.innerWidth <= 700;
-
-  useEffect(() => {
-    if (!open || isMobile) return;
-    const onOutside = e => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
-    };
-    document.addEventListener("mousedown", onOutside, true);
-    document.addEventListener("touchstart", onOutside, { capture:true, passive:true });
-    return () => {
-      document.removeEventListener("mousedown", onOutside, true);
-      document.removeEventListener("touchstart", onOutside, true);
-    };
-  }, [open, isMobile]);
-
-  useEffect(() => {
-    if (!open || isMobile) return;
-    function updatePos() {
-      const el = wrapRef.current;
-      if (!el) return;
-      const r = el.getBoundingClientRect();
-      const vw = window.innerWidth, vh = window.innerHeight;
-      const panelWidth = Math.max(r.width, 200);
-      let left = Math.min(r.left, vw - panelWidth - 8);
-      left = Math.max(8, left);
-
-      const spaceBelow = vh - r.bottom - 8;
-      const spaceAbove = r.top - 8;
-
-      if (spaceBelow < 160 && spaceAbove > spaceBelow) {
-        setPanelPos({ left, width:panelWidth, maxHeight:Math.max(120,spaceAbove), bottom: vh - r.top + 6, top:null });
-      } else {
-        setPanelPos({ left, width:panelWidth, maxHeight:Math.max(120,spaceBelow), top: r.bottom + 6, bottom:null });
-      }
-    }
-    updatePos();
-    window.addEventListener("resize", updatePos);
-    window.addEventListener("scroll", updatePos, true);
-    return () => {
-      window.removeEventListener("resize", updatePos);
-      window.removeEventListener("scroll", updatePos, true);
-    };
-  }, [open, isMobile]);
-
-  function selectValue(v) { onChange(v); setOpen(false); }
-  const currentLabel = value || allLabel;
-
-  return (
-    <div className="filterSelectWrap" ref={wrapRef}>
-      <button
-        type="button"
-        className={`filterSelectBtn ${value?"filterSelectBtnActive":""}`}
-        onClick={()=>setOpen(o=>!o)}
-      >
-        <span className="filterSelectBtnLabel">{currentLabel}</span>
-        <span className="filterSelectBtnArrow">▾</span>
-      </button>
-
-      {open && !isMobile && panelPos && (
-        <div
-          className="filterSelectPanel"
-          style={{
-            position:"fixed", left:panelPos.left, width:panelPos.width, maxHeight:panelPos.maxHeight,
-            ...(panelPos.top!=null ? { top:panelPos.top } : { bottom:panelPos.bottom }),
-          }}
-        >
-          <button type="button" className={`filterSelectOption ${!value?"filterSelectOptionActive":""}`} onClick={()=>selectValue("")}>{allLabel}</button>
-          {options.map(opt=>(
-            <button key={opt} type="button" className={`filterSelectOption ${value===opt?"filterSelectOptionActive":""}`} onClick={()=>selectValue(opt)}>{opt}</button>
-          ))}
-        </div>
-      )}
-
-      {open && isMobile && (
-        <div className="filterSheetOverlay" onClick={()=>setOpen(false)}>
-          <div className="filterSheetCard" onClick={e=>e.stopPropagation()}>
-            <div className="filterSheetHeader">
-              <span className="filterSheetTitle">{label}</span>
-              <button type="button" className="modalClose" onClick={()=>setOpen(false)}>닫기</button>
-            </div>
-            <div className="filterSheetList">
-              <button type="button" className={`filterSheetOption ${!value?"filterSheetOptionActive":""}`} onClick={()=>selectValue("")}>{allLabel}</button>
-              {options.map(opt=>(
-                <button key={opt} type="button" className={`filterSheetOption ${value===opt?"filterSheetOptionActive":""}`} onClick={()=>selectValue(opt)}>{opt}</button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 const EMPTY_SELECTED = {
   stratagem:[null,null,null,null],
   armor:null, primary:null, secondary:null, throwable:null,
 };
-
-/* ── 저장된 로드아웃의 지원무기 요약 정보 계산 ──
- * mode: "none"           → 지원무기 미선택
- *       "main"            → 일반/배낭형 지원무기(또는 일회용 1개 단독) 표시
- *       "disposableOnly"  → 일회용 지원무기만 2개 이상 선택된 경우
- */
-const SUPPORT_WEAPON_SUBTYPES_ALL = new Set(["지원무기","일회용 지원무기",SUBTYPE_BACKPACK_WEAPON]);
-function getSupportWeaponInfo(sel) {
-  const stratItems = (Array.isArray(sel?.stratagem)?sel.stratagem:[]).filter(Boolean);
-  const supportItems = stratItems.filter(it=>SUPPORT_WEAPON_SUBTYPES_ALL.has(getSubType(it)));
-  if (supportItems.length===0) return { mode:"none" };
-
-  const disposables    = supportItems.filter(it=>getSubType(it)==="일회용 지원무기");
-  const nonDisposables = supportItems.filter(it=>getSubType(it)!=="일회용 지원무기");
-
-  if (nonDisposables.length>0) {
-    const main = nonDisposables[0];
-    return {
-      mode:"main",
-      icon: main.icon, sheet: main.sheet, itemId: main.id,
-      name: s(main.name_ko||main.id),
-      extraCount: disposables.length,
-    };
-  }
-  if (disposables.length===1) {
-    const main = disposables[0];
-    return {
-      mode:"main",
-      icon: main.icon, sheet: main.sheet, itemId: main.id,
-      name: s(main.name_ko||main.id),
-      extraCount: 0,
-    };
-  }
-  return { mode:"disposableOnly", count:disposables.length };
-}
 
 
 
@@ -1297,7 +1163,6 @@ export default function App() {
   const [resetConfirm,    setResetConfirm]    = useState(false);
   const [infoModal,       setInfoModal]       = useState(false);
   const [editingId,       setEditingId]       = useState(null);   // 이름 편집 중인 로드아웃 id
-  const [draggingLoadoutId, setDraggingLoadoutId] = useState(null); // 드래그 중인 로드아웃 id (관리 모달 순서 변경)
   const [editingName,     setEditingName]     = useState("");
 
   /* PNG 캡처 대상: mainCol 전체 */
@@ -1518,214 +1383,6 @@ export default function App() {
 
   function persistList(list, lastId) {
     lsSet({ list:list.filter(l=>!l.isDefault), lastId });
-  }
-
-  /* ── 저장된 로드아웃 순서 변경 (드래그 앤 드롭) ──
-   * 기본 제공 로드아웃은 항상 맨 위 고정, 드래그 대상에서 제외.
-   * mouse/touch 모두 pointer events로 처리. */
-  const savedLoadoutsRef = useRef(savedLoadouts);
-  useEffect(() => { savedLoadoutsRef.current = savedLoadouts; }, [savedLoadouts]);
-  const dragLoadoutRef = useRef(null); // { id }
-
-  function reorderSavedLoadouts(draggedId, overId) {
-    const prev = savedLoadoutsRef.current;
-    const overItem = prev.find(l => String(l.id) === String(overId));
-    if (!overItem || overItem.isDefault) return; // 기본 항목 위로는 드롭 불가
-
-    const defaultItem = prev.find(l => l.isDefault) ?? null;
-    const rest = prev.filter(l => !l.isDefault);
-    const fromIdx = rest.findIndex(l => String(l.id) === String(draggedId));
-    const toIdx   = rest.findIndex(l => String(l.id) === String(overId));
-    if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) return;
-
-    const nextRest = [...rest];
-    const [moved] = nextRest.splice(fromIdx, 1);
-    nextRest.splice(toIdx, 0, moved);
-    const next = defaultItem ? [defaultItem, ...nextRest] : nextRest;
-    setSavedLoadouts(next);
-  }
-
-  function handleLoadoutDragPointerMove(e) {
-    const draggedId = dragLoadoutRef.current?.id;
-    if (draggedId == null) return;
-    const point = e.touches ? e.touches[0] : e;
-    const el  = document.elementFromPoint(point.clientX, point.clientY);
-    const row = el && el.closest ? el.closest(".manageItem") : null;
-    const overId = row?.dataset?.loadoutId;
-    if (overId == null || String(overId) === String(draggedId)) return;
-    reorderSavedLoadouts(draggedId, overId);
-  }
-  function handleLoadoutDragPointerUp() {
-    window.removeEventListener("pointermove", handleLoadoutDragPointerMove);
-    window.removeEventListener("pointerup",   handleLoadoutDragPointerUp);
-    window.removeEventListener("pointercancel", handleLoadoutDragPointerUp);
-    if (dragLoadoutRef.current) {
-      persistList(savedLoadoutsRef.current, activeLoadoutId);
-    }
-    dragLoadoutRef.current = null;
-    setDraggingLoadoutId(null);
-  }
-
-  /* ── 핸들 없이 행 전체로 드래그 시작 ──
-   * PC(mouse): 누른 채로 일정 거리 이상 움직이면 드래그 시작
-   * 모바일(touch): 2초간 지속해서 누르고 있으면 드래그 시작 (스크롤 의도면 자동 취소) */
-  const LOADOUT_LONG_PRESS_MS       = 2000;
-  const LOADOUT_MOUSE_DRAG_THRESHOLD= 6;
-  const LOADOUT_TOUCH_CANCEL_THRESHOLD = 10;
-  const [longPressLoadoutId, setLongPressLoadoutId] = useState(null); // 롱프레스 대기 중(모바일 시각 표시)
-  const pendingDragRef = useRef(null); // { id, startX, startY, pointerType, timer }
-
-  function clearPendingLoadoutDrag() {
-    if (pendingDragRef.current?.timer) clearTimeout(pendingDragRef.current.timer);
-    pendingDragRef.current = null;
-    setLongPressLoadoutId(null);
-    window.removeEventListener("pointermove", handleLoadoutRowPointerMove);
-    window.removeEventListener("pointerup",   handleLoadoutRowPointerUp);
-    window.removeEventListener("pointercancel", handleLoadoutRowPointerUp);
-  }
-  function startActualLoadoutDrag(id) {
-    dragLoadoutRef.current = { id };
-    setDraggingLoadoutId(id);
-    window.addEventListener("pointermove", handleLoadoutDragPointerMove);
-    window.addEventListener("pointerup",   handleLoadoutDragPointerUp);
-    window.addEventListener("pointercancel", handleLoadoutDragPointerUp);
-  }
-  function handleLoadoutRowPointerMove(e) {
-    const st = pendingDragRef.current;
-    if (!st) return;
-    const dx = e.clientX - st.startX, dy = e.clientY - st.startY;
-    const dist = Math.hypot(dx, dy);
-    if (st.pointerType === "mouse") {
-      if (dist > LOADOUT_MOUSE_DRAG_THRESHOLD) {
-        const id = st.id;
-        clearPendingLoadoutDrag();
-        startActualLoadoutDrag(id);
-        handleLoadoutDragPointerMove(e);
-      }
-    } else {
-      if (dist > LOADOUT_TOUCH_CANCEL_THRESHOLD) clearPendingLoadoutDrag(); // 스크롤 의도로 판단, 롱프레스 취소
-    }
-  }
-  function handleLoadoutRowPointerUp() { clearPendingLoadoutDrag(); }
-  function handleLoadoutRowPointerDown(e, id, isDefault) {
-    if (isDefault) return;
-    if (dragLoadoutRef.current) return; // 이미 드래그 중
-    if (e.target && e.target.closest && e.target.closest("button, input, select, a, textarea")) return;
-
-    pendingDragRef.current = { id, startX:e.clientX, startY:e.clientY, pointerType:e.pointerType, timer:null };
-
-    if (e.pointerType === "touch" || e.pointerType === "pen") {
-      setLongPressLoadoutId(id);
-      pendingDragRef.current.timer = setTimeout(() => {
-        if (pendingDragRef.current?.id === id) {
-          clearPendingLoadoutDrag();
-          startActualLoadoutDrag(id);
-        }
-      }, LOADOUT_LONG_PRESS_MS);
-    }
-
-    window.addEventListener("pointermove", handleLoadoutRowPointerMove);
-    window.addEventListener("pointerup",   handleLoadoutRowPointerUp);
-    window.addEventListener("pointercancel", handleLoadoutRowPointerUp);
-  }
-
-  /* ── 순서 번호 직접 입력으로 이동은 필터 정의 이후로 이동 (필터링된 순서를 반영하기 위함) ── */
-
-  /* ── 관리 모달 필터 (지원무기 / 주무장 소분류, 드롭다운, AND 결합) ──
-   * 한쪽 필터를 선택하면 다른쪽 선택지는 그 조건을 만족하는 로드아웃에서만 뽑아 좁혀짐(상호 연동). */
-  const [filterSupportWeapon, setFilterSupportWeapon] = useState("");
-  const [filterWeaponType,    setFilterWeaponType]    = useState("");
-
-  function getSupportNamesOf(l) {
-    const items = (Array.isArray(l.selected?.stratagem)?l.selected.stratagem:[]).filter(Boolean)
-      .filter(it => SUPPORT_WEAPON_SUBTYPES_ALL.has(getSubType(it)));
-    return items.map(it => s(it.name_ko||it.id)).filter(Boolean);
-  }
-  function getWeaponTypeOf(l) {
-    return s(l.selected?.primary?.weaponType);
-  }
-
-  const manageSupportWeaponOptions = useMemo(() => {
-    const base = filterWeaponType
-      ? savedLoadouts.filter(l => getWeaponTypeOf(l)===filterWeaponType)
-      : savedLoadouts;
-    const set = new Set();
-    base.forEach(l => getSupportNamesOf(l).forEach(n=>set.add(n)));
-    return Array.from(set).sort((a,b)=>a.localeCompare(b,"ko"));
-  }, [savedLoadouts, filterWeaponType]);
-
-  const manageWeaponTypeOptions = useMemo(() => {
-    const base = filterSupportWeapon
-      ? savedLoadouts.filter(l => getSupportNamesOf(l).includes(filterSupportWeapon))
-      : savedLoadouts;
-    const set = new Set();
-    base.forEach(l => { const wt=getWeaponTypeOf(l); if (wt) set.add(wt); });
-    return Array.from(set).sort((a,b)=>a.localeCompare(b,"ko"));
-  }, [savedLoadouts, filterSupportWeapon]);
-
-  // 상대 필터 변경으로 인해 현재 선택값이 더 이상 유효한 선택지가 아니게 되면 초기화
-  useEffect(() => {
-    if (filterSupportWeapon && !manageSupportWeaponOptions.includes(filterSupportWeapon)) {
-      setFilterSupportWeapon("");
-    }
-  }, [manageSupportWeaponOptions]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    if (filterWeaponType && !manageWeaponTypeOptions.includes(filterWeaponType)) {
-      setFilterWeaponType("");
-    }
-  }, [manageWeaponTypeOptions]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const manageFilterActive = !!(filterSupportWeapon || filterWeaponType);
-
-  const filteredSavedLoadouts = useMemo(() => {
-    if (!manageFilterActive) return savedLoadouts;
-    return savedLoadouts.filter(l => {
-      let matchSupport = true, matchWeaponType = true;
-      if (filterSupportWeapon) matchSupport = getSupportNamesOf(l).includes(filterSupportWeapon);
-      if (filterWeaponType)    matchWeaponType = getWeaponTypeOf(l)===filterWeaponType;
-      return matchSupport && matchWeaponType;
-    });
-  }, [savedLoadouts, manageFilterActive, filterSupportWeapon, filterWeaponType]);
-
-  /* ── 순서 번호 직접 입력으로 이동 (스팀 찜 목록 방식) ──
-   * 필터가 걸려있어도 뱃지 번호는 항상 "저장된 로드아웃 전체 목록" 기준 실제 순서를 표시. */
-  const [positionEditId,    setPositionEditId]    = useState(null);
-  const [positionEditValue, setPositionEditValue] = useState("");
-
-  const userLoadoutPositions = useMemo(() => {
-    const m = new Map();
-    savedLoadouts.filter(l=>!l.isDefault).forEach((l,i)=>m.set(l.id,i+1));
-    return m;
-  }, [savedLoadouts]);
-
-  function startPositionEdit(id) {
-    setPositionEditId(id);
-    setPositionEditValue(String(userLoadoutPositions.get(id) ?? ""));
-  }
-  function cancelPositionEdit() {
-    setPositionEditId(null);
-    setPositionEditValue("");
-  }
-  function commitPositionEdit(id) {
-    const rest = savedLoadouts.filter(l=>!l.isDefault);
-    const defaultItem = savedLoadouts.find(l=>l.isDefault) ?? null;
-    const fromIdx = rest.findIndex(l=>l.id===id);
-    if (fromIdx === -1) { cancelPositionEdit(); return; }
-
-    let target = parseInt(positionEditValue, 10);
-    if (!Number.isFinite(target) || target < 1) target = 1;
-    if (target > rest.length) target = rest.length;
-    const toIdx = target - 1;
-
-    if (toIdx !== fromIdx) {
-      const nextRest = [...rest];
-      const [moved] = nextRest.splice(fromIdx, 1);
-      nextRest.splice(toIdx, 0, moved);
-      const next = defaultItem ? [defaultItem, ...nextRest] : nextRest;
-      setSavedLoadouts(next);
-      persistList(next, activeLoadoutId);
-    }
-    cancelPositionEdit();
   }
 
   /* ── 파생 상태 ── */
@@ -2793,7 +2450,6 @@ export default function App() {
   },[picker.typeKey,picker.slotKey,isStratagemPicker,activeSlotIndex]);
   const isWeaponPicker = WEAPON_SLOT_KINDS.has(picker.slotKind);
   const deleteTarget   = deleteConfirm?savedLoadouts.find(l=>l.id===deleteConfirm):null;
-  const isMobileUI     = typeof window !== "undefined" && window.innerWidth <= 700;
 
   return (
     <div className="appShell" onContextMenu={handleContextMenu}>
@@ -3167,11 +2823,11 @@ export default function App() {
 
               <div className="infoBuildRow">
                 <span className="infoBuildLabel">빌드 버전</span>
-                <span className="infoBuildValue">ver 26.08.18</span>
+                <span className="infoBuildValue">ver 26.08.13</span>
               </div>
               <div className="infoBuildRow">
                 <span className="infoBuildLabel">빌드 기준 최신 업데이트</span>
-                <span className="infoBuildValue">ver 01.007.001 " Devoid of Liberty " <span className="infoSub">(자유의 공백)</span></span>
+                <span className="infoBuildValue">ver 01.007.000 " Devoid of Liberty " <span className="infoSub">(자유의 공백)</span></span>
               </div>
 
             </div>
@@ -3229,86 +2885,13 @@ export default function App() {
               <div className="manageModalTitle">저장된 로드아웃 관리</div>
               <button className="modalClose" onClick={()=>setManageModal(false)} type="button">닫기</button>
             </div>
-            {(manageSupportWeaponOptions.length>0 || manageWeaponTypeOptions.length>0) && (
-              <div className="manageFilterRow">
-                <FilterSelect
-                  label="지원무기"
-                  value={filterSupportWeapon}
-                  options={manageSupportWeaponOptions}
-                  onChange={setFilterSupportWeapon}
-                  allLabel="지원무기 전체"
-                />
-                <FilterSelect
-                  label="주무장 소분류"
-                  value={filterWeaponType}
-                  options={manageWeaponTypeOptions}
-                  onChange={setFilterWeaponType}
-                  allLabel="주무장 소분류 전체"
-                />
-                {manageFilterActive && (
-                  <button
-                    className="manageFilterReset"
-                    type="button"
-                    onClick={()=>{ setFilterSupportWeapon(""); setFilterWeaponType(""); }}
-                  >필터 초기화</button>
-                )}
-              </div>
-            )}
-            {isMobileUI && savedLoadouts.some(l=>!l.isDefault) && (
-              <div className="manageMobileHint">항목을 2초간 길게 눌러서 순서를 바꿀 수 있어요</div>
-            )}
             <div className="manageModalList">
               {savedLoadouts.length===0&&<div className="manageEmpty">저장된 로드아웃이 없습니다.</div>}
-              {savedLoadouts.length>0&&filteredSavedLoadouts.length===0&&<div className="manageEmpty">필터에 맞는 로드아웃이 없습니다.</div>}
-              {filteredSavedLoadouts.map(l=>{
+              {savedLoadouts.map(l=>{
                 const isActive=l.id===activeLoadoutId;
                 const isEditing=editingId===l.id;
-                const isDragging=draggingLoadoutId===l.id;
-                const isLongPressing=longPressLoadoutId===l.id;
-                const sw=getSupportWeaponInfo(l.selected);
-                const primaryName=s(l.selected?.primary?.name_ko||l.selected?.primary?.id||"");
                 return (
-                  <div
-                    key={l.id}
-                    data-loadout-id={l.id}
-                    className={`manageItem ${isActive?"manageItemActive":""} ${isDragging?"manageItemDragging":""} ${isLongPressing?"manageItemLongPress":""}`}
-                    style={{touchAction:isDragging?"none":"pan-y"}}
-                    onPointerDown={e=>handleLoadoutRowPointerDown(e,l.id,l.isDefault)}
-                    title={l.isDefault?undefined:(isMobileUI?"길게 눌러서 순서 변경":"클릭한 채로 끌어서 순서 변경")}
-                  >
-                    {!l.isDefault ? (
-                      positionEditId===l.id ? (
-                        <input
-                          type="number"
-                          className="managePositionInput"
-                          value={positionEditValue}
-                          onChange={e=>setPositionEditValue(e.target.value)}
-                          onKeyDown={e=>{ if(e.key==="Enter") commitPositionEdit(l.id); if(e.key==="Escape") cancelPositionEdit(); }}
-                          onBlur={()=>commitPositionEdit(l.id)}
-                          onClick={e=>e.stopPropagation()}
-                          min={1} max={userLoadoutPositions.size}
-                          autoFocus
-                        />
-                      ) : (
-                        <button
-                          className="managePositionBadge"
-                          onClick={e=>{ e.stopPropagation(); startPositionEdit(l.id); }}
-                          type="button"
-                          title="순서 번호를 입력해서 이 위치로 이동"
-                        >{userLoadoutPositions.get(l.id)}</button>
-                      )
-                    ) : (
-                      <span className="managePositionSpacer" />
-                    )}
-
-                    {sw.mode==="none" && <div className="manageSupportIconLarge manageSupportIconEmpty" title="지원무기 없음">지원무기<br/>없음</div>}
-                    {sw.mode==="disposableOnly" && <div className="manageSupportIconLarge manageSupportIconTextLarge" title="일회성 지원무기 로드아웃">일회성<br/>로드아웃</div>}
-                    {sw.mode==="main" && (
-                      <div className="manageSupportIconLarge">
-                        <RandIcon item={{ icon:sw.icon, sheet:sw.sheet, id:sw.itemId, name_ko:sw.name }} className="manageSupportIconLargeImg" />
-                      </div>
-                    )}
-
+                  <div key={l.id} className={`manageItem ${isActive?"manageItemActive":""}`}>
                     <div className="manageItemInfo">
                       {isEditing ? (
                         <div className="manageEditRow">
@@ -3333,21 +2916,6 @@ export default function App() {
                         </div>
                       )}
                       {!isEditing&&l.createdAt&&<div className="manageItemDate">{new Date(l.createdAt).toLocaleDateString("ko-KR")}</div>}
-                      {!isEditing&&(
-                        <div className="manageSupportTextRow">
-                          {sw.mode==="none" && <span className="manageSupportNone">지원무기 없음</span>}
-                          {sw.mode==="disposableOnly" && <span className="manageSupportName">일회성 지원무기 로드아웃</span>}
-                          {sw.mode==="main" && (
-                            <>
-                              <span className="manageSupportName">{sw.name}</span>
-                              {sw.extraCount>0 && <span className="manageSupportExtra">+{sw.extraCount}</span>}
-                            </>
-                          )}
-                          {manageFilterActive && (
-                            <span className="manageWeaponPrimaryName">· 주무기: {primaryName||"미선택"}</span>
-                          )}
-                        </div>
-                      )}
                     </div>
                     {!isEditing&&(
                       <div className="manageItemActions">
