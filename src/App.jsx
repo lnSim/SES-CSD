@@ -31,7 +31,7 @@ function lsSet(data)   { try { localStorage.setItem(LS_KEY, JSON.stringify(data)
  * 같은 탭/세션 내 새로고침 시 GAS 재호출 방지 (Edge request 절약)
  * WB_NOTICE_VERSION 변경 시 자동으로 캐시 무효화됨
  */
-const GAS_CACHE_VERSION = "v_카스텔란의신조"; // WB_NOTICE_VERSION과 동기화
+const GAS_CACHE_VERSION = "v_철갑의민주주의"; // WB_NOTICE_VERSION과 동기화
 const GAS_CACHE_KEY     = `gas_cache_${GAS_CACHE_VERSION}`;
 function gasCacheGet() {
   try {
@@ -45,25 +45,30 @@ function gasCacheSet(data) {
 
 /* ── 신규 채권 미리보기 오버레이 ── */
 // ★ 채권 업데이트 시 WB_NOTICE_VERSION을 바꾸면 모든 사용자에게 재표시됨
-const WB_NOTICE_VERSION = "v_카스텔란의신조";
+const WB_NOTICE_VERSION = "v_철갑의민주주의";
 const WB_NOTICE_KEY     = `wb_notice_dismissed_${WB_NOTICE_VERSION}`;
 function wbNoticeDismissed()  { try { return localStorage.getItem(WB_NOTICE_KEY) === "true"; } catch { return false; } }
 function wbNoticeSetDismiss() { try { localStorage.setItem(WB_NOTICE_KEY, "true"); } catch {} }
 
 // ★ 채권 업데이트 시 아래 데이터 수정
 const WB_NOTICE_DATA = {
-  name: "카스텔란의 신조",
+  name: "철갑의 민주주의",
   // ★ 채권 업데이트 시 항목 수정
-  // DB G열(wbrequirement) = '카스텔란의 신조' 기준으로 각 시트에서 조회 후 추가
+  // DB G열(wbrequirement) = '철갑의 민주주의' 기준으로 각 시트에서 조회 후 추가
   items: [
-    { label: "R/40-K 핫 샷 마크맨 라이플", kind: "주무기",     id: "pr_en_r40k" },
-    { label: "P/40-K 볼트 피스톨",         kind: "보조무기",   id: "se_sp_p40k" },
-    { label: "G/40-K 멜타마인",            kind: "투척무기",   id: "th_sp_g40k" },
-    { label: "TG-8 샤프슈터",              kind: "방어구",     id: "ar_tg_tg8"  },
-    { label: "TG-122 데모-트루퍼",         kind: "방어구",     id: "ar_tg_tg122"},
-    { label: "40-K 멜타건",                kind: "스트라타젬", id: "st_sw_40k"  },
+    { label: "AR-11 아비트레이터",  kind: "주무기",   id: "pr_ar_ar11"    },
+    { label: "GL-15 이빅터",        kind: "주무기",   id: "pr_ex_gl15"    },
+    { label: "P-34 브리처",         kind: "보조무기", id: "se_sp_p34"     },
+    { label: "G-8 번제",            kind: "투척무기", id: "th_sp_im8"     },
+    { label: "G-60 대전차 드론",    kind: "투척무기", id: "th_sp_at60"    },
+    { label: "BFM-16 탱커",         kind: "방어구",   id: "ar_bfm_bfm16"  },
+    { label: "BFM-220 철갑",        kind: "방어구",   id: "ar_bfm_bfm220" },
   ],
-  superStore: [],
+  // DB G열 = '슈퍼 스토어' + H열 = '철갑의 민주주의 로테이션'
+  superStore: [
+    { label: "LAS-12 사이",         kind: "주무기",   id: "pr_en_las12"   },
+    { label: "BFM-77 리포머",       kind: "방어구",   id: "ar_bfm_bfm77"  },
+  ],
 };
 
 const KIND_COLOR = {
@@ -143,7 +148,7 @@ function WbNoticeOverlay({ onClose }) {
         </div>
 
         {/* 채권명 */}
-        <div className="wbNoticeWbName" style={{ color:"#dfdfe1", textShadow:"0 0 10px rgba(223,223,225,.70), 0 0 24px rgba(223,223,225,.35)" }}>{WB_NOTICE_DATA.name}</div>
+        <div className="wbNoticeWbName" style={{ color:"#dddac2", textShadow:"0 0 10px rgba(221,218,194,.70), 0 0 24px rgba(221,218,194,.35)" }}>{WB_NOTICE_DATA.name}</div>
 
         {/* 항목 카드 — 개인장비 → 스트라타젬 → 슈퍼스토어 순 */}
         <div className="wbNoticeScrollArea">
@@ -730,6 +735,7 @@ async function exportLoadoutPng(captureRef, selected, wbSummary=[]) {
         "견고한 참호 사단":        { bg:"#040200", border:"#978642",               tc:"#c7b243" },
         "외계 전문가":             { bg:"#fffbe5", border:"#c4a882",               tc:"#654632" },
         "카스텔란의 신조":         { bg:"#2c4658", border:"#f50301",               tc:"#dfdfe1" },
+        "철갑의 민주주의":         { bg:"#41494f", border:"#262b31",               tc:"#dddac2" },
       };
       const fallbackColors = ["#f7f352","#fb923c","#f87171","#c084fc","#60a5fa","#34d399"];
       let fbIdx = 0;
@@ -908,6 +914,7 @@ const WB_ORDER = [
   "자유의 종복","정의의 경계선","의장의 달인","법의 위력","대조군",
   "먼지 폭풍","금사 특공대","존재하지 않는 부대","공성 파괴자",
   "민주적 궤도 강하 타격대","정의로운 망령","견고한 참호 사단","외계 전문가","카스텔란의 신조",
+  "철갑의 민주주의",
 ];
 function sortByWbOrder(entries) {
   return [...entries].sort(([a],[b]) => {
@@ -946,6 +953,7 @@ const WB_STYLES = {
   "견고한 참호 사단":       { color:"#c7b243", background:"#040200", borderColor:"#978642"              },
   "외계 전문가":            { color:"#654632", background:"#fffbe5", borderColor:"#c4a882"              },
   "카스텔란의 신조":        { color:"#dfdfe1", background:"linear-gradient(180deg, #3a5568 0%, #203a49 100%)", borderColor:"#f50301" },
+  "철갑의 민주주의":        { color:"#dddac2", background:"#41494f", borderColor:"#262b31"              },
 };
 function getWbBadgeStyle(wb) {
   return WB_STYLES[wb] ?? { color:"rgba(255,255,255,.8)", background:"rgba(255,255,255,.07)", borderColor:"rgba(255,255,255,.18)" };
@@ -2188,7 +2196,9 @@ export default function App() {
     const armorPassive = s(selected.armor?.passive);
     const hasIdealBody = armorPassive === "이상적인 체형";
 
-    const isArmorRs = s(selected.armor?.id ?? "").toLowerCase().includes("ar_rs");
+    // RS(굳건한 바위) 방어구 + BFM(둔기 충격 완화) 방어구 — 폭발무기 레그돌 억제 시너지 공유
+    const isArmorRs = s(selected.armor?.id ?? "").toLowerCase().includes("ar_rs")
+                   || s(selected.armor?.passive ?? "") === "둔기 충격 완화";
     const hasSh20 = selected.stratagem.some(it => it && s(it?.id).toLowerCase().includes("st_bp_sh20"));
     const hasSh51 = selected.stratagem.some(it => it && s(it?.id).toLowerCase().includes("st_bp_sh51"));
 
@@ -2471,12 +2481,12 @@ export default function App() {
       }
       // ── 서보 보조 / 사막 돌격대 → 투척 비거리
       //    투척무기(type="투척무기") 또는 공격 스트라타젬(stratType="공격") 중 range="투척",
-      //    또는 ERGO_FORCE_THROW_IDS(sw_c4 등), sp_g50 제외
+      //    또는 ERGO_FORCE_THROW_IDS(sw_c4 등), sp_g50 / sp_at60(유도형) 제외
       if (["서보 보조","사막 돌격대"].includes(armorPassive)) {
         const isThrowRange = s(it?.range) === "투척" &&
           (s(it?.type) === "투척무기" || s(it?.stratType) === "공격");
         const isForceThrow = ERGO_FORCE_THROW_IDS.some(r => itId.includes(r));
-        if ((isThrowRange || isForceThrow) && !itId.includes("sp_g50"))
+        if ((isThrowRange || isForceThrow) && !["sp_g50","sp_at60"].some(r => itId.includes(r)))
           posNotes.push("투척 비거리");
       }
       // ── 이상적인 체형 / 강화된 견장 / 굳건한 바위 → 근접 공격 피해량 (cqc/총검)
@@ -2543,8 +2553,8 @@ export default function App() {
       if (armorPassive === "강화") {
         if ((isPrimary || isSecondary || isSupportRow) && canApplyRecoil(itId, it)) posNotes.push("반동 감소");
       }
-      // ── 굳건한 바위 → 레그돌 억제 (폭발성 trait, 블랙리스트 제외)
-      if (armorPassive === "굳건한 바위") {
+      // ── 굳건한 바위 / 둔기 충격 완화 → 레그돌 억제 (폭발성 trait, 블랙리스트 제외)
+      if (armorPassive === "굳건한 바위" || armorPassive === "둔기 충격 완화") {
         const ROCK_BL = ["sp_gp20","sp_g50","sp_ted63","th_gr_g7","sp_g48","sp_p33","sw_eat411"];
         if (hasTrait(it,"폭발성") && !ROCK_BL.some(r => itId.includes(r))) posNotes.push("레그돌 억제");
       }
@@ -3165,11 +3175,11 @@ export default function App() {
 
               <div className="infoBuildRow">
                 <span className="infoBuildLabel">빌드 버전</span>
-                <span className="infoBuildValue">ver 26.08.18</span>
+                <span className="infoBuildValue">ver 26.09.23</span>
               </div>
               <div className="infoBuildRow">
                 <span className="infoBuildLabel">빌드 기준 최신 업데이트</span>
-                <span className="infoBuildValue">ver 01.007.001 " Devoid of Liberty " <span className="infoSub">(자유의 공백)</span></span>
+                <span className="infoBuildValue">ver 01.007.100 " Devoid of Liberty " <span className="infoSub">(자유의 공백)</span></span>
               </div>
 
             </div>

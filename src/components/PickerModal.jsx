@@ -7,6 +7,7 @@ const WB_ORDER = [
   "자유의 종복","정의의 경계선","의장의 달인","법의 위력","대조군",
   "먼지 폭풍","금사 특공대","존재하지 않는 부대","공성 파괴자",
   "민주적 궤도 강하 타격대","정의로운 망령","견고한 참호 사단","외계 전문가","카스텔란의 신조",
+  "철갑의 민주주의",
 ];
 function sortWbList(list) {
   return [...list].sort((a, b) => {
@@ -45,6 +46,7 @@ const WB_STYLES = {
   "견고한 참호 사단":       { color:"#c7b243", background:"#040200", borderColor:"#978642" },
   "외계 전문가":            { color:"#654632", background:"#fffbe5", borderColor:"#c4a882" },
   "카스텔란의 신조":        { color:"#dfdfe1", background:"linear-gradient(180deg, #3a5568 0%, #203a49 100%)", borderColor:"#f50301" },
+  "철갑의 민주주의":        { color:"#dddac2", background:"#41494f", borderColor:"#262b31"              },
 };
 function getWbFilterStyle(wb, active) {
   const st = WB_STYLES[wb];

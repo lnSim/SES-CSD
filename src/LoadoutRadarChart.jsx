@@ -32,6 +32,8 @@ const SELF_FIRE_EXCEPTION_IDS = new Set([
 ]);
 // min.range GP-20 예외
 const MINRANGE_EXCEPTION_IDS = new Set(["se_sp_gp20"]);
+// 유도형 투척무기 — 서보 보조 / 사막 돌격대의 "투척 거리 증가" 노트 및 원거리 대응 +1 미적용 (G-50 시커, G-60 대전차 드론)
+const NO_THROW_RANGE_IDS = ["sp_g50","sp_at60"];
 
 const EXCLUDE_VSHORDE_SUB = new Set(["지원배낭 무기","일회용 지원무기","탑승물","거치포"]);
 const ATTACK_SUBTYPES     = new Set(["궤도","이글"]);
@@ -209,9 +211,10 @@ export function calcRadarLayers(selected, raceHint = "") {
       break;
     }
 
-    // 5. 서보 보조 — 투척 ergo 항목 vsTarget +1
+    // 5. 서보 보조 — 투척 ergo 항목 vsTarget +1 (유도형 G-50/G-60 제외)
     case "서보 보조":
-      if (throwable && s(throwable?.ergo ?? "").toLowerCase() === "투척")
+      if (throwable && s(throwable?.ergo ?? "").toLowerCase() === "투척"
+          && !NO_THROW_RANGE_IDS.some(r => s(throwable?.id).includes(r)))
         passiveVsTargetBonus += 1;
       break;
 
@@ -297,11 +300,12 @@ export function calcRadarLayers(selected, raceHint = "") {
         passiveStabilityBonus += 1;
       break;
 
-    // 16. 사막 돌격대 — 소이/가스/아크 태그 있으면 +1 (예외 무기 제외), 투척 vsTarget +1
+    // 16. 사막 돌격대 — 소이/가스/아크 태그 있으면 +1 (예외 무기 제외), 투척 vsTarget +1 (유도형 G-50/G-60 제외)
     case "사막 돌격대":
       if (allWeapons.some(it => !SELF_FIRE_EXCEPTION_IDS.has(s(it?.id)) && hasTrait(it, "소이", "가스", "아크")))
         passiveStabilityBonus += 1;
-      if (throwable && s(throwable?.ergo ?? "").toLowerCase() === "투척")
+      if (throwable && s(throwable?.ergo ?? "").toLowerCase() === "투척"
+          && !NO_THROW_RANGE_IDS.some(r => s(throwable?.id).includes(r)))
         passiveVsTargetBonus += 1;
       break;
 
@@ -323,6 +327,24 @@ export function calcRadarLayers(selected, raceHint = "") {
         if (MINRANGE_EXCEPTION_IDS.has(s(it?.id))) continue;
         if (hasTrait(it, "총검", "근접") || s(it?.weaponType ?? "") === "보조-근접")
           passiveMinRangeBonus += 1;
+      }
+      break;
+    }
+
+    // 17-1. 둔기 충격 완화 (BFM 방어구) — 무조건 +1
+    //        + 굳건한 바위의 폭발무기 시너지(SH-20 + 한손파지+폭발/플라즈마 → 안정성+1, minRange+1) 동일 적용
+    //        (굳건한 바위의 총검/근접 min.Range 보너스는 근접 피해 증가 효과가 없으므로 미적용)
+    case "둔기 충격 완화": {
+      passiveStabilityBonus += 1;
+      const hasSH20 = strats.some(it => s(it?.id) === "st_bp_sh20");
+      if (hasSH20) {
+        for (const it of primaryAndSecondary) {
+          if (s(it?.id) === "se_sp_gp20") continue;
+          if (hasTrait(it, "한 손 파지") && hasTrait(it, "폭발성", "플라즈마")) {
+            passiveStabilityBonus += 1;
+            passiveMinRangeBonus  += 1;
+          }
+        }
       }
       break;
     }
@@ -362,9 +384,9 @@ export function calcRadarLayers(selected, raceHint = "") {
       }
       break;
 
-    // 21. 추가 완충제 (B-27 강화된 특공대) — +2
+    // 21. 추가 완충제 — +2, B-27 강화된 특공대는 +3 (26.09.23: 기존 +1 / B-27 +2 → 각각 +1 상향)
     case "추가 완충제":
-      passiveStabilityBonus = s(armor?.id ?? "").includes("b27") ? 2 : 1;
+      passiveStabilityBonus = s(armor?.id ?? "").includes("b27") ? 3 : 2;
       break;
 
     // 22. 충격 방지 패드, 강화 버전 (CPR-80) — +1 기본, 폭발성/플라즈마 태그 추가 +1
@@ -633,6 +655,8 @@ export function calcRadarLayers(selected, raceHint = "") {
     "pr_sg_sg20":   [{ raw:"2",  label:"경장갑 관통(기절탄)" }],
     // AR/GL-21: 하부 유탄 추가
     "pr_ar_ar21":   [{ raw:"3",  label:"일반 장갑 관통(하부 유탄)" }],
+    // AR-11 아비트레이터: 하부 산탄총 추가 (기본 소총탄 = DB armorPen 2 → 경장갑 관통)
+    "pr_ar_ar11":   [{ raw:"3",  label:"일반 장갑 관통(하부 산탄총)" }],
     // SMG/FLAM-34: 화염방사기 추가
     "pr_sm_smg34":  [{ raw:"4",  label:"중장갑 관통(화염방사기)" }],
   };
@@ -941,7 +965,7 @@ export default function LoadoutRadarChart({ selected, requirements = [], flyingE
     }
     /* ── 서보 보조 ─────────────────────────────── */
     if (armorPassive === "서보 보조") {
-      if (ergoVal === "투척" && !id.includes("sp_g50")) notes.push(pos("투척 거리 증가"));
+      if (ergoVal === "투척" && !NO_THROW_RANGE_IDS.some(r => id.includes(r))) notes.push(pos("투척 거리 증가"));
     }
     /* ── 전도성 ────────────────────────────────── */
     if (armorPassive === "전도성") {
@@ -1022,10 +1046,10 @@ export default function LoadoutRadarChart({ selected, requirements = [], flyingE
         if (traits.includes("소이") || traits.includes("아크") || traits.includes("가스"))
           notes.push(pos("상태이상 피해 감소"));
       }
-      if (ergoVal === "투척" && !id.includes("sp_g50")) notes.push(pos("투척 거리 증가"));
+      if (ergoVal === "투척" && !NO_THROW_RANGE_IDS.some(r => id.includes(r))) notes.push(pos("투척 거리 증가"));
     }
-    /* ── 굳건한 바위 ───────────────────────────── */
-    if (armorPassive === "굳건한 바위") {
+    /* ── 굳건한 바위 / 둔기 충격 완화 (폭발무기 레그돌 억제 시너지 공유) ── */
+    if (armorPassive === "굳건한 바위" || armorPassive === "둔기 충격 완화") {
       const BL = ["sp_gp20","sp_g50","sp_ted63","th_gr_g7","sp_g48","sp_p33","sw_eat411"];
       const hasExplosive = traits.includes("폭발성") && !BL.some(r => id.includes(r));
       // sh20 + cb9 조합: ++ 표시 (이 경우 + 레그돌 억제는 표시하지 않음)
@@ -1864,6 +1888,8 @@ export default function LoadoutRadarChart({ selected, requirements = [], flyingE
               notes.push(p("다리 부상 방지"), p("관심 지역 탐지 범위 증가"), p("행동에 의한 소음 감소")); break;
             case "굳건한 바위":
               notes.push(p("레그돌 억제")); break;
+            case "둔기 충격 완화":
+              notes.push(p("받는 피해 감소"), p("충돌 피해 감소"), p("레그돌 억제")); break;
             case "신호 감소":
               notes.push(p("탐지 범위 감소"), p("행동에 의한 소음 감소")); break;
             case "보급 아드레날린":
