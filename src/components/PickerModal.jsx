@@ -126,6 +126,9 @@ const SUBTYPE_BACKPACK_WEAPON = "지원배낭 무기";
 const isExoSuit = (it) => String(it?.id ?? "").includes("st_vh_exo");
 /* ── M-102/M-103 고속 정찰 차량 — 엑소슈트와 동일하게 하나만 선택 가능 ── */
 const isScoutCar = (it) => ["st_vh_m102","st_vh_m103"].includes(String(it?.id ?? ""));
+/* ── TD-220 바스티온 / TD-110 마엘스트롬 전차 — 엑소슈트와 동일하게 하나만 선택 가능 ── */
+const TANK_IDS = ["st_vh_td220","st_vh_td110"];
+const isTank = (it) => TANK_IDS.includes(String(it?.id ?? ""));
 
 /* ── 스트라타젬 대분류: stratType 컬럼 (공격/지원/방어) ── */
 const getStratType  = (it) => s(it?.stratType ?? "");
@@ -340,6 +343,18 @@ export default function PickerModal({
   const scoutCarSelectedId = useMemo(() => {
     if (!isStratagemMode) return null;
     const found = (stratagemSlots??[]).find(it => it && isScoutCar(it));
+    return found ? String(found.id) : null;
+  }, [stratagemSlots, isStratagemMode]);
+
+  /* ── 전차(바스티온/마엘스트롬) 선택 현황 (엑소슈트와 동일 로직) ── */
+  const hasTankSelected = useMemo(() => {
+    if (!isStratagemMode) return false;
+    return (stratagemSlots??[]).some(it => it && isTank(it));
+  }, [stratagemSlots, isStratagemMode]);
+
+  const tankSelectedId = useMemo(() => {
+    if (!isStratagemMode) return null;
+    const found = (stratagemSlots??[]).find(it => it && isTank(it));
     return found ? String(found.id) : null;
   }, [stratagemSlots, isStratagemMode]);
 
@@ -719,7 +734,15 @@ export default function PickerModal({
                         && !activeSlotIsScoutCar   // 현재 슬롯이 이미 정찰 차량이면 교체 허용
                         && scoutCarSelectedId !== id;
 
-                      const disabled = (alreadyPicked && !isCurrent) || exoBlocked || scoutCarBlocked;
+                      /* TD-220 / TD-110 전차 중복 제한 — 엑소슈트와 동일 로직 */
+                      const activeSlotIsTank = activeStratagemPickedId!=null
+                        && isTank({ id: activeStratagemPickedId });
+                      const tankBlocked = isTank(it)
+                        && hasTankSelected
+                        && !activeSlotIsTank   // 현재 슬롯이 이미 전차면 교체 허용
+                        && tankSelectedId !== id;
+
+                      const disabled = (alreadyPicked && !isCurrent) || exoBlocked || scoutCarBlocked || tankBlocked;
                       const showWarn = !disabled && getSubType(it)===SUBTYPE_BACKPACK && hasBackpackWeaponSelected;
 
                       return (

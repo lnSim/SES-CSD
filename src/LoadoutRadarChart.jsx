@@ -649,6 +649,8 @@ export function calcRadarLayers(selected, raceHint = "") {
     "st_vh_exo45":  [{ raw:"6",  label:"대전차2(로켓)" }],
     "st_vh_exo51":  [{ raw:"6",  label:"대전차2(대전차포)" }],
     "st_vh_td220":  [{ raw:"8",  label:"대전차4(주포)" }],
+    // TD-110 마엘스트롬: 기본(이중 개틀링 포대, AP4) + 레이저 유도 미사일(AP5)
+    "st_vh_td110":  [{ raw:"5",  label:"대전차1(레이저 유도 미사일)" }],
     // LAS-17: 과열 단계에 따라 경장갑~중장갑 → 기본 태그 교체
     "pr_en_las17":  [{ raw:"4",  label:"경장갑 ~ 중장갑 관통(과열 단계에 따라)" }],
     // SG-20: 기절탄 추가
@@ -1189,7 +1191,7 @@ export default function LoadoutRadarChart({ selected, requirements = [], flyingE
   const GUNSHIP_BLACKLIST_IDS = new Set([
     "se_sp_las58","st_sw_mg43","st_sw_arc3","st_sw_rl77",
     "st_sw_s11","st_sw_ms11","st_sw_m1000","st_sw_eat700","st_sw_eat411",
-    "st_vh_td220","st_st_mg43","st_st_g16","st_st_ac8",
+    "st_vh_td220","st_vh_td110","st_st_mg43","st_st_g16","st_st_ac8",
   ]);
   const GUNSHIP_BLACKLIST_WT  = new Set(["돌격소총","기관단총","산탄총"]);
   const GUNSHIP_WHITELIST_IDS = new Set(["th_sp_g50"]);
@@ -1210,7 +1212,7 @@ export default function LoadoutRadarChart({ selected, requirements = [], flyingE
   const STINGRAY_BLACKLIST_IDS = new Set([
     "se_sp_las58","st_sw_arc3","st_sw_rl77",
     "st_sw_s11","st_sw_ms11","st_sw_m1000","st_sw_eat700","st_sw_eat411",
-    "st_vh_td220","st_st_mg43","st_st_g16","st_st_ac8","st_st_mls4x",
+    "st_vh_td220","st_vh_td110","st_st_mg43","st_st_g16","st_st_ac8","st_st_mls4x",
   ]);
   const STINGRAY_BLACKLIST_WT = new Set(["기관단총","산탄총"]);
   const hasStingrayCounter = allLoadoutItems.some(it => {
