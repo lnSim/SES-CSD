@@ -31,7 +31,7 @@ function lsSet(data)   { try { localStorage.setItem(LS_KEY, JSON.stringify(data)
  * 같은 탭/세션 내 새로고침 시 GAS 재호출 방지 (Edge request 절약)
  * WB_NOTICE_VERSION 변경 시 자동으로 캐시 무효화됨
  */
-const GAS_CACHE_VERSION = "v_철갑의민주주의"; // WB_NOTICE_VERSION과 동기화
+const GAS_CACHE_VERSION = "v_권위의가늠자"; // WB_NOTICE_VERSION과 동기화
 const GAS_CACHE_KEY     = `gas_cache_${GAS_CACHE_VERSION}`;
 function gasCacheGet() {
   try {
@@ -45,29 +45,28 @@ function gasCacheSet(data) {
 
 /* ── 신규 채권 미리보기 오버레이 ── */
 // ★ 채권 업데이트 시 WB_NOTICE_VERSION을 바꾸면 모든 사용자에게 재표시됨
-const WB_NOTICE_VERSION = "v_철갑의민주주의";
+const WB_NOTICE_VERSION = "v_권위의가늠자";
 const WB_NOTICE_KEY     = `wb_notice_dismissed_${WB_NOTICE_VERSION}`;
 function wbNoticeDismissed()  { try { return localStorage.getItem(WB_NOTICE_KEY) === "true"; } catch { return false; } }
 function wbNoticeSetDismiss() { try { localStorage.setItem(WB_NOTICE_KEY, "true"); } catch {} }
 
 // ★ 채권 업데이트 시 아래 데이터 수정
 const WB_NOTICE_DATA = {
-  name: "철갑의 민주주의",
+  name: "권위의 가늠자",
   // ★ 채권 업데이트 시 항목 수정
-  // DB G열(wbrequirement) = '철갑의 민주주의' 기준으로 각 시트에서 조회 후 추가
+  // DB G열(wbrequirement) = '권위의 가늠자' 기준으로 각 시트에서 조회 후 추가
   items: [
-    { label: "AR-11 아비트레이터",  kind: "주무기",   id: "pr_ar_ar11"    },
-    { label: "GL-15 이빅터",        kind: "주무기",   id: "pr_ex_gl15"    },
-    { label: "P-34 브리처",         kind: "보조무기", id: "se_sp_p34"     },
-    { label: "G-8 번제",            kind: "투척무기", id: "th_sp_im8"     },
-    { label: "G-60 대전차 드론",    kind: "투척무기", id: "th_sp_at60"    },
-    { label: "BFM-16 탱커",         kind: "방어구",   id: "ar_bfm_bfm16"  },
-    { label: "BFM-220 철갑",        kind: "방어구",   id: "ar_bfm_bfm220" },
+    { label: "R-40 사이트라이너",      kind: "주무기",        id: "pr_sr_r40"    },
+    { label: "P-44 미스트",            kind: "보조무기",      id: "se_ps_p44"    },
+    { label: "G-11 마름쇠",            kind: "투척무기",      id: "th_sp_g11"    },
+    { label: "SS-33 모방의 원수",      kind: "방어구",        id: "ar_ss_ss33"   },
+    { label: "SS-15 포컬 포인트",      kind: "방어구",        id: "ar_ss_ss15"   },
+    { label: "AMW-20 에이펙스",        kind: "지원배낭 무기", id: "st_sw_amw20"  },
+    { label: "LAS-44 노바",            kind: "지원무기",      id: "st_sw_las44"  },
   ],
-  // DB G열 = '슈퍼 스토어' + H열 = '철갑의 민주주의 로테이션'
+  // DB G열 = '슈퍼 스토어' + H열 = '권위의 가늠자 로테이션'
   superStore: [
-    { label: "LAS-12 사이",         kind: "주무기",   id: "pr_en_las12"   },
-    { label: "BFM-77 리포머",       kind: "방어구",   id: "ar_bfm_bfm77"  },
+    { label: "SS-500 창백한 검찰관",   kind: "방어구",        id: "ar_ss_ss500"  },
   ],
 };
 
@@ -148,7 +147,7 @@ function WbNoticeOverlay({ onClose }) {
         </div>
 
         {/* 채권명 */}
-        <div className="wbNoticeWbName" style={{ color:"#dddac2", textShadow:"0 0 10px rgba(221,218,194,.70), 0 0 24px rgba(221,218,194,.35)" }}>{WB_NOTICE_DATA.name}</div>
+        <div className="wbNoticeWbName" style={{ color:"#dedfb5", textShadow:"0 0 10px rgba(222,223,181,.70), 0 0 24px rgba(222,223,181,.35)" }}>{WB_NOTICE_DATA.name}</div>
 
         {/* 항목 카드 — 개인장비 → 스트라타젬 → 슈퍼스토어 순 */}
         <div className="wbNoticeScrollArea">
@@ -736,6 +735,7 @@ async function exportLoadoutPng(captureRef, selected, wbSummary=[]) {
         "외계 전문가":             { bg:"#fffbe5", border:"#c4a882",               tc:"#654632" },
         "카스텔란의 신조":         { bg:"#2c4658", border:"#f50301",               tc:"#dfdfe1" },
         "철갑의 민주주의":         { bg:"#41494f", border:"#262b31",               tc:"#dddac2" },
+        "권위의 가늠자":           { bg:"#0e200e", border:"#4a5a32",               tc:"#dedfb5", hatch:"#4a5a32" },
       };
       const fallbackColors = ["#f7f352","#fb923c","#f87171","#c084fc","#60a5fa","#34d399"];
       let fbIdx = 0;
@@ -755,6 +755,19 @@ async function exportLoadoutPng(captureRef, selected, wbSummary=[]) {
         }
         ctx.fillStyle = bg;
         rRect(ctx, wbX, wbCy, pw, WB_PILL_H_INNER, 8); ctx.fill();
+        if (sty?.hatch) {
+          // 빗금 효과 (권위의 가늠자 등)
+          ctx.save();
+          rRect(ctx, wbX, wbCy, pw, WB_PILL_H_INNER, 8); ctx.clip();
+          ctx.strokeStyle = sty.hatch; ctx.lineWidth = 2;
+          for (let hx = wbX - WB_PILL_H_INNER; hx < wbX + pw; hx += 8) {
+            ctx.beginPath();
+            ctx.moveTo(hx, wbCy + WB_PILL_H_INNER);
+            ctx.lineTo(hx + WB_PILL_H_INNER, wbCy);
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
         ctx.strokeStyle = border; ctx.lineWidth = 1;
         rRect(ctx, wbX, wbCy, pw, WB_PILL_H_INNER, 8); ctx.stroke();
         ctx.fillStyle = tc; ctx.textBaseline = "middle"; ctx.textAlign = "left";
@@ -914,7 +927,7 @@ const WB_ORDER = [
   "자유의 종복","정의의 경계선","의장의 달인","법의 위력","대조군",
   "먼지 폭풍","금사 특공대","존재하지 않는 부대","공성 파괴자",
   "민주적 궤도 강하 타격대","정의로운 망령","견고한 참호 사단","외계 전문가","카스텔란의 신조",
-  "철갑의 민주주의",
+  "철갑의 민주주의","권위의 가늠자",
 ];
 function sortByWbOrder(entries) {
   return [...entries].sort(([a],[b]) => {
@@ -954,6 +967,7 @@ const WB_STYLES = {
   "외계 전문가":            { color:"#654632", background:"#fffbe5", borderColor:"#c4a882"              },
   "카스텔란의 신조":        { color:"#dfdfe1", background:"linear-gradient(180deg, #3a5568 0%, #203a49 100%)", borderColor:"#f50301" },
   "철갑의 민주주의":        { color:"#dddac2", background:"#41494f", borderColor:"#262b31"              },
+  "권위의 가늠자":          { color:"#dedfb5", background:"repeating-linear-gradient(135deg, #0e200e 0px, #0e200e 6px, #4a5a32 6px, #4a5a32 8px)", borderColor:"#4a5a32", textShadow:"0 0 4px #0e200e, 0 0 2px #0e200e" },
 };
 function getWbBadgeStyle(wb) {
   return WB_STYLES[wb] ?? { color:"rgba(255,255,255,.8)", background:"rgba(255,255,255,.07)", borderColor:"rgba(255,255,255,.18)" };
@@ -3175,11 +3189,11 @@ export default function App() {
 
               <div className="infoBuildRow">
                 <span className="infoBuildLabel">빌드 버전</span>
-                <span className="infoBuildValue">ver 26.09.23</span>
+                <span className="infoBuildValue">ver 26.10.24</span>
               </div>
               <div className="infoBuildRow">
                 <span className="infoBuildLabel">빌드 기준 최신 업데이트</span>
-                <span className="infoBuildValue">ver 01.007.100 " Devoid of Liberty " <span className="infoSub">(자유의 공백)</span></span>
+                <span className="infoBuildValue">ver 01.007.201 " Devoid of Liberty " <span className="infoSub">(자유의 공백)</span></span>
               </div>
 
             </div>

@@ -85,6 +85,8 @@ const FACTION_IMG = {
   "무분별한 대중(무권자)":   "/icons/race/illu_mndless.svg",
   "적임자":                 "/icons/race/illu_appro.svg",
   "적임자(오버시어)":        "/icons/race/illu_appro.svg",
+  "보트 스내처":            "/icons/race/illu_vs.svg",
+  "하이브 월드":            "/icons/race/ter_hw.svg",
 };
 // 종족 아이콘 컴포넌트 (이미지, size px)
 function RaceIcon({ race, faction, size = 16 }) {
@@ -354,6 +356,18 @@ export function calcRadarLayers(selected, raceHint = "") {
       if (allWeapons.some(it => !SELF_FIRE_EXCEPTION_IDS.has(s(it?.id)) && hasTrait(it, "소이", "가스", "아크")))
         passiveStabilityBonus += 1;
       break;
+
+    // 17-2. 정적인 장막 — "흔들림 감소" 적용 대상(주/보조/지원무기, 투척 및 C-4 제외)이 하나라도 있으면 +1
+    //        교전 범위 표시 조건(rangePassiveNotes)과 동일: 비살상+장비(배낭 등)는 대상 아님
+    case "정적인 장막": {
+      const STATIC_VEIL_EXCLUDE_IDS = ["st_sw_c4"];
+      const isNonWeaponGear = (it) =>
+        s(it?.armorPen ?? "") === "비살상" && s(it?.ergo ?? it?.Ergo ?? "") === "장비";
+      const hasTarget = [...primaryAndSecondary, ...supportWeapons].some(it =>
+        !STATIC_VEIL_EXCLUDE_IDS.includes(s(it?.id ?? "").toLowerCase()) && !isNonWeaponGear(it));
+      if (hasTarget) passiveStabilityBonus += 1;
+      break;
+    }
 
     // 18-1. 운동 에너지 변위 완화 — 소이 태그 있으면 +1 (예외 무기 제외)
     case "운동 에너지 변위 완화":
@@ -993,6 +1007,13 @@ export default function LoadoutRadarChart({ selected, requirements = [], flyingE
         if (!excluded) notes.push(pos3("재장전 속도"));
       }
     }
+    /* ── 정적인 장막 ───────────────────────────── */
+    if (armorPassive === "정적인 장막") {
+      // 투척무기 제외 모든 무기(주/보조/지원) — 보라색 강조, 단일 "+" 접두사
+      // 예외: C-4 (st_sw_c4)
+      const STATIC_VEIL_EXCLUDE_IDS = ["st_sw_c4"];
+      if (isWeapon && !STATIC_VEIL_EXCLUDE_IDS.includes(id)) notes.push(pos3("흔들림 감소"));
+    }
     /* ── 운동 에너지 변위 완화 ──────────────────── */
     if (armorPassive === "운동 에너지 변위 완화") {
       // 인화성 물질과 동일한 자가피해 면제 무기 제외 조건 (R-4 하이에나 포함)
@@ -1137,7 +1158,7 @@ export default function LoadoutRadarChart({ selected, requirements = [], flyingE
   const flyingConfig = {
     "테르미니드": { name:"슈리커",  av:0, reqRange:2, excludeSpawnTables: new Set() },
     "오토마톤":   { name:"건쉽",    av:3, reqRange:3, excludeSpawnTables: new Set() },
-    "일루미닛":   { name:"스팅레이", av:3, reqRange:3, excludeSpawnTables: new Set(["무분별한 대중","적임자"]) },
+    "일루미닛":   { name:"스팅레이", av:3, reqRange:3, excludeSpawnTables: new Set(["무분별한 대중","적임자","보트 스내처"]) },
   };
 
   // 현재 로드아웃 전체 아이템 (무기+스트라타젬, 방어구 제외)
@@ -1221,6 +1242,8 @@ export default function LoadoutRadarChart({ selected, requirements = [], flyingE
     if (isBlacklisted(it)) return false;
     if (STINGRAY_BLACKLIST_IDS.has(id)) return false;
     if (STINGRAY_BLACKLIST_WT.has(wt)) return false;
+    // 스팅레이 AV3 — 해당 무기 자체가 AP3 이상이어야 피해 가능 (AP2 경장갑 관통은 range 충족해도 불가)
+    if (num(it?.armorPen ?? 0) < 3) return false;
     const r = it?.range ?? "";
     const rangeVal = isNaN(Number(r)) ? 0 : Number(r);
     if (rangeVal < 3) return false;
@@ -1887,13 +1910,15 @@ export default function LoadoutRadarChart({ selected, requirements = [], flyingE
               if (hasP11) notes.push(p("각성제 지속시간"));
               notes.push(p("사지 부상이 없는 상태로 사망시 일시적 소생")); break;
             case "발 먼저":
-              notes.push(p("다리 부상 방지"), p("관심 지역 탐지 범위 증가"), p("행동에 의한 소음 감소")); break;
+              notes.push(p("다리 부상 방지"), p("관심 지역 탐지 범위 증가"), p2("행동에 의한 소음 감소")); break;
             case "굳건한 바위":
               notes.push(p("레그돌 억제")); break;
             case "둔기 충격 완화":
               notes.push(p("받는 피해 감소"), p("충돌 피해 감소"), p("레그돌 억제")); break;
             case "신호 감소":
-              notes.push(p("탐지 범위 감소"), p("행동에 의한 소음 감소")); break;
+              notes.push(p("탐지 범위 감소"), p2("행동에 의한 소음 감소")); break;
+            case "정적인 장막":
+              notes.push(p("행동에 의한 소음 감소"), p("움직이지 않는 동안 탐지 범위 감소")); break;
             case "보급 아드레날린":
               notes.push(p("받는 피해 감소"), p("피해를 받으면 스태미나 회복")); break;
             case "충격 방지 패드, 강화 버전":
