@@ -43,6 +43,7 @@ const WB_STYLES = {
   "민주적 궤도 강하 타격대":{ color:"#ffffff", background:"#081c28", borderColor:"#fbfbaa" },
   "정의로운 망령":          { color:"#ffffff", background:"#1e1d1b", borderColor:"#fbee6b" },
   "슈퍼시민권 업그레이드":  { color:"#fee800", background:"#000000", borderColor:"#fee800" },
+  "해방절 보상":            { color:"#b0deef", background:"#0a1c2c", borderColor:"#2071aa", textShadow:"0 0 8px #2071aa" },
   "견고한 참호 사단":       { color:"#c7b243", background:"#040200", borderColor:"#978642" },
   "외계 전문가":            { color:"#654632", background:"#fffbe5", borderColor:"#c4a882" },
   "카스텔란의 신조":        { color:"#dfdfe1", background:"linear-gradient(180deg, #3a5568 0%, #203a49 100%)", borderColor:"#f50301" },
@@ -106,12 +107,16 @@ const getWeaponTraits = (it) => [s(it?.trait1??""),s(it?.trait2??""),s(it?.trait
 
 /* 캠페인 보상 — 전쟁채권 칩에서 제거하고 상시 노출 */
 const CAMPAIGN_REWARD_WB = "캠페인 보상";
-const WB_ALWAYS_INCLUDE = new Set(["기본","헬다이버 출동!", CAMPAIGN_REWARD_WB]);
+/* 해방절 보상 — 전쟁채권 칩에서 제거하고 상시 노출 (연도는 unlock 컬럼: "2024 해방절 보상" 등) */
+const LIBERATION_WB = "해방절 보상";
+const WB_ALWAYS_INCLUDE = new Set(["기본","헬다이버 출동!", CAMPAIGN_REWARD_WB, LIBERATION_WB]);
 const isSuperStore    = (it) => { const wb=getWB(it); return wb.includes("슈퍼")&&wb.includes("스토어"); };
 /* 슈퍼 시민권 에디션 — 전쟁채권 칩에서 제거하고 별도 토글로 분리 */
 const SUPER_CITIZEN_WB = "슈퍼시민권 업그레이드";
 const isSuperCitizen   = (it) => getWB(it) === SUPER_CITIZEN_WB;
 const isCampaignReward = (it) => getWB(it) === CAMPAIGN_REWARD_WB;
+const isLiberation     = (it) => getWB(it) === LIBERATION_WB;
+const getLiberationLabel = (it) => s(it?.unlock) || LIBERATION_WB;
 /* R-4 하이에나 / KDM-500 아웃라이더 — MP-98 나이트와 동일한 글로우 강조 */
 const GLOW_ITEM_IDS = new Set(["pr_sm_mp98", "pr_dm_r4", "ar_kdm_kdm500"]);
 
@@ -787,7 +792,7 @@ export default function PickerModal({
                       const active = pickedId!=null && String(it.id)===String(pickedId);
                       return (
                         <button key={it.id}
-                          className={`pickCard ${active?"active":""} ${isSuperStore(it)?"superItem":""} ${isSuperCitizen(it)?"superCitizenItem":""} ${GLOW_ITEM_IDS.has(String(it.id))?"glowItem":""}`}
+                          className={`pickCard ${active?"active":""} ${isSuperStore(it)?"superItem":""} ${isSuperCitizen(it)?"superCitizenItem":""} ${GLOW_ITEM_IDS.has(String(it.id))?"glowItem":""} ${isLiberation(it)?"liberationItem":""}`}
                           onClick={()=>onPick(it)} type="button"
                         >
                           <div className="pickThumb">
@@ -801,6 +806,9 @@ export default function PickerModal({
                             )}
                             {isCampaignReward(it) && (
                               <div className="pickUnlock" style={{color:"#fee800"}}>캠페인 보상</div>
+                            )}
+                            {isLiberation(it) && (
+                              <div className="pickUnlock" style={{color:"#b0deef"}}>{getLiberationLabel(it)}</div>
                             )}
                             {isSuperStore(it) && it.unlock!=null && it.unlock!=="" && (
                               <div className="pickUnlock">{String(it.unlock)}</div>

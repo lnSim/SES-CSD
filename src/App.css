@@ -1071,6 +1071,23 @@ body {
 }
 .pickCard.glowItem .pickName { color:#fde047; }
 
+/* 해방절 보상(pr_ar_23l, pr_dm_r2124, ar_dp_dp00) 글로우 — 파란색 정적 (텍스트 #b0deef / 글로우 #2071aa) */
+.pickCard.liberationItem {
+  border-color:rgba(32,113,170,.85) !important;
+  background:rgba(32,113,170,.10) !important;
+  box-shadow:0 0 10px rgba(32,113,170,.55), 0 0 24px rgba(32,113,170,.25);
+}
+.pickCard.liberationItem:hover {
+  border-color:rgba(176,222,239,.85) !important;
+  box-shadow:0 0 14px rgba(32,113,170,.75), 0 0 32px rgba(32,113,170,.35);
+}
+.pickCard.liberationItem.active {
+  border-color:rgba(176,222,239,.95) !important;
+  background:rgba(32,113,170,.20) !important;
+  box-shadow:0 0 16px rgba(32,113,170,.85), 0 0 36px rgba(32,113,170,.45);
+}
+.pickCard.liberationItem .pickName { color:#b0deef; }
+
 /* ===== 경고 점 ===== */
 .stratWarnDot { position:absolute; top:6px; left:6px; width:8px; height:8px; border-radius:50%; background:#ff4310; box-shadow:0 0 4px rgba(255,67,16,.75),0 0 8px rgba(255,67,16,.4); z-index:10; pointer-events:none; }
 .stratPreviewWarnDot { position:absolute; top:7px; left:7px; width:9px; height:9px; border-radius:50%; background:#ff4310; box-shadow:0 0 5px rgba(255,67,16,.85),0 0 10px rgba(255,67,16,.45); z-index:10; pointer-events:none; }
