@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { withAssetVersion } from "../assetVersion";
 
 /* ── 전쟁 채권 표시 순서 ── */
 const WB_ORDER = [
@@ -242,8 +243,9 @@ function ItemIcon({ item, style={} }) {
     <span style={{ opacity:0.45, fontSize:11, color:"rgba(255,255,255,.5)", textAlign:"center", lineHeight:1.3, whiteSpace:"nowrap" }}>이미지<br/>준비중</span>
   );
   return (
-    <img style={{ display:"block", background:"transparent", ...style }} src={primary}
+    <img style={{ display:"block", background:"transparent", ...style }} src={withAssetVersion(primary)}
       alt={s(item?.name_ko)||s(item?.id)} draggable={false}
+      loading="lazy" decoding="async"
       onError={() => { setDead(true); }}
     />
   );

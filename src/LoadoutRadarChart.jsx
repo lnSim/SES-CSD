@@ -3,6 +3,7 @@
 // 레이어: 노란(개인장비) / 파란(+지원무장&배낭) / 빨간(+공격 스트라타젬) / 초록(+방어 스트라타젬)
 
 import { useState } from "react";
+import { withAssetVersion } from "./assetVersion";
 
 const s = (v) => String(v ?? "").trim();
 const getSubType  = (it) => s(it?.subType ?? it?.subtype ?? "");
@@ -95,10 +96,14 @@ function RaceIcon({ race, faction, size = 16 }) {
   const fallback = RACE_BASE_IMG[race] || null;
   return (
     <img
-      src={src}
+      src={withAssetVersion(src)}
       alt={faction || race}
       style={{ width:size, height:size, objectFit:"contain", flexShrink:0 }}
-      onError={e => { if (fallback && e.target.src !== window.location.origin + fallback) e.target.src = fallback; }}
+      onError={e => {
+        // 팩션 이미지 실패 시 종족 기본 이미지로 1회만 교체
+        const el = e.currentTarget;
+        if (fallback && src !== fallback && !el.dataset.fb) { el.dataset.fb = "1"; el.src = withAssetVersion(fallback); }
+      }}
     />
   );
 }

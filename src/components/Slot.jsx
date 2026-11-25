@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { withAssetVersion } from "../assetVersion";
 
 const s = (v) => String(v ?? "").trim();
 
@@ -37,7 +38,7 @@ function SlotImg({ src, alt, className, style, sheet, itemId }) {
     </div>
   );
   return (
-    <img className={className} src={primary} alt={alt} draggable={false}
+    <img className={className} src={withAssetVersion(primary)} alt={alt} draggable={false}
       style={{ background:"transparent", ...style }}
       onError={() => { setDead(true); }}
     />

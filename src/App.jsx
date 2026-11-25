@@ -5,6 +5,7 @@ import Slot from "./components/Slot";
 import PickerModal from "./components/PickerModal";
 import SelectedPanel from "./components/SelectedPanel";
 import LoadoutRadarChart, { calcRadarLayers } from "./LoadoutRadarChart";
+import { withAssetVersion } from "./assetVersion";
 
 const DEPLOYMENT_ID = import.meta.env.VITE_GAS_DEPLOYMENT_ID;
 
@@ -27,20 +28,60 @@ const LS_KEY = "helldiver_loadouts_v2";
 function lsGet()       { try { const r=localStorage.getItem(LS_KEY); return r?JSON.parse(r):null; } catch { return null; } }
 function lsSet(data)   { try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch {} }
 
-/* ── GAS 데이터 sessionStorage 캐시 ──
- * 같은 탭/세션 내 새로고침 시 GAS 재호출 방지 (Edge request 절약)
- * WB_NOTICE_VERSION 변경 시 자동으로 캐시 무효화됨
+/* ── GAS 데이터 localStorage 캐시 ──
+ * 탭을 닫아도 유지되어, 유효기간(GAS_CACHE_TTL_MS) 안에는 GAS를 다시 호출하지 않음
+ * - GAS_CACHE_VERSION 변경 시 → 모든 사용자 캐시 즉시 무효화 (급한 DB 반영 시 사용)
+ * - 유효기간 경과 시 → 다음 접속 때 새로 받음 (사소한 DB 수정은 최대 6시간 내 반영)
+ * - 새로 받기 실패 시 → 만료된 캐시라도 있으면 그걸로 표시 (오류 화면 방지)
  */
 const GAS_CACHE_VERSION = "v_권위의가늠자"; // WB_NOTICE_VERSION과 동기화
 const GAS_CACHE_KEY     = `gas_cache_${GAS_CACHE_VERSION}`;
-function gasCacheGet() {
+const GAS_CACHE_TTL_MS  = 6 * 60 * 60 * 1000; // 6시간
+function gasCacheRead() {
   try {
-    const r = sessionStorage.getItem(GAS_CACHE_KEY);
-    return r ? JSON.parse(r) : null;
+    const r = localStorage.getItem(GAS_CACHE_KEY);
+    if (!r) return null;
+    const o = JSON.parse(r);
+    return (o && typeof o === "object" && "data" in o) ? o : null;
   } catch { return null; }
 }
+function gasCacheGet() {
+  const o = gasCacheRead();
+  if (!o) return null;
+  if (Date.now() - Number(o.savedAt || 0) > GAS_CACHE_TTL_MS) return null; // 만료
+  return o.data;
+}
+function gasCacheGetStale() { return gasCacheRead()?.data ?? null; }
 function gasCacheSet(data) {
-  try { sessionStorage.setItem(GAS_CACHE_KEY, JSON.stringify(data)); } catch {}
+  try {
+    // 이전 버전 캐시 정리 (localStorage 용량 확보)
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith("gas_cache_") && k !== GAS_CACHE_KEY) localStorage.removeItem(k);
+    }
+    localStorage.setItem(GAS_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), data }));
+  } catch {}
+  try { sessionStorage.removeItem(GAS_CACHE_KEY); } catch {} // 구버전(sessionStorage) 캐시 정리
+}
+
+/* ── GAS 호출 ──
+ * 1순위: GAS 직접 호출 (Vercel을 거치지 않음 → Vercel 요청/전송량 0)
+ * 2순위: 직접 호출 실패 시에만 기존 /api 프록시(vercel.json rewrite)로 재시도
+ */
+async function fetchGasJson(url) {
+  const r = await fetch(url);
+  const text = await r.text();
+  if (!r.ok) throw new Error(`HTTP ${r.status}: ${text.slice(0,120)}`);
+  try { return JSON.parse(text); }
+  catch { throw new Error(`Not JSON: ${text.slice(0,120)}`); }
+}
+function fetchGasData() {
+  const direct = `https://script.google.com/macros/s/${DEPLOYMENT_ID}/exec`;
+  const proxy  = `/api/macros/s/${DEPLOYMENT_ID}/exec`;
+  return fetchGasJson(direct).catch(e => {
+    console.warn("[GAS] 직접 호출 실패 → /api 프록시로 재시도:", e);
+    return fetchGasJson(proxy);
+  });
 }
 
 /* ── 신규 채권 미리보기 오버레이 ── */
@@ -86,8 +127,8 @@ function WbItemIcon({ src, alt }) {
   const [dead, setDead] = useState(false);
   if (dead) return null;
   return (
-    <img src={src} alt={alt}
-      className="wbNoticeItemIcon" draggable={false}
+    <img src={withAssetVersion(src)} alt={alt}
+      className="wbNoticeItemIcon" draggable={false} loading="lazy" decoding="async"
       onError={() => { setDead(true); }}
     />
   );
@@ -142,7 +183,7 @@ function WbNoticeOverlay({ onClose }) {
 
         {/* 채권 이미지 — 상단 전체 폭 */}
         <div className="wbNoticeImgWrap">
-          <img src="/latest_wb.webp" alt="신규 채권 미리보기" className="wbNoticeImg"
+          <img src={`/latest_wb.webp?v=${encodeURIComponent(WB_NOTICE_VERSION)}`} alt="신규 채권 미리보기" className="wbNoticeImg"
             onError={e => { e.currentTarget.style.display = "none"; }} />
         </div>
 
@@ -249,7 +290,7 @@ function RandIcon({ item, className, style={} }) {
     </div>
   );
   return (
-    <img src={primary} alt={s(item?.name_ko)||s(item?.id)}
+    <img src={withAssetVersion(primary)} alt={s(item?.name_ko)||s(item?.id)}
       className={className} style={style} draggable={false}
       onError={()=>{ setDead(true); }}
     />
@@ -440,7 +481,7 @@ async function loadImgWithFallback(url, sheet, itemId) {
     if (!/\.svg$/i.test(resolved)) el.crossOrigin = "anonymous";
     el.onload  = () => res(el);
     el.onerror = () => res(null);
-    el.src = resolved;
+    el.src = withAssetVersion(resolved);
   });
 }
 
@@ -1519,25 +1560,24 @@ export default function App() {
       setActiveLoadoutId("__default__");
     }
 
-    // sessionStorage 캐시 확인 → 있으면 즉시 적용 후 종료
+    // localStorage 캐시(유효기간 내) 확인 → 있으면 즉시 적용 후 종료
     const cached = gasCacheGet();
     if (cached) {
       applyData(cached);
       return;
     }
 
-    fetch(`/api/macros/s/${DEPLOYMENT_ID}/exec`)
-      .then(async r => {
-        const text=await r.text();
-        if (!r.ok) throw new Error(`HTTP ${r.status}: ${text.slice(0,120)}`);
-        try { return JSON.parse(text); }
-        catch { throw new Error(`Not JSON: ${text.slice(0,120)}`); }
-      })
+    fetchGasData()
       .then(d => {
-        gasCacheSet(d); // 세션 캐시 저장
+        gasCacheSet(d); // 캐시 저장 (저장 시각 기록)
         applyData(d);
       })
-      .catch(e=>{ setErr(String(e)); setIsLoading(false); });
+      .catch(e => {
+        // 새로 받기 실패 → 만료된 캐시라도 있으면 사용
+        const stale = gasCacheGetStale();
+        if (stale) { console.warn("[GAS] 호출 실패, 만료된 캐시로 표시:", e); applyData(stale); return; }
+        setErr(String(e)); setIsLoading(false);
+      });
   }, []);
 
   function persistList(list, lastId) {
