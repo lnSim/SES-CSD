@@ -25,7 +25,7 @@ body {
   margin:0;
   background-color:#0a0a0a;
   /* 배경 이미지: body에 fixed로 고정 — 콘텐츠 높이 변해도 크기 불변 */
-  background-image: url('/bg.png');
+  background-image: url('/bg.webp?v=26.11.26'); /* 원본 bg.png → WebP 변환본 */
   background-size: cover;
   background-position: center top;
   background-attachment: fixed;
@@ -1046,11 +1046,12 @@ body {
 .filterResetBtn:hover { border-color:rgba(255,80,80,.80); background:rgba(255,50,50,.18); color:#fca5a5; box-shadow:0 0 0 2px rgba(255,80,80,.22),0 0 18px rgba(255,80,80,.28); }
 
 /* ===== 스트라타젬 피커 그리드 ===== */
-.stratagemGrid { display:grid; gap:8px; grid-template-columns:repeat(8,1fr); }
-@media(max-width:700px){ .stratagemGrid{ grid-template-columns:repeat(5,1fr); } }
-@media(max-width:480px){ .stratagemGrid{ grid-template-columns:repeat(4,1fr); } }
-.stratagemBtn { width:100%; aspect-ratio:1/1; border-radius:10px; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.04); cursor:pointer; padding:8px; display:grid; place-items:center; overflow:visible; position:relative; transition:border-color .12s,background .12s,box-shadow .12s; }
-.stratagemBtn img { width:100%; height:100%; object-fit:contain; display:block; background:transparent; }
+/* minmax(0,1fr): 이미지 원본 크기가 칸 너비를 밀어내지 않도록 고정 (탑승물 필터 시 넘침 수정) */
+.stratagemGrid { display:grid; gap:8px; grid-template-columns:repeat(8,minmax(0,1fr)); }
+@media(max-width:700px){ .stratagemGrid{ grid-template-columns:repeat(5,minmax(0,1fr)); } }
+@media(max-width:480px){ .stratagemGrid{ grid-template-columns:repeat(4,minmax(0,1fr)); } }
+.stratagemBtn { width:100%; min-width:0; aspect-ratio:1/1; border-radius:10px; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.04); cursor:pointer; padding:8px; display:grid; place-items:center; overflow:visible; position:relative; transition:border-color .12s,background .12s,box-shadow .12s; }
+.stratagemBtn img { width:100%; height:100%; min-width:0; object-fit:contain; display:block; background:transparent; }
 .stratagemBtn:hover  { border-color:rgba(240,196,0,.45); background:rgba(240,196,0,.10); }
 .stratagemBtn.active { border-color:rgba(240,196,0,.75); box-shadow:0 0 0 2px rgba(240,196,0,.18); background:rgba(240,196,0,.12); }
 .stratagemBtn.disabled,.stratagemBtn:disabled { opacity:.28; filter:grayscale(1); cursor:not-allowed; }
@@ -1070,6 +1071,42 @@ body {
   box-shadow:0 0 16px rgba(253,224,71,.70), 0 0 36px rgba(253,224,71,.35);
 }
 .pickCard.glowItem .pickName { color:#fde047; }
+
+/* ===== 채권 강조색 — 스트라타젬 선택 버튼 (PickerModal getWbCardVars) =====
+ * 기본 / 헬다이버 출동! / 슈퍼시민권 / 해방절 / 캠페인 보상은 적용 제외 */
+/* 스트라타젬 버튼: 흰색 아이콘 가시성을 위해 채권 배경 위에 어두운 막을 덧씌움 */
+.stratagemBtn.wbCard,
+.stratagemBtn.wbCard:hover {
+  background:linear-gradient(rgba(0,0,0,.55), rgba(0,0,0,.55)), var(--wb-bg);
+  border:2px solid var(--wb-border);
+}
+.stratagemBtn.wbCard:hover { filter:brightness(1.18); }
+.stratagemBtn.wbCard.active {
+  border-color:rgba(240,196,0,.95);
+  box-shadow:0 0 0 2px rgba(240,196,0,.85), 0 0 14px rgba(240,196,0,.35);
+}
+/* 밝은 배경 채권: 어두운 막 없이 원본 강조색 배경 그대로 + 아이콘 윤곽에 어두운 글로우 */
+.stratagemBtn.wbCard.wbBright,
+.stratagemBtn.wbCard.wbBright:hover { background:var(--wb-bg); }
+.stratagemBtn.wbBright img {
+  filter:drop-shadow(0 0 1.5px rgba(0,0,0,.95)) drop-shadow(0 0 4px rgba(0,0,0,.70));
+}
+
+/* 캠페인 보상 스트라타젬 (이글 가스 공중타격, TD-110, M-104 등) — 무기 카드의 캠페인 보상(glowItem)과 동일한 노란 글로우 */
+.stratagemBtn.campaignItem {
+  border-color:rgba(253,224,71,.70);
+  background:rgba(253,224,71,.07);
+  box-shadow:0 0 10px rgba(253,224,71,.40), 0 0 24px rgba(253,224,71,.18);
+}
+.stratagemBtn.campaignItem:hover {
+  border-color:rgba(253,224,71,.95);
+  box-shadow:0 0 14px rgba(253,224,71,.60), 0 0 32px rgba(253,224,71,.28);
+}
+.stratagemBtn.campaignItem.active {
+  border-color:rgba(253,224,71,.95);
+  background:rgba(253,224,71,.15);
+  box-shadow:0 0 16px rgba(253,224,71,.70), 0 0 36px rgba(253,224,71,.35);
+}
 
 /* 해방절 보상(pr_ar_23l, pr_dm_r2124, ar_dp_dp00) 글로우 — 파란색 정적 (텍스트 #b0deef / 글로우 #2071aa) */
 .pickCard.liberationItem {

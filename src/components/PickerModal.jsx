@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { withAssetVersion } from "../assetVersion";
+import { withAssetVersion, DEFAULT_ICON } from "../assetVersion";
 
 /* ── 전쟁 채권 표시 순서 ── */
 const WB_ORDER = [
@@ -25,12 +25,12 @@ const WB_STYLES = {
   "헬다이버 출동!":         { color:"#f7f352", background:"#0e2c2e" },
   "결연한 베테랑":          { color:"#ffffff", background:"#ea630f" },
   "최첨단":                { color:"#ffffff", background:"#0044ab", borderColor:"rgba(96,216,255,.50)", textShadow:"0 0 10px #40efff" },
-  "민주적 폭파":            { color:"#ef8f00", background:"#920f00" },
-  "극지의 애국자":          { color:"#ffffff", background:"#3eb0e8" },
+  "민주적 폭파":            { color:"#ef8f00", background:"#920f00", textShadow:"0 0 6px #680800, 0 0 2px #680800" },
+  "극지의 애국자":          { color:"#ffffff", background:"#3eb0e8", textShadow:"0 0 6px #2c7fbf, 0 0 2px #2c7fbf" },
   "독사 특공대":            { color:"#ffffff", background:"#103318" },
   "자유의 불꽃":            { color:"#ff7918", background:"#562f18" },
   "화학 요원":              { color:"#d3ec18", background:"#3c4209" },
-  "진리의 집행자":          { color:"#b50000", background:"#ceb7b7" },
+  "진리의 집행자":          { color:"#b50000", background:"#dcc9c9" }, // 26.11.26 배경 명도 상향 (#ceb7b7 → #dcc9c9)
   "도시 전설":              { color:"#ceae00", background:"#3c4548" },
   "자유의 종복":            { color:"#ffffff", background:"#180000" },
   "정의의 경계선":          { color:"#dddadd", background:"#422d21" },
@@ -74,6 +74,38 @@ function getWbFilterStyle(wb, active) {
     borderColor:st.borderColor ?? "transparent",
     textShadow: "none",
     opacity: 0.40,
+  };
+}
+
+/* ── 스트라타젬 선택 버튼에 채권 강조색 적용 (방어구/무기 카드는 기존 색상 유지) ──
+ * 기본 / 헬다이버 출동! / 슈퍼시민권 / 해방절 / 캠페인 보상은 기존 색상 유지 */
+const WB_CARD_EXCLUDE = new Set(["기본","헬다이버 출동!","슈퍼시민권 업그레이드","해방절 보상","캠페인 보상"]);
+/* 배경색 밝기(0~1) — 그라데이션은 첫 번째 색상 기준 */
+function wbBgLuminance(bg) {
+  const m = String(bg ?? "").match(/#([0-9a-f]{6}|[0-9a-f]{3})\b/i);
+  if (!m) return 0;
+  let h = m[1];
+  if (h.length === 3) h = h.split("").map(c => c + c).join("");
+  const [r, g, b] = [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16) / 255);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+/* 밝은 배경 채권(의장의 달인, 대조군, 외계 전문가, 진리의 집행자, 극지의 애국자 등) → 아이콘에 어두운 글로우 */
+const WB_BRIGHT_THRESHOLD = 0.35;
+function getWbCardVars(wb) {
+  if (!wb || WB_CARD_EXCLUDE.has(wb)) return null;
+  const st = WB_STYLES[wb];
+  if (!st) return null;
+  const bright = wbBgLuminance(st.background) >= WB_BRIGHT_THRESHOLD;
+  return {
+    vars: {
+      "--wb-bg":     st.background,
+      // 밝은 배경 채권(의장의 달인/대조군/외계 전문가 등) → 테두리를 텍스트 색상으로
+      // 그 외: 지정 테두리색, 없으면 글자색을 반투명하게 사용
+      "--wb-border": bright
+        ? st.color
+        : (st.borderColor ?? `color-mix(in srgb, ${st.color} 50%, transparent)`),
+    },
+    bright,
   };
 }
 
@@ -233,20 +265,21 @@ function ItemIcon({ item, style={} }) {
     const raw = s(it?.icon);
     const base = raw
       ? (/^https?:\/\//i.test(raw) ? raw : raw.startsWith("/") ? raw : `/${raw}`)
-      : (() => { const id=s(it?.id); if(!id) return "/icons/_default.png"; const folder=sheet||"misc"; return `/icons/${folder}/${id}.png`; })();
+      : (() => { const id=s(it?.id); if(!id) return DEFAULT_ICON; const folder=sheet||"misc"; return `/icons/${folder}/${id}.png`; })();
     return forceExt(base, ext);
   };
   const primary = resolve(item);
-  const [dead, setDead] = useState(false);
-  useEffect(() => { setDead(false); }, [primary]);
+  const [useDefault, setUseDefault] = useState(false); // 이미지 없음 → default.png로 대체
+  const [dead, setDead] = useState(false);              // default.png마저 실패한 경우만 텍스트 표시
+  useEffect(() => { setUseDefault(false); setDead(false); }, [primary]);
   if (dead) return (
     <span style={{ opacity:0.45, fontSize:11, color:"rgba(255,255,255,.5)", textAlign:"center", lineHeight:1.3, whiteSpace:"nowrap" }}>이미지<br/>준비중</span>
   );
   return (
-    <img style={{ display:"block", background:"transparent", ...style }} src={withAssetVersion(primary)}
+    <img style={{ display:"block", background:"transparent", ...style }} src={withAssetVersion(useDefault ? DEFAULT_ICON : primary)}
       alt={s(item?.name_ko)||s(item?.id)} draggable={false}
       loading="lazy" decoding="async"
-      onError={() => { setDead(true); }}
+      onError={() => { if (!useDefault && primary !== DEFAULT_ICON) setUseDefault(true); else setDead(true); }}
     />
   );
 }
@@ -456,16 +489,10 @@ export default function PickerModal({
   /* 스트라타젬: 공격>지원>방어 순
      지원 그룹 내부:
        1순위 subType: 지원무기 > 지원배낭무기 > 일회용 지원무기 > 배낭 > 탑승물
-       2순위 wbrequirement: 기본 > 화학요원 > 도시전설 > 자유의종복 > 정의의경계선 > 의장의달인 > 법의위력 > 대조군 > 먼지폭풍 > 금사특공대 > 존재하지않는부대 > 공성파괴자
-       3순위 unlock 레벨 오름차순 */
+       2순위 DB 시트 순서 (기본 해금순 → 채권 출시순 — 신규 채권은 DB에 추가한 순서대로 자동 반영)
+       탑승물 예외: 차량(M-10x) > 엑소슈트(EXO-xx) > 전차(TD-xxx) 후 DB 순서 */
   const SUPPORT_SUB_ORDER = ["지원무기","배낭 지원무기","일회용 지원무기","배낭","탑승물"];
   const BACKPACK_LINKED_IDS = ["sw_m1000","sw_c4","sw_gl28"]; // 배낭 연동 지원무기 ID 목록
-  const SUPPORT_WB_ORDER  = [
-    "기본","헬다이버 출동!",
-    "화학 요원","도시 전설","자유의 종복","정의의 경계선",
-    "의장의 달인","법의 위력","대조군","먼지 폭풍",
-    "금사 특공대","존재하지 않는 부대","공성 파괴자",
-  ];
   /* 지원 subType별 세분화 섹션 키 (지원__지원무기 형태로 map에 저장) */
   const SUPPORT_SUB_SECTION_KEYS = SUPPORT_SUB_ORDER.map(sub => `지원__${sub}`);
   const isSupportSubKey = (tp) => tp.startsWith("지원__");
@@ -489,15 +516,27 @@ export default function PickerModal({
         map.get(tp).push(it);
       }
     }
-    // 각 지원 서브섹션 내부 정렬: 채권 순 > unlock 순
+    // 각 지원 서브섹션 내부 정렬: DB 시트 순서(= 기본 해금순 → 채권 출시순) 유지
+    //  ※ 기존의 하드코딩 채권 목록 기반 정렬은 목록에 없는 신규 채권끼리 해금 레벨로 섞이는 문제가 있어 DB 순서로 변경
+    //  탑승물만 예외: 차량(M-10x) > 엑소슈트(EXO-xx) > 전차(TD-xxx), 같은 분류 안에서는 DB 순서
+    const dbIndex = new Map(items.map((it, i) => [String(it?.id ?? ""), i]));
+    const dbIdx = (it) => dbIndex.get(String(it?.id ?? "")) ?? Number.MAX_SAFE_INTEGER;
+    const vehicleRank = (it) => {
+      const id = String(it?.id ?? "").toLowerCase();
+      if (id.startsWith("st_vh_m"))   return 0; // 차량 (M-102/M-103/M-104…)
+      if (id.startsWith("st_vh_exo")) return 1; // 엑소슈트
+      if (id.startsWith("st_vh_td"))  return 2; // 전차
+      return 3;
+    };
     for (const key of map.keys()) {
       if (!isSupportSubKey(key)) continue;
+      const isVehicle = key === "지원__탑승물";
       map.get(key).sort((a, b) => {
-        const wa = s(a?.wbrequirement)||"기본", wb2 = s(b?.wbrequirement)||"기본";
-        const wi = SUPPORT_WB_ORDER.indexOf(wa), wj = SUPPORT_WB_ORDER.indexOf(wb2);
-        const wbDiff = (wi===-1?99:wi) - (wj===-1?99:wj);
-        if (wbDiff !== 0) return wbDiff;
-        return (Number(s(a?.unlock))||0) - (Number(s(b?.unlock))||0);
+        if (isVehicle) {
+          const r = vehicleRank(a) - vehicleRank(b);
+          if (r !== 0) return r;
+        }
+        return dbIdx(a) - dbIdx(b);
       });
     }
     // 비지원 그룹 내부 정렬 (기존 유지: 기본 순서)
@@ -509,7 +548,7 @@ export default function PickerModal({
     const defenseOrder = map.has("방어") ? ["방어"] : [];
     const order = [...attackOrder, ...supportSubOrder, ...defenseOrder, ...etcOrder];
     return { order, map };
-  }, [filteredItems, isStratagemMode]);
+  }, [filteredItems, isStratagemMode, items]);
 
   /* 무기: weaponType 정렬 순서 적용 (10번 요청) */
   const grouped = useMemo(() => {
@@ -752,10 +791,12 @@ export default function PickerModal({
 
                       const disabled = (alreadyPicked && !isCurrent) || exoBlocked || scoutCarBlocked || tankBlocked;
                       const showWarn = !disabled && getSubType(it)===SUBTYPE_BACKPACK && hasBackpackWeaponSelected;
+                      const wbCard = getWbCardVars(getWB(it));
 
                       return (
                         <button key={id}
-                          className={`stratagemBtn ${isActive?"active":""} ${disabled?"disabled":""}`}
+                          className={`stratagemBtn ${isActive?"active":""} ${disabled?"disabled":""} ${wbCard?"wbCard":""} ${wbCard?.bright?"wbBright":""} ${isCampaignReward(it)?"campaignItem":""}`}
+                          style={wbCard?.vars}
                           type="button" disabled={disabled}
                           onClick={()=>{ if(!disabled) onPick(it); }}
                           title={s(it.name_ko)||id}

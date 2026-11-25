@@ -5,7 +5,7 @@ import Slot from "./components/Slot";
 import PickerModal from "./components/PickerModal";
 import SelectedPanel from "./components/SelectedPanel";
 import LoadoutRadarChart, { calcRadarLayers } from "./LoadoutRadarChart";
-import { withAssetVersion } from "./assetVersion";
+import { withAssetVersion, DEFAULT_ICON } from "./assetVersion";
 
 const DEPLOYMENT_ID = import.meta.env.VITE_GAS_DEPLOYMENT_ID;
 
@@ -124,12 +124,13 @@ const KIND_COLOR = {
 };
 
 function WbItemIcon({ src, alt }) {
+  const [useDefault, setUseDefault] = useState(false); // 이미지 없음 → default.png로 대체
   const [dead, setDead] = useState(false);
   if (dead) return null;
   return (
-    <img src={withAssetVersion(src)} alt={alt}
+    <img src={withAssetVersion(useDefault ? DEFAULT_ICON : src)} alt={alt}
       className="wbNoticeItemIcon" draggable={false} loading="lazy" decoding="async"
-      onError={() => { setDead(true); }}
+      onError={() => { if (!useDefault && src !== DEFAULT_ICON) setUseDefault(true); else setDead(true); }}
     />
   );
 }
@@ -267,7 +268,7 @@ const DEFAULT_LOADOUT_IDS = {
 function normalizeIcon(it) {
   const id=s(it?.id), raw=s(it?.icon);
   if (raw) return /^https?:\/\//i.test(raw)?raw:raw.startsWith("/")?raw:`/${raw}`;
-  if (!id) return "/icons/_default.png";
+  if (!id) return DEFAULT_ICON;
   return `/icons/${s(it?.sheet||it?.sheetName||it?.type)||"misc"}/${id}.png`;
 }
 function normalizeItem(it) {
@@ -281,8 +282,9 @@ function RandIcon({ item, className, style={} }) {
   const ext     = sheet.toLowerCase() === "stratagem" ? ".svg" : ".png";
   const base    = s(item?.icon) || normalizeIcon(item);
   const primary = base.replace(/\.(png|svg|webp)$/i, ext);
+  const [useDefault, setUseDefault] = useState(false); // 이미지 없음 → default.png로 대체
   const [dead, setDead] = useState(false);
-  useEffect(()=>{ setDead(false); }, [primary]);
+  useEffect(()=>{ setUseDefault(false); setDead(false); }, [primary]);
   if (dead) return (
     <div className={className} style={{ display:"flex", alignItems:"center", justifyContent:"center",
       color:"rgba(255,255,255,.40)", fontSize:11, textAlign:"center", lineHeight:1.3, ...style }}>
@@ -290,9 +292,9 @@ function RandIcon({ item, className, style={} }) {
     </div>
   );
   return (
-    <img src={withAssetVersion(primary)} alt={s(item?.name_ko)||s(item?.id)}
+    <img src={withAssetVersion(useDefault ? DEFAULT_ICON : primary)} alt={s(item?.name_ko)||s(item?.id)}
       className={className} style={style} draggable={false}
-      onError={()=>{ setDead(true); }}
+      onError={()=>{ if (!useDefault && primary !== DEFAULT_ICON) setUseDefault(true); else setDead(true); }}
     />
   );
 }
@@ -472,17 +474,22 @@ function resolveIconUrl(url, sheet) {
   return abs.replace(/\.(png|svg|webp)$/i, ext);
 }
 
-/* 이미지 단일 URL 로드 (폴백 없음) */
+/* 이미지 단일 URL 로드 — 실패 시 default.png로 1회 대체 */
+function loadImgOnce(src) {
+  return new Promise(res => {
+    const el = new Image();
+    if (!/\.svg(\?|$)/i.test(src)) el.crossOrigin = "anonymous";
+    el.onload  = () => res(el);
+    el.onerror = () => res(null);
+    el.src = src;
+  });
+}
 async function loadImgWithFallback(url, sheet, itemId) {
   const resolved = resolveIconUrl(url, sheet);
   if (!resolved) return null;
-  return await new Promise(res => {
-    const el = new Image();
-    if (!/\.svg$/i.test(resolved)) el.crossOrigin = "anonymous";
-    el.onload  = () => res(el);
-    el.onerror = () => res(null);
-    el.src = withAssetVersion(resolved);
-  });
+  const img = await loadImgOnce(withAssetVersion(resolved));
+  if (img) return img;
+  return await loadImgOnce(withAssetVersion(window.location.origin + DEFAULT_ICON));
 }
 
 function rRect(ctx, x, y, w, h, r) {
@@ -752,12 +759,12 @@ async function exportLoadoutPng(captureRef, selected, wbSummary=[]) {
         "헬다이버 출동!":          { bg:"#0e2c2e", border:"rgba(247,243,82,.35)", tc:"#f7f352" },
         "결연한 베테랑":           { bg:"#ea630f", border:"rgba(255,255,255,.3)",  tc:"#ffffff" },
         "최첨단":                  { bg:"#0044ab", border:"rgba(96,216,255,.50)",  tc:"#ffffff" },
-        "민주적 폭파":             { bg:"#920f00", border:"rgba(239,143,0,.35)",   tc:"#ef8f00" },
-        "극지의 애국자":           { bg:"#3eb0e8", border:"rgba(255,255,255,.3)",  tc:"#ffffff" },
+        "민주적 폭파":             { bg:"#920f00", border:"rgba(239,143,0,.35)",   tc:"#ef8f00", glow:"#680800" },
+        "극지의 애국자":           { bg:"#3eb0e8", border:"rgba(255,255,255,.3)",  tc:"#ffffff", glow:"#2c7fbf" },
         "독사 특공대":             { bg:"#103318", border:"rgba(255,255,255,.2)",  tc:"#ffffff" },
         "자유의 불꽃":             { bg:"#562f18", border:"rgba(255,121,24,.35)",  tc:"#ff7918" },
         "화학 요원":               { bg:"#3c4209", border:"rgba(211,236,24,.3)",   tc:"#d3ec18" },
-        "진리의 집행자":           { bg:"#ceb7b7", border:"rgba(181,0,0,.4)",      tc:"#b50000" },
+        "진리의 집행자":           { bg:"#dcc9c9", border:"rgba(181,0,0,.4)",      tc:"#b50000" },
         "도시 전설":               { bg:"#3c4548", border:"rgba(206,174,0,.35)",   tc:"#ceae00" },
         "자유의 종복":             { bg:"#180000", border:"rgba(255,255,255,.2)",  tc:"#ffffff" },
         "정의의 경계선":           { bg:"#422d21", border:"rgba(221,218,221,.25)", tc:"#dddadd" },
@@ -813,7 +820,17 @@ async function exportLoadoutPng(captureRef, selected, wbSummary=[]) {
         ctx.strokeStyle = border; ctx.lineWidth = 1;
         rRect(ctx, wbX, wbCy, pw, WB_PILL_H_INNER, 8); ctx.stroke();
         ctx.fillStyle = tc; ctx.textBaseline = "middle"; ctx.textAlign = "left";
-        ctx.fillText(label, wbX + 7, wbCy + WB_PILL_H_INNER / 2);
+        if (sty?.glow) {
+          // 텍스트 가시성용 글로우 (민주적 폭파 / 극지의 애국자)
+          ctx.save();
+          ctx.shadowColor = sty.glow; ctx.shadowBlur = 6;
+          ctx.fillText(label, wbX + 7, wbCy + WB_PILL_H_INNER / 2);
+          ctx.shadowBlur = 2;
+          ctx.fillText(label, wbX + 7, wbCy + WB_PILL_H_INNER / 2);
+          ctx.restore();
+        } else {
+          ctx.fillText(label, wbX + 7, wbCy + WB_PILL_H_INNER / 2);
+        }
         wbX += pw + WB_GAP_X;
       }
     }
@@ -985,12 +1002,12 @@ const WB_STYLES = {
   "헬다이버 출동!":        { color:"#f7f352", background:"#0e2c2e", borderColor:"rgba(247,243,82,.35)" },
   "결연한 베테랑":         { color:"#ffffff", background:"#ea630f", borderColor:"rgba(255,255,255,.3)" },
   "최첨단":                { color:"#ffffff", background:"#0044ab", borderColor:"rgba(96,216,255,.50)", textShadow:"0 0 10px #40efff" },
-  "민주적 폭파":           { color:"#ef8f00", background:"#920f00", borderColor:"rgba(239,143,0,.35)"  },
-  "극지의 애국자":         { color:"#ffffff", background:"#3eb0e8", borderColor:"rgba(255,255,255,.3)" },
+  "민주적 폭파":           { color:"#ef8f00", background:"#920f00", borderColor:"rgba(239,143,0,.35)", textShadow:"0 0 6px #680800, 0 0 2px #680800" },
+  "극지의 애국자":         { color:"#ffffff", background:"#3eb0e8", borderColor:"rgba(255,255,255,.3)", textShadow:"0 0 6px #2c7fbf, 0 0 2px #2c7fbf" },
   "독사 특공대":           { color:"#ffffff", background:"#103318", borderColor:"rgba(255,255,255,.2)" },
   "자유의 불꽃":           { color:"#ff7918", background:"#562f18", borderColor:"rgba(255,121,24,.35)" },
   "화학 요원":             { color:"#d3ec18", background:"#3c4209", borderColor:"rgba(211,236,24,.3)"  },
-  "진리의 집행자":         { color:"#b50000", background:"#ceb7b7", borderColor:"rgba(181,0,0,.4)"     },
+  "진리의 집행자":         { color:"#b50000", background:"#dcc9c9", borderColor:"rgba(181,0,0,.4)"     },
   "도시 전설":             { color:"#ceae00", background:"#3c4548", borderColor:"rgba(206,174,0,.35)"  },
   "자유의 종복":           { color:"#ffffff", background:"#180000", borderColor:"rgba(255,255,255,.2)" },
   "정의의 경계선":         { color:"#dddadd", background:"#422d21", borderColor:"rgba(221,218,221,.25)"},

@@ -6,6 +6,9 @@
 // → 아이콘을 교체/수정한 경우에만 ASSET_VERSION 값을 올려서 배포하세요. (새 파일 추가만 했다면 안 올려도 됨)
 export const ASSET_VERSION = "26.11.26";
 
+// 이미지 파일이 없을 때(404) 대신 표시할 기본 이미지
+export const DEFAULT_ICON = "/icons/default.png";
+
 // 같은 사이트의 이미지 경로에 ?v=ASSET_VERSION 을 붙입니다.
 // 외부 URL, data:, blob:, 이미 v= 가 붙은 경로는 그대로 둡니다.
 export function withAssetVersion(url) {

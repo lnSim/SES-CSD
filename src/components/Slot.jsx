@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { withAssetVersion } from "../assetVersion";
+import { withAssetVersion, DEFAULT_ICON } from "../assetVersion";
 
 const s = (v) => String(v ?? "").trim();
 
@@ -25,11 +25,12 @@ function forceExt(url, ext) {
 }
 
 function SlotImg({ src, alt, className, style, sheet, itemId }) {
-  const raw     = normalizeIconPath(src) || "/icons/_default.png";
+  const raw     = normalizeIconPath(src) || DEFAULT_ICON;
   const ext     = resolveExt(sheet, itemId);
   const primary = forceExt(raw, ext);
+  const [useDefault, setUseDefault] = useState(false); // 이미지 없음 → default.png로 대체
   const [dead, setDead] = useState(false);
-  useEffect(() => { setDead(false); }, [primary]);
+  useEffect(() => { setUseDefault(false); setDead(false); }, [primary]);
   if (dead) return (
     <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
       width:"100%", height:"100%", color:"rgba(255,255,255,0.40)", fontSize:11,
@@ -38,9 +39,9 @@ function SlotImg({ src, alt, className, style, sheet, itemId }) {
     </div>
   );
   return (
-    <img className={className} src={withAssetVersion(primary)} alt={alt} draggable={false}
+    <img className={className} src={withAssetVersion(useDefault ? DEFAULT_ICON : primary)} alt={alt} draggable={false}
       style={{ background:"transparent", ...style }}
-      onError={() => { setDead(true); }}
+      onError={() => { if (!useDefault && primary !== DEFAULT_ICON) setUseDefault(true); else setDead(true); }}
     />
   );
 }
