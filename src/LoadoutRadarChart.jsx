@@ -107,10 +107,14 @@ function RaceIcon({ race, faction, size = 16 }) {
     />
   );
 }
+// text/glow: 게시판 팩션 배지·버튼과 동일 (loadoutShared FACTION_META)
 const RACE_COLORS = {
-  "테르미니드": { bg:"rgba(255,193,0,.12)",  border:"rgba(255,193,0,.45)",  text:"#ffc100" },
-  "오토마톤":   { bg:"rgba(235,52,58,.12)",  border:"rgba(235,52,58,.45)",  text:"#eb343a" },
-  "일루미닛":   { bg:"rgba(164,25,248,.12)", border:"rgba(164,25,248,.45)", text:"#a419f8" },
+  "테르미니드": { bg:"rgba(255,193,0,.12)",  border:"rgba(255,193,0,.45)",  text:"#f2c85b",
+                  glow:"0 0 6px rgba(200,105,20,.80), 0 0 14px rgba(200,105,20,.40)" },
+  "오토마톤":   { bg:"rgba(235,52,58,.12)",  border:"rgba(235,52,58,.45)",  text:"#f2696d",
+                  glow:"0 0 6px rgba(235,52,58,.75), 0 0 14px rgba(235,52,58,.35)" },
+  "일루미닛":   { bg:"rgba(164,25,248,.12)", border:"rgba(164,25,248,.45)", text:"#bf5efa",
+                  glow:"0 0 6px rgba(118,30,186,.90), 0 0 14px rgba(118,30,186,.50)" },
 };
 
 // 태그 보유 여부 헬퍼 (모듈 레벨 — calcRadarLayers + LoadoutRadarChart 공용)
@@ -1600,6 +1604,7 @@ export default function LoadoutRadarChart({ selected, requirements = [], flyingE
                     border:`1px solid ${isActive ? col.border : "rgba(255,255,255,.14)"}`,
                     background: isActive ? col.bg : "rgba(255,255,255,.04)",
                     color: isActive ? col.text : "rgba(255,255,255,.55)",
+                    textShadow: isActive ? col.glow : "none",
                     fontSize:12, fontWeight:700, cursor:"pointer",
                     transition:"all .15s",
                     display:"flex", alignItems:"center", gap:5,
@@ -1675,6 +1680,7 @@ export default function LoadoutRadarChart({ selected, requirements = [], flyingE
                       border:`1px solid ${isActive ? col.border : "rgba(255,255,255,.10)"}`,
                       background: isActive ? col.bg : "rgba(255,255,255,.04)",
                       color: isActive ? col.text : "rgba(255,255,255,.50)",
+                      textShadow: isActive ? col.glow : "none",
                       fontSize:11, fontWeight:700, cursor:"pointer",
                       transition:"all .15s",
                     }}>
@@ -1712,7 +1718,7 @@ export default function LoadoutRadarChart({ selected, requirements = [], flyingE
               borderRadius:10, padding:"10px 12px",
               display:"flex", flexDirection:"column", gap:6,
             }}>
-              <div style={{ fontSize:13, fontWeight:700, color:col.text, marginBottom:2, display:"flex", alignItems:"center", flexWrap:"wrap", gap:6 }}>
+              <div style={{ fontSize:13, fontWeight:700, color:col.text, textShadow:col.glow, marginBottom:2, display:"flex", alignItems:"center", flexWrap:"wrap", gap:6 }}>
                 <RaceIcon race={selectedRace} faction={reqData.faction} size={18} /> {reqData.faction} — 권장 수치
                 {getFlyingWarning(selectedRace, reqData.faction) && (
                   <span style={{

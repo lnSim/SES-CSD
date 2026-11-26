@@ -25,7 +25,7 @@ const WB_STYLES = {
   "헬다이버 출동!":         { color:"#f7f352", background:"#0e2c2e" },
   "결연한 베테랑":          { color:"#ffffff", background:"#ea630f" },
   "최첨단":                { color:"#ffffff", background:"#0044ab", borderColor:"rgba(96,216,255,.50)", textShadow:"0 0 10px #40efff" },
-  "민주적 폭파":            { color:"#ef8f00", background:"#920f00", textShadow:"0 0 6px #680800, 0 0 2px #680800" },
+  "민주적 폭파":            { color:"#ffa62e", background:"#920f00", textShadow:"0 0 6px #680800, 0 0 2px #680800" },
   "극지의 애국자":          { color:"#ffffff", background:"#3eb0e8", textShadow:"0 0 6px #2c7fbf, 0 0 2px #2c7fbf" },
   "독사 특공대":            { color:"#ffffff", background:"#103318" },
   "자유의 불꽃":            { color:"#ff7918", background:"#562f18" },
@@ -284,12 +284,11 @@ function ItemIcon({ item, style={} }) {
   );
 }
 
-function makeInitFilters(wbOptions, storageKey) {
+/* 소지 전쟁 채권(ownedWb)은 App에서 전역으로 관리 — 여기서는 나머지 필터만 슬롯별로 저장 */
+function makeInitFilters(storageKey) {
   const saved = lsGet(storageKey);
-  if (saved && Array.isArray(saved.ownedWb)) {
-    const valid = saved.ownedWb.filter(w => wbOptions.includes(w));
+  if (saved) {
     return {
-      ownedWb:              new Set(valid),
       armorValue:           new Set(Array.isArray(saved.armorValue) ? saved.armorValue : []),
       passive:              new Set(Array.isArray(saved.passive)    ? saved.passive    : []),
       armorPen:             new Set(Array.isArray(saved.armorPen)   ? saved.armorPen   : []),
@@ -300,7 +299,122 @@ function makeInitFilters(wbOptions, storageKey) {
       includeSuperCitizen:  !!saved.includeSuperCitizen,
     };
   }
-  return { ownedWb:new Set(wbOptions), armorValue:new Set(), passive:new Set(), armorPen:new Set(), traits:new Set(), weaponType:new Set(), stratSubType:new Set(), includeSuperStore:true, includeSuperCitizen:false };
+  return { armorValue:new Set(), passive:new Set(), armorPen:new Set(), traits:new Set(), weaponType:new Set(), stratSubType:new Set(), includeSuperStore:true, includeSuperCitizen:false };
+}
+
+/* ── 아이템 목록에서 "소지 선택 대상" 전쟁 채권 목록 산출 (기본/캠페인/해방절/슈퍼스토어/슈퍼시민권 제외) ── */
+export function getWbOptionsFromItems(items) {
+  const all = uniqInOrder((items ?? []).map(getWB));
+  const filtered = all.filter(wb => wb && !WB_ALWAYS_INCLUDE.has(wb) && !isSuperStore({wbrequirement:wb}) && wb !== SUPER_CITIZEN_WB);
+  return sortWbList(filtered);
+}
+
+/* ── 소지 전쟁 채권 선택 팝업 (최초 접속 1회 + 모바일 필터에서 호출) ──
+ * mode "first": 바깥 클릭으로 닫히지 않음, 취소 버튼 없음 */
+/* ── 채권 블럭 구성품: 분류별로 줄 단위 표시 ──
+ * 주무기 > 보조무기 > 투척 > 방어구(패시브) > 스트라타젬(지원무기 > 배낭 > 탑승물 > 방어 > 공격) */
+const WB_STRAT_SUPPORT_WEAPON_SUBS = new Set(["지원무기","지원배낭 무기","일회용 지원무기"]);
+function getWbComponentGroup(it) {
+  const tp = getType(it);
+  if (tp === "주무기")   return "주무기";
+  if (tp === "보조무기") return "보조무기";
+  if (tp === "투척무기") return "투척";
+  if (tp === "armor")    return "방어구";
+  if (tp === "stratagem") {
+    const sub = getSubType(it);
+    if (WB_STRAT_SUPPORT_WEAPON_SUBS.has(sub)) return "지원무기";
+    if (sub === "배낭")   return "배낭";
+    if (sub === "탑승물") return "탑승물";
+    return getStratType(it) === "방어" ? "방어" : "공격";
+  }
+  return "기타";
+}
+const WB_COMPONENT_GROUP_ORDER = ["주무기","보조무기","투척","방어구","지원무기","배낭","탑승물","방어","공격","기타"];
+
+/* 비활성(미소지) 채권 블럭: 짙은 회색, 채권 강조색 없음 */
+const WB_BLOCK_INACTIVE_STYLE = {
+  color:"rgba(255,255,255,.42)", background:"#232323",
+  borderColor:"rgba(255,255,255,.10)", textShadow:"none", opacity:1,
+};
+
+export function WbOwnedPopup({ open, mode="edit", allWb, owned, items=[], onConfirm, onClose }) {
+  const [draft, setDraft] = useState(() => new Set());
+  // Map<채권, [{ group, names[] }]> — 그룹은 표시 순서대로
+  const componentsByWb = useMemo(() => {
+    const tmp = new Map();
+    for (const it of items) {
+      const wb = getWB(it), name = s(it?.name_ko);
+      if (!wb || !name) continue;
+      const g = getWbComponentGroup(it);
+      const label = g === "방어구" && getPassive(it) ? `${name}(${getPassive(it)})` : name;
+      if (!tmp.has(wb)) tmp.set(wb, new Map());
+      const groups = tmp.get(wb);
+      if (!groups.has(g)) groups.set(g, []);
+      if (!groups.get(g).includes(label)) groups.get(g).push(label);
+    }
+    const out = new Map();
+    for (const [wb, groups] of tmp) {
+      out.set(wb, WB_COMPONENT_GROUP_ORDER.filter(g => groups.has(g)).map(g => ({ group:g, names:groups.get(g) })));
+    }
+    return out;
+  }, [items]);
+  useEffect(() => { if (open) setDraft(new Set(owned ?? [])); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!open) return null;
+  const isFirst = mode === "first";
+  const toggle = (wb) => setDraft(p => { const n=new Set(p); n.has(wb)?n.delete(wb):n.add(wb); return n; });
+  const count = allWb.filter(w => draft.has(w)).length;
+  return (
+    <div className="wbOwnedOverlay"
+      onClick={e => { e.stopPropagation(); if (!isFirst) onClose?.(); }}
+      onContextMenu={e => { e.preventDefault(); e.stopPropagation(); if (!isFirst) onClose?.(); }}>
+      <div className="wbOwnedCard" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true">
+        <div className="wbOwnedHeader">
+          <div className="wbOwnedTitle">현재 소지한 전쟁 채권을 선택해주세요.</div>
+          {isFirst && (
+            <div className="wbOwnedDesc">선택한 채권의 장비만 선택창에 표시됩니다. 이후 필터에서 언제든 변경할 수 있습니다.</div>
+          )}
+        </div>
+        <div className="wbOwnedToolbar">
+          <span className="wbOwnedCount">{count} / {allWb.length}</span>
+          <div style={{ display:"flex", gap:6 }}>
+            <button className="filterMiniBtn" type="button" onClick={() => setDraft(new Set(allWb))}>전체 선택</button>
+            <button className="filterMiniBtn" type="button" onClick={() => setDraft(new Set())}>전체 해제</button>
+          </div>
+        </div>
+        <div className="wbOwnedList">
+          {allWb.map(wb => {
+            const checked = draft.has(wb);
+            const st = checked ? getWbFilterStyle(wb, true) : WB_BLOCK_INACTIVE_STYLE;
+            const comps = componentsByWb.get(wb) ?? [];
+            return (
+              <button key={wb} type="button" className={`wbOwnedBlock ${checked ? "on" : ""}`}
+                style={{ color:st.color, background:st.background, borderColor:st.borderColor, textShadow:st.textShadow ?? "none", opacity:st.opacity }}
+                onClick={() => toggle(wb)} aria-pressed={checked}
+              >
+                <span className="wbOwnedBlockName">{wb}</span>
+                {comps.length > 0 && (
+                  <span className="wbOwnedBlockItems">
+                    {comps.map(({ group, names }) => (
+                      <span key={group} className="wbOwnedBlockLine">
+                        <span className="wbOwnedBlockGroup">{group}</span>
+                        <span className="wbOwnedBlockNames">
+                          {names.map(n => <span key={n}>{n}</span>)}
+                        </span>
+                      </span>
+                    ))}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+        <div className="wbOwnedActions">
+          {!isFirst && <button className="wbOwnedCancel" type="button" onClick={onClose}>취소</button>}
+          <button className="wbOwnedConfirm" type="button" onClick={() => onConfirm(draft)}>선택 완료</button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function PickerModal({
@@ -309,23 +423,23 @@ export default function PickerModal({
   onPick, onClose,
   selectedStratagemIds, activeStratagemPickedId,
   stratagemSlots, activeSlotIndex, onPreviewSlotClick,
+  ownedWb, onOpenWbPopup,
 }) {
+  const owned = ownedWb ?? new Set();
+  const [passivePopupOpen, setPassivePopupOpen] = useState(false);
+  const [passiveQuery,     setPassiveQuery]     = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
   const [searchText, setSearchText] = useState("");
   const isStratagemMode = slotKind === "stratagem";
   const isArmorMode     = slotKind === "armor";
   const isMergedPen     = slotKind === "secondary" || slotKind === "throwable";
   const storageKey      = `pickerFilters_v7:${slotKind||"unknown"}`;
-  const isMobile        = typeof window !== "undefined" && window.innerWidth <= 700;
 
-  const wbOptions = useMemo(() => {
-    const all = uniqInOrder(items.map(getWB));
-    const filtered = all.filter(wb => wb && !WB_ALWAYS_INCLUDE.has(wb) && !isSuperStore({wbrequirement:wb}) && wb !== SUPER_CITIZEN_WB);
-    return sortWbList(filtered);
-  }, [items]);
+  const wbOptions = useMemo(() => getWbOptionsFromItems(items), [items]);
+  const ownedCountInSlot = useMemo(() => wbOptions.filter(w => owned.has(w)).length, [wbOptions, owned]);
 
   const [filters, setFilters] = useState(() => ({
-    ownedWb:new Set(), armorValue:new Set(), passive:new Set(),
+    armorValue:new Set(), passive:new Set(),
     armorPen:new Set(), traits:new Set(), weaponType:new Set(),
     stratSubType:new Set(),
     includeSuperStore:true, includeSuperCitizen:false,
@@ -337,17 +451,17 @@ export default function PickerModal({
     if (wbOptions.length===0) return;
     if (initializedForKey.current===storageKey) return;
     initializedForKey.current = storageKey;
-    setFilters(makeInitFilters(wbOptions, storageKey));
+    setFilters(makeInitFilters(storageKey));
   }, [open, wbOptions, storageKey]);
 
   useEffect(() => {
-    if (!open) { initializedForKey.current=""; setFilterOpen(false); setSearchText(""); }
+    if (!open) { initializedForKey.current=""; setFilterOpen(false); setSearchText(""); setPassivePopupOpen(false); setPassiveQuery(""); }
   }, [open]);
 
   useEffect(() => {
     if (!open || initializedForKey.current!==storageKey) return;
     lsSet(storageKey, {
-      ownedWb:Array.from(filters.ownedWb), armorValue:Array.from(filters.armorValue),
+      armorValue:Array.from(filters.armorValue),
       passive:Array.from(filters.passive),  armorPen:Array.from(filters.armorPen),
       traits:Array.from(filters.traits),    weaponType:Array.from(filters.weaponType),
       stratSubType:Array.from(filters.stratSubType),
@@ -355,10 +469,9 @@ export default function PickerModal({
     });
   }, [filters, open, storageKey]);
 
-  const togOwn          = (wb)  => setFilters(p => { const o=new Set(p.ownedWb); o.has(wb)?o.delete(wb):o.add(wb); return {...p,ownedWb:o}; });
-  const selAll          = ()    => setFilters(p => ({...p, ownedWb:new Set(wbOptions)}));
-  const deselAll        = ()    => setFilters(p => ({...p, ownedWb:new Set()}));
-  const resetAll        = ()    => setFilters({ownedWb:new Set(wbOptions),armorValue:new Set(),passive:new Set(),armorPen:new Set(),traits:new Set(),weaponType:new Set(),stratSubType:new Set(),includeSuperStore:true,includeSuperCitizen:false});
+  /* 소지 채권: 전역 상태(App) 변경 — 모든 선택창에 공통 적용 */
+  // 필터 초기화는 소지 채권은 건드리지 않음 (소지 여부는 필터가 아닌 보유 정보)
+  const resetAll        = ()    => setFilters({armorValue:new Set(),passive:new Set(),armorPen:new Set(),traits:new Set(),weaponType:new Set(),stratSubType:new Set(),includeSuperStore:true,includeSuperCitizen:false});
   const togSet          = (k,v) => setFilters(p => { const s2=new Set(p[k]); const next=new Set(); if(!s2.has(v)) next.add(v); return {...p,[k]:next}; });
   const togSuper        = ()    => setFilters(p => ({...p, includeSuperStore:!p.includeSuperStore}));
   const togSuperCitizen = ()    => setFilters(p => ({...p, includeSuperCitizen:!p.includeSuperCitizen}));
@@ -405,14 +518,17 @@ export default function PickerModal({
     if (isSuperCitizen(it))        return true;   // 항상 표시
     if (WB_ALWAYS_INCLUDE.has(wb)) return true;
     if (!wb)                       return true;
-    return filters.ownedWb.has(wb);
-  }), [items, filters.ownedWb, isStratagemMode]);
+    return owned.has(wb);
+  }), [items, owned]);
 
   const filterOptions = useMemo(() => {
     if (isStratagemMode) return {};
     if (isArmorMode) {
       return {
-        armorValue: uniqInOrder(itemsByOwnership.map(getArmorValue)).sort((a,b) => {
+        // 장갑 등급: 선택된 패시브(소지 채권 반영)를 가진 방어구에 실제로 있는 등급만 표시
+        armorValue: uniqInOrder(itemsByOwnership
+          .filter(it => filters.passive.size===0 || filters.passive.has(getPassive(it)))
+          .map(getArmorValue)).sort((a,b) => {
           const ord=["경량","일반","중량"]; const ai=ord.indexOf(a),bi=ord.indexOf(b);
           if(ai!==-1&&bi!==-1) return ai-bi; return a.localeCompare(b,"ko");
         }),
@@ -450,7 +566,16 @@ export default function PickerModal({
     }
 
     return { armorPen:penLabels, traits:allTraits.sort((a,b)=>a.localeCompare(b,"ko")), weaponTypes };
-  }, [itemsByOwnership, filters.weaponType, filters.armorPen, filters.traits, isStratagemMode, isArmorMode, isMergedPen, slotKind, isWeapon]);
+  }, [itemsByOwnership, filters.weaponType, filters.armorPen, filters.traits, filters.passive, isStratagemMode, isArmorMode, isMergedPen, slotKind, isWeapon]);
+
+  // 선택돼 있던 장갑 등급이 더 이상 선택지에 없으면 해제 (보이지 않는 필터로 목록이 비는 것 방지)
+  useEffect(() => {
+    if (!isArmorMode || filters.armorValue.size===0) return;
+    const opts = filterOptions.armorValue ?? [];
+    if ([...filters.armorValue].some(v => !opts.includes(v))) {
+      setFilters(p => ({ ...p, armorValue:new Set([...p.armorValue].filter(v => opts.includes(v))) }));
+    }
+  }, [filterOptions.armorValue]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filteredItems = useMemo(() => {
     const query = searchText.trim().toLowerCase();
@@ -566,8 +691,22 @@ export default function PickerModal({
     return { order, map };
   }, [filteredItems, isStratagemMode, isWeapon]);
 
+  /* 패시브 → 설명(passiveInfo) — 모바일 패시브 선택 팝업용 */
+  const passiveInfoMap = useMemo(() => {
+    const m = new Map();
+    for (const it of items) { const p=getPassive(it), info=s(it?.passiveInfo); if (p && info && !m.has(p)) m.set(p, info); }
+    return m;
+  }, [items]);
+  const passiveList = useMemo(() => {
+    const q = passiveQuery.trim().toLowerCase();
+    const opts = filterOptions.passive ?? [];
+    if (!q) return opts;
+    return opts.filter(p => p.toLowerCase().includes(q) || (passiveInfoMap.get(p) ?? "").toLowerCase().includes(q));
+  }, [filterOptions.passive, passiveQuery, passiveInfoMap]);
+  const selectedPassive = [...filters.passive][0] ?? "";
+
   const isFilterActive =
-    filters.ownedWb.size < wbOptions.length
+    ownedCountInSlot < wbOptions.length
     || (isArmorMode && (filters.armorValue.size>0 || filters.passive.size>0))
     || (isWeapon   && (filters.armorPen.size>0   || filters.traits.size>0 || filters.weaponType.size>0))
     || (isStratagemMode && filters.stratSubType.size>0);
@@ -624,31 +763,8 @@ export default function PickerModal({
           <div className="filterPanel">
             <div className="filterGroup">
               <div className="filterHead">
-                <div className="filterTitle">전쟁 채권 (소지) — {filters.ownedWb.size}/{wbOptions.length}</div>
-                <div style={{ display:"flex", gap:6 }}>
-                  <button className="filterMiniBtn" onClick={selAll}   type="button">전체 선택</button>
-                  <button className="filterMiniBtn" onClick={deselAll} type="button">전체 해제</button>
-                </div>
-              </div>
-              <div className="filterChips">
-                {!wbOptions.length && <div className="filterEmpty">옵션 없음</div>}
-                {wbOptions.map(wb => {
-                  const checked = filters.ownedWb.has(wb);
-                  const st = getWbFilterStyle(wb, checked);
-                  return (
-                    <button key={wb} type="button"
-                      className="filterWbChip"
-                      style={{
-                        color:      st.color,
-                        background: st.background,
-                        borderColor:st.borderColor,
-                        textShadow: st.textShadow ?? "none",
-                        opacity:    st.opacity,
-                      }}
-                      onClick={() => togOwn(wb)}
-                    >{wb}</button>
-                  );
-                })}
+                <div className="filterTitle">전쟁 채권 (소지) — {ownedCountInSlot}/{wbOptions.length}</div>
+                <button className="filterMiniBtn filterPopupBtn" onClick={() => onOpenWbPopup?.()} type="button">소지 채권 선택</button>
               </div>
             </div>
             {isStratagemMode && (
@@ -658,7 +774,7 @@ export default function PickerModal({
                   options={["궤도","이글","지원무기","배낭 지원무기","일회용 지원무기","배낭","탑승물","센트리","거치포","배치형"]}
                   selected={filters.stratSubType}
                   onToggle={v => setFilters(p => ({ ...p, stratSubType: p.stratSubType.has(v) ? new Set() : new Set([v]) }))}
-                  collapsible={isMobile}
+                  collapsible={false}
                 />
                 <div className="filterFooter">
                   <button className="filterResetBtn" onClick={resetAll} type="button">필터 선택 초기화</button>
@@ -667,8 +783,16 @@ export default function PickerModal({
             )}
             {isArmorMode && (
               <>
-                <FilterGroup title="장갑 등급" options={filterOptions.armorValue??[]} selected={filters.armorValue} onToggle={v=>togSet("armorValue",v)} collapsible={isMobile} />
-                <FilterGroup title="패시브"    options={filterOptions.passive??[]}    selected={filters.passive}    onToggle={v=>togSet("passive",v)}    collapsible={isMobile} />
+                <div className="filterGroup">
+                  <div className="filterHead">
+                    <div className="filterTitle" style={{ display:"flex", alignItems:"center", gap:6, minWidth:0 }}>
+                      패시브
+                      {selectedPassive && <span className="filterPassiveCurrent">{selectedPassive}</span>}
+                    </div>
+                    <button className="filterMiniBtn filterPopupBtn" onClick={() => setPassivePopupOpen(true)} type="button">패시브 선택</button>
+                  </div>
+                </div>
+                <FilterGroup title="장갑 등급" options={filterOptions.armorValue??[]} selected={filters.armorValue} onToggle={v=>togSet("armorValue",v)} collapsible={false} />
                 <div className="filterFooter">
                   <button className="filterResetBtn" onClick={resetAll} type="button">필터 선택 초기화</button>
                 </div>
@@ -677,10 +801,10 @@ export default function PickerModal({
             {isWeapon && (
               <>
                 {isWeapon && (filterOptions.weaponTypes??[]).length>0 && (
-                  <FilterGroup title="무기 소분류" options={filterOptions.weaponTypes??[]} selected={filters.weaponType} onToggle={v=>togSet("weaponType",v)} collapsible={isMobile} />
+                  <FilterGroup title="무기 소분류" options={filterOptions.weaponTypes??[]} selected={filters.weaponType} onToggle={v=>togSet("weaponType",v)} collapsible={false} />
                 )}
-                <FilterGroup title="장갑 관통" options={filterOptions.armorPen??[]} selected={filters.armorPen} onToggle={v=>togSet("armorPen",v)} collapsible={isMobile} />
-                <FilterGroup title="특성"      options={filterOptions.traits??[]}   selected={filters.traits}   onToggle={v=>togSet("traits",v)}   collapsible={isMobile} />
+                <FilterGroup title="장갑 관통" options={filterOptions.armorPen??[]} selected={filters.armorPen} onToggle={v=>togSet("armorPen",v)} collapsible={false} />
+                <FilterGroup title="특성"      options={filterOptions.traits??[]}   selected={filters.traits}   onToggle={v=>togSet("traits",v)}   collapsible={false} />
                 <div className="filterFooter">
                   <button className="filterResetBtn" onClick={resetAll} type="button">필터 선택 초기화</button>
                 </div>
@@ -867,6 +991,42 @@ export default function PickerModal({
           </div>
         )}
       </div>
+
+      {/* 모바일 패시브 선택 팝업 */}
+      {passivePopupOpen && (
+        <div className="wbOwnedOverlay"
+          onClick={e => { e.stopPropagation(); setPassivePopupOpen(false); }}
+          onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setPassivePopupOpen(false); }}>
+          <div className="wbOwnedCard passivePopupCard" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true">
+            <div className="wbOwnedHeader">
+              <div className="wbOwnedTitle">방어구 패시브 선택</div>
+            </div>
+            <div className="modalSearchBar" style={{ padding:"10px 16px 4px" }}>
+              <input className="modalSearchInput" type="text" placeholder="패시브 이름, 효과로 검색…"
+                value={passiveQuery} onChange={e => setPassiveQuery(e.target.value)}
+                autoComplete="off" spellCheck={false} />
+              {passiveQuery && <button className="modalSearchClear" onClick={() => setPassiveQuery("")} type="button">✕</button>}
+            </div>
+            <div className="passivePopupList">
+              <button type="button" className={`passivePopupItem ${!selectedPassive?"on":""}`}
+                onClick={() => { setFilters(p => ({...p, passive:new Set()})); setPassivePopupOpen(false); }}>
+                <span className="passivePopupName">패시브 전체</span>
+              </button>
+              {passiveList.length === 0 && <div className="filterEmpty" style={{ padding:"12px 4px" }}>검색 결과가 없습니다.</div>}
+              {passiveList.map(p => (
+                <button key={p} type="button" className={`passivePopupItem ${selectedPassive===p?"on":""}`}
+                  onClick={() => { setFilters(f => ({...f, passive:new Set([p])})); setPassivePopupOpen(false); }}>
+                  <span className="passivePopupName">{p}</span>
+                  {passiveInfoMap.get(p) && <span className="passivePopupInfo">{passiveInfoMap.get(p)}</span>}
+                </button>
+              ))}
+            </div>
+            <div className="wbOwnedActions">
+              <button className="wbOwnedCancel" type="button" onClick={() => setPassivePopupOpen(false)}>닫기</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -2,12 +2,21 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 
 import Slot from "./components/Slot";
-import PickerModal from "./components/PickerModal";
+import PickerModal, { WbOwnedPopup, getWbOptionsFromItems } from "./components/PickerModal";
 import SelectedPanel from "./components/SelectedPanel";
 import LoadoutRadarChart, { calcRadarLayers } from "./LoadoutRadarChart";
 import { withAssetVersion, DEFAULT_ICON } from "./assetVersion";
+import LoadoutBoard, { BoardPostModal } from "./components/LoadoutBoard";
+import {
+  normalizeIcon, RandIcon, FilterSelect,
+  SUPPORT_WEAPON_SUBTYPES_ALL, getSupportWeaponInfo, getSupportClass, SUPPORT_CLASS_ORDER, sortWeaponTypes,
+  LOADOUT_CODE_PREFIX, encodeLoadoutCode, decodeLoadoutCode, copyText,
+  IconCopy, IconLoad, IconTrash, IconCheck,
+  EMPTY_SLOT_LABEL, getWbBadgeStyle, computeWbSummary, hasAnyItem,
+} from "./loadoutShared";
 
 const DEPLOYMENT_ID = import.meta.env.VITE_GAS_DEPLOYMENT_ID;
+const GAS_URL = `https://script.google.com/macros/s/${DEPLOYMENT_ID}/exec`;  // 게시판 조회/쓰기 (브라우저 직접 호출)
 
 const SLOT_TO_TYPE = {
   armor:"armor", primary:"주무기", secondary:"보조무기",
@@ -84,6 +93,42 @@ function fetchGasData() {
   });
 }
 
+/* ── 소지 전쟁 채권 (모든 선택창 공통) ──
+ * 저장 형식: { owned:[채권명...] } — 키가 없으면 "아직 설정하지 않음"
+ * 이전 버전(pickerFilters_v7:슬롯)의 슬롯별 소지 채권은 최초 1회 합집합으로 이전 */
+const OWNED_WB_KEY = "ownedWarBonds_v1";
+const LEGACY_PICKER_KEY_PREFIX = "pickerFilters_v7:";
+const LEGACY_SLOT_TYPES = { stratagem:"stratagem", armor:"armor", primary:"주무기", secondary:"보조무기", throwable:"투척무기" };
+function ownedWbLoad() {
+  try {
+    const r = localStorage.getItem(OWNED_WB_KEY);
+    if (!r) return null;
+    const o = JSON.parse(r);
+    return Array.isArray(o?.owned) ? o.owned : null;
+  } catch { return null; }
+}
+function ownedWbSave(set) { try { localStorage.setItem(OWNED_WB_KEY, JSON.stringify({ owned:[...set] })); } catch {} }
+function hasLegacyPickerFilters() {
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      if (String(localStorage.key(i)).startsWith(LEGACY_PICKER_KEY_PREFIX)) return true;
+    }
+  } catch {}
+  return false;
+}
+/* 슬롯별 이전 설정 → 합집합. 열어본 적 없는 슬롯은 이전 기본값(전체 소지)으로 간주 */
+function migrateLegacyOwnedWb(items) {
+  const owned = new Set();
+  for (const [slot, type] of Object.entries(LEGACY_SLOT_TYPES)) {
+    const opts = getWbOptionsFromItems(items.filter(it => it.type === type));
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem(LEGACY_PICKER_KEY_PREFIX + slot) || "null"); } catch {}
+    const list = Array.isArray(saved?.ownedWb) ? saved.ownedWb.filter(w => opts.includes(w)) : opts;
+    list.forEach(w => owned.add(w));
+  }
+  return owned;
+}
+
 /* ── 신규 채권 미리보기 오버레이 ── */
 // ★ 채권 업데이트 시 WB_NOTICE_VERSION을 바꾸면 모든 사용자에게 재표시됨
 const WB_NOTICE_VERSION = "v_권위의가늠자";
@@ -135,7 +180,7 @@ function WbItemIcon({ src, alt }) {
   );
 }
 
-function WbNoticeOverlay({ onClose }) {
+function WbNoticeOverlay({ onClose, isActivated=false, onActivate }) {
   const [fading, setFading] = useState(false);
   const handleClose = (permanent) => {
     if (permanent) wbNoticeSetDismiss();
@@ -241,6 +286,10 @@ function WbNoticeOverlay({ onClose }) {
 
         {/* 하단 */}
         <div className="wbNoticeActions">
+          <button type="button" className="wbNoticeActivateBtn"
+            disabled={isActivated} onClick={() => onActivate?.()}>
+            {isActivated ? "해당 채권 활성화됨 ✓" : "해당 채권 활성화"}
+          </button>
           <button type="button" className="wbNoticePermanentBtn" onClick={() => handleClose(true)}>
             채권 업데이트 전까지 해당 창을 표시하지 않기
           </button>
@@ -265,178 +314,19 @@ const DEFAULT_LOADOUT_IDS = {
   throwable: "th_gr_g12",    // G-12 고폭
 };
 
-function normalizeIcon(it) {
-  const id=s(it?.id), raw=s(it?.icon);
-  if (raw) return /^https?:\/\//i.test(raw)?raw:raw.startsWith("/")?raw:`/${raw}`;
-  if (!id) return DEFAULT_ICON;
-  return `/icons/${s(it?.sheet||it?.sheetName||it?.type)||"misc"}/${id}.png`;
-}
 function normalizeItem(it) {
   const type=s(it?.type);
   return { ...it, id:s(it?.id), type, icon:normalizeIcon({...it,type}) };
 }
 
-/* ── 무작위 결과 카드용 이미지 컴포넌트 (sheet 기반 단일 확장자) ── */
-function RandIcon({ item, className, style={} }) {
-  const sheet   = s(item?.sheet || item?.sheetName || item?.type);
-  const ext     = sheet.toLowerCase() === "stratagem" ? ".svg" : ".png";
-  const base    = s(item?.icon) || normalizeIcon(item);
-  const primary = base.replace(/\.(png|svg|webp)$/i, ext);
-  const [useDefault, setUseDefault] = useState(false); // 이미지 없음 → default.png로 대체
-  const [dead, setDead] = useState(false);
-  useEffect(()=>{ setUseDefault(false); setDead(false); }, [primary]);
-  if (dead) return (
-    <div className={className} style={{ display:"flex", alignItems:"center", justifyContent:"center",
-      color:"rgba(255,255,255,.40)", fontSize:11, textAlign:"center", lineHeight:1.3, ...style }}>
-      이미지<br/>준비중
-    </div>
-  );
-  return (
-    <img src={withAssetVersion(useDefault ? DEFAULT_ICON : primary)} alt={s(item?.name_ko)||s(item?.id)}
-      className={className} style={style} draggable={false}
-      onError={()=>{ if (!useDefault && primary !== DEFAULT_ICON) setUseDefault(true); else setDead(true); }}
-    />
-  );
-}
 
-/* ── 필터용 커스텀 드롭다운 (사이트 시그니처 다크+옐로우 테마) ──
- * 데스크톱: 버튼 아래 패널 / 모바일: 하단 시트 팝업 */
-function FilterSelect({ label, value, options, onChange, allLabel }) {
-  const [open, setOpen] = useState(false);
-  const [panelPos, setPanelPos] = useState(null); // { left, width, maxHeight, top?, bottom? }
-  const wrapRef = useRef(null);
-  const isMobile = typeof window !== "undefined" && window.innerWidth <= 700;
-
-  useEffect(() => {
-    if (!open || isMobile) return;
-    const onOutside = e => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
-    };
-    document.addEventListener("mousedown", onOutside, true);
-    document.addEventListener("touchstart", onOutside, { capture:true, passive:true });
-    return () => {
-      document.removeEventListener("mousedown", onOutside, true);
-      document.removeEventListener("touchstart", onOutside, true);
-    };
-  }, [open, isMobile]);
-
-  useEffect(() => {
-    if (!open || isMobile) return;
-    function updatePos() {
-      const el = wrapRef.current;
-      if (!el) return;
-      const r = el.getBoundingClientRect();
-      const vw = window.innerWidth, vh = window.innerHeight;
-      const panelWidth = Math.max(r.width, 200);
-      let left = Math.min(r.left, vw - panelWidth - 8);
-      left = Math.max(8, left);
-
-      const spaceBelow = vh - r.bottom - 8;
-      const spaceAbove = r.top - 8;
-
-      if (spaceBelow < 160 && spaceAbove > spaceBelow) {
-        setPanelPos({ left, width:panelWidth, maxHeight:Math.max(120,spaceAbove), bottom: vh - r.top + 6, top:null });
-      } else {
-        setPanelPos({ left, width:panelWidth, maxHeight:Math.max(120,spaceBelow), top: r.bottom + 6, bottom:null });
-      }
-    }
-    updatePos();
-    window.addEventListener("resize", updatePos);
-    window.addEventListener("scroll", updatePos, true);
-    return () => {
-      window.removeEventListener("resize", updatePos);
-      window.removeEventListener("scroll", updatePos, true);
-    };
-  }, [open, isMobile]);
-
-  function selectValue(v) { onChange(v); setOpen(false); }
-  const currentLabel = value || allLabel;
-
-  return (
-    <div className="filterSelectWrap" ref={wrapRef}>
-      <button
-        type="button"
-        className={`filterSelectBtn ${value?"filterSelectBtnActive":""}`}
-        onClick={()=>setOpen(o=>!o)}
-      >
-        <span className="filterSelectBtnLabel">{currentLabel}</span>
-        <span className="filterSelectBtnArrow">▾</span>
-      </button>
-
-      {open && !isMobile && panelPos && (
-        <div
-          className="filterSelectPanel"
-          style={{
-            position:"fixed", left:panelPos.left, width:panelPos.width, maxHeight:panelPos.maxHeight,
-            ...(panelPos.top!=null ? { top:panelPos.top } : { bottom:panelPos.bottom }),
-          }}
-        >
-          <button type="button" className={`filterSelectOption ${!value?"filterSelectOptionActive":""}`} onClick={()=>selectValue("")}>{allLabel}</button>
-          {options.map(opt=>(
-            <button key={opt} type="button" className={`filterSelectOption ${value===opt?"filterSelectOptionActive":""}`} onClick={()=>selectValue(opt)}>{opt}</button>
-          ))}
-        </div>
-      )}
-
-      {open && isMobile && (
-        <div className="filterSheetOverlay" onClick={()=>setOpen(false)}>
-          <div className="filterSheetCard" onClick={e=>e.stopPropagation()}>
-            <div className="filterSheetHeader">
-              <span className="filterSheetTitle">{label}</span>
-              <button type="button" className="modalClose" onClick={()=>setOpen(false)}>닫기</button>
-            </div>
-            <div className="filterSheetList">
-              <button type="button" className={`filterSheetOption ${!value?"filterSheetOptionActive":""}`} onClick={()=>selectValue("")}>{allLabel}</button>
-              {options.map(opt=>(
-                <button key={opt} type="button" className={`filterSheetOption ${value===opt?"filterSheetOptionActive":""}`} onClick={()=>selectValue(opt)}>{opt}</button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
 const EMPTY_SELECTED = {
   stratagem:[null,null,null,null],
   armor:null, primary:null, secondary:null, throwable:null,
 };
 
-/* ── 저장된 로드아웃의 지원무기 요약 정보 계산 ──
- * mode: "none"           → 지원무기 미선택
- *       "main"            → 일반/배낭형 지원무기(또는 일회용 1개 단독) 표시
- *       "disposableOnly"  → 일회용 지원무기만 2개 이상 선택된 경우
- */
-const SUPPORT_WEAPON_SUBTYPES_ALL = new Set(["지원무기","일회용 지원무기",SUBTYPE_BACKPACK_WEAPON]);
-function getSupportWeaponInfo(sel) {
-  const stratItems = (Array.isArray(sel?.stratagem)?sel.stratagem:[]).filter(Boolean);
-  const supportItems = stratItems.filter(it=>SUPPORT_WEAPON_SUBTYPES_ALL.has(getSubType(it)));
-  if (supportItems.length===0) return { mode:"none" };
 
-  const disposables    = supportItems.filter(it=>getSubType(it)==="일회용 지원무기");
-  const nonDisposables = supportItems.filter(it=>getSubType(it)!=="일회용 지원무기");
-
-  if (nonDisposables.length>0) {
-    const main = nonDisposables[0];
-    return {
-      mode:"main",
-      icon: main.icon, sheet: main.sheet, itemId: main.id,
-      name: s(main.name_ko||main.id),
-      extraCount: disposables.length,
-    };
-  }
-  if (disposables.length===1) {
-    const main = disposables[0];
-    return {
-      mode:"main",
-      icon: main.icon, sheet: main.sheet, itemId: main.id,
-      name: s(main.name_ko||main.id),
-      extraCount: 0,
-    };
-  }
-  return { mode:"disposableOnly", count:disposables.length };
-}
 
 
 
@@ -644,7 +534,7 @@ async function exportLoadoutPng(captureRef, selected, wbSummary=[]) {
     } else if (!it) {
       ctx.fillStyle="rgba(255,255,255,0.28)"; ctx.font=`700 11px ${FONT}`;
       ctx.textBaseline="middle"; ctx.textAlign="center";
-      ctx.fillText("미선택",sx+STRAT_SZ/2,sy+STRAT_SZ/2); ctx.textAlign="left";
+      ctx.fillText(EMPTY_SLOT_LABEL,sx+STRAT_SZ/2,sy+STRAT_SZ/2); ctx.textAlign="left";
     }
   }
   cy+=STRAT_SZ+SEC_GAP;
@@ -675,7 +565,7 @@ async function exportLoadoutPng(captureRef, selected, wbSummary=[]) {
   } else if (!selected.armor) {
     ctx.fillStyle="rgba(255,255,255,0.22)"; ctx.font=`700 11px ${FONT}`;
     ctx.textBaseline="middle"; ctx.textAlign="center";
-    ctx.fillText("미선택",AX+ARM_W/2,AY+ARM_H/2); ctx.textAlign="left";
+    ctx.fillText(EMPTY_SLOT_LABEL,AX+ARM_W/2,AY+ARM_H/2); ctx.textAlign="left";
   }
 
   // 주무기 (contain)
@@ -689,7 +579,7 @@ async function exportLoadoutPng(captureRef, selected, wbSummary=[]) {
   if (!selected.primary) {
     ctx.fillStyle="rgba(255,255,255,0.22)"; ctx.font=`700 11px ${FONT}`;
     ctx.textBaseline="middle"; ctx.textAlign="center";
-    ctx.fillText("미선택",PX+PRI_W/2,PY+PRI_H/2); ctx.textAlign="left";
+    ctx.fillText(EMPTY_SLOT_LABEL,PX+PRI_W/2,PY+PRI_H/2); ctx.textAlign="left";
   } else {
     const infoY=PY+PRI_H+10;
     /* 수정3: 첫 번째 pill = weaponType (무기 소분류), 이후 특성 태그 */
@@ -723,7 +613,7 @@ async function exportLoadoutPng(captureRef, selected, wbSummary=[]) {
     } else if (!it) {
       ctx.fillStyle="rgba(255,255,255,0.22)"; ctx.font=`700 10px ${FONT}`;
       ctx.textBaseline="middle"; ctx.textAlign="center";
-      ctx.fillText("미선택",SX+SIDE_W/2,sy2+SIDE_H/2); ctx.textAlign="left";
+      ctx.fillText(EMPTY_SLOT_LABEL,SX+SIDE_W/2,sy2+SIDE_H/2); ctx.textAlign="left";
     }
   }
 
@@ -870,7 +760,7 @@ async function exportLoadoutPng(captureRef, selected, wbSummary=[]) {
     ctx.fillText(numTxt,RX+RP,y2);
     ctx.fillStyle=name?"#fff":"rgba(255,255,255,0.28)"; ctx.font=`900 11px ${FONT}`;
     ctx.textAlign="left";
-    ellipsisText(name||"미선택", RX+RP+28, y2, SEL_W-RP*2-28);
+    ellipsisText(name||EMPTY_SLOT_LABEL, RX+RP+28, y2, SEL_W-RP*2-28);
     if (desc) {
       ctx.fillStyle="rgba(255,255,255,0.45)"; ctx.font=`10px ${FONT}`;
       ellipsisText(String(desc), RX+RP+28, y2+14, SEL_W-RP*2-28);
@@ -903,7 +793,7 @@ async function exportLoadoutPng(captureRef, selected, wbSummary=[]) {
     // 이름
     ctx.fillStyle=it?"#fff":"rgba(255,255,255,0.28)"; ctx.font=`900 11px ${FONT}`;
     ctx.textAlign="left";
-    ellipsisText(it?.name_ko||"미선택", RX+RP+44, ry, SEL_W-RP*2-44);
+    ellipsisText(it?.name_ko||EMPTY_SLOT_LABEL, RX+RP+44, ry, SEL_W-RP*2-44);
     ry+=14;
     // 뱃지 (방어구: armorValue+passive, 무기: pen+trait) — 줄넘김 지원
     if (it) {
@@ -978,60 +868,6 @@ function getFireformBadgeStyle(f) {
   if (f==="구역 화력투사")     return { background:"rgba(239,68,68,.10)",  borderColor:"rgba(239,68,68,.40)",  color:"#fca5a5" };
   return { background:"rgba(148,163,184,.08)", borderColor:"rgba(148,163,184,.25)", color:"rgba(203,213,225,.85)" };
 }
-/* ── 전쟁 채권 배지 스타일 ── */
-/* ── 전쟁 채권 표시 순서 (armor 시트 G열 기준 — 파일 업로드 후 갱신 필요) ── */
-const WB_ORDER = [
-  "헬다이버 출동!","결연한 베테랑","최첨단","민주적 폭파","극지의 애국자",
-  "독사 특공대","자유의 불꽃","화학 요원","진리의 집행자","도시 전설",
-  "자유의 종복","정의의 경계선","의장의 달인","법의 위력","대조군",
-  "먼지 폭풍","금사 특공대","존재하지 않는 부대","공성 파괴자",
-  "민주적 궤도 강하 타격대","정의로운 망령","견고한 참호 사단","외계 전문가","카스텔란의 신조",
-  "철갑의 민주주의","권위의 가늠자",
-];
-function sortByWbOrder(entries) {
-  return [...entries].sort(([a],[b]) => {
-    const ai = WB_ORDER.indexOf(a), bi = WB_ORDER.indexOf(b);
-    if (ai !== -1 && bi !== -1) return ai - bi;
-    if (ai !== -1) return -1;
-    if (bi !== -1) return 1;
-    return a.localeCompare(b, "ko");
-  });
-}
-
-const WB_STYLES = {
-  "헬다이버 출동!":        { color:"#f7f352", background:"#0e2c2e", borderColor:"rgba(247,243,82,.35)" },
-  "결연한 베테랑":         { color:"#ffffff", background:"#ea630f", borderColor:"rgba(255,255,255,.3)" },
-  "최첨단":                { color:"#ffffff", background:"#0044ab", borderColor:"rgba(96,216,255,.50)", textShadow:"0 0 10px #40efff" },
-  "민주적 폭파":           { color:"#ef8f00", background:"#920f00", borderColor:"rgba(239,143,0,.35)", textShadow:"0 0 6px #680800, 0 0 2px #680800" },
-  "극지의 애국자":         { color:"#ffffff", background:"#3eb0e8", borderColor:"rgba(255,255,255,.3)", textShadow:"0 0 6px #2c7fbf, 0 0 2px #2c7fbf" },
-  "독사 특공대":           { color:"#ffffff", background:"#103318", borderColor:"rgba(255,255,255,.2)" },
-  "자유의 불꽃":           { color:"#ff7918", background:"#562f18", borderColor:"rgba(255,121,24,.35)" },
-  "화학 요원":             { color:"#d3ec18", background:"#3c4209", borderColor:"rgba(211,236,24,.3)"  },
-  "진리의 집행자":         { color:"#b50000", background:"#dcc9c9", borderColor:"rgba(181,0,0,.4)"     },
-  "도시 전설":             { color:"#ceae00", background:"#3c4548", borderColor:"rgba(206,174,0,.35)"  },
-  "자유의 종복":           { color:"#ffffff", background:"#180000", borderColor:"rgba(255,255,255,.2)" },
-  "정의의 경계선":         { color:"#dddadd", background:"#422d21", borderColor:"rgba(221,218,221,.25)"},
-  "의장의 달인":           { color:"#105994", background:"#ffffff", borderColor:"#efdf94"              },
-  "법의 위력":             { color:"#ffffff", background:"#1e1831", borderColor:"#d64566"              },
-  "대조군":               { color:"#15354e", background:"#d4d2d1", borderColor:"rgba(21,53,78,.3)"    },
-  "먼지 폭풍":             { color:"#efd7a8", background:"#301807", borderColor:"rgba(239,215,168,.3)" },
-  "금사 특공대":           { color:"#bae0b2", background:"#1b1b0b", borderColor:"rgba(186,224,178,.3)" },
-  "존재하지 않는 부대":    { color:"#fb8080", background:"#08191c", borderColor:"rgba(251,128,128,.35)", textShadow:"0 0 8px #410913" },
-  "공성 파괴자":           { color:"#f1d460", background:"#2a292a", borderColor:"rgba(241,212,96,.35)", textShadow:"0 0 8px #a44c21" },
-  "민주적 궤도 강하 타격대":{ color:"#ffffff", background:"#081c28", borderColor:"#fbfbaa"              },
-  "정의로운 망령":         { color:"#ffffff", background:"#1e1d1b", borderColor:"#fbee6b"              },
-  "슈퍼시민권 업그레이드":  { color:"#fee800", background:"#000000", borderColor:"#fee800"              },
-  "해방절 보상":            { color:"#b0deef", background:"#0a1c2c", borderColor:"#2071aa", textShadow:"0 0 8px #2071aa" },
-  "슈퍼스토어 구매":        { color:"#00f6ff", background:"#001c2e", borderColor:"rgba(0,246,255,.65)", textShadow:"0 0 8px rgba(0,246,255,.5)" },
-  "견고한 참호 사단":       { color:"#c7b243", background:"#040200", borderColor:"#978642"              },
-  "외계 전문가":            { color:"#654632", background:"#fffbe5", borderColor:"#c4a882"              },
-  "카스텔란의 신조":        { color:"#dfdfe1", background:"linear-gradient(180deg, #3a5568 0%, #203a49 100%)", borderColor:"#f50301" },
-  "철갑의 민주주의":        { color:"#dddac2", background:"#41494f", borderColor:"#262b31"              },
-  "권위의 가늠자":          { color:"#dedfb5", background:"repeating-linear-gradient(135deg, #0e200e 0px, #0e200e 6px, #4a5a32 6px, #4a5a32 8px)", borderColor:"#4a5a32", textShadow:"0 0 4px #0e200e, 0 0 2px #0e200e" },
-};
-function getWbBadgeStyle(wb) {
-  return WB_STYLES[wb] ?? { color:"rgba(255,255,255,.8)", background:"rgba(255,255,255,.07)", borderColor:"rgba(255,255,255,.18)" };
-}
 
 /* ── Ergo 배지 스타일 ── */
 function getErgoBadgeStyle(ergo) {
@@ -1065,32 +901,32 @@ const TUTORIAL_STEPS = [
   },
   {
     title: "현재 선택 패널",
-    desc:  "이곳에서 현재 자신이 선택한 장비와 스트라타젬을 확인 가능하다. 장비 구성에 부족한 부분이 없는지 다시 한번 확인하도록!\n태그를 클릭하면 태그의 설명을 보는 것이 가능하다. 참고해라!",
+    desc:  "이곳에서 현재 자신이 선택한 장비와 스트라타젬을 확인 가능하다. 태그를 클릭/터치하면 태그가 무엇을 의미하는지 설명을 보는 것이 가능하다. 참고해라!",
     area:  "selectedPanel",
   },
   {
     title: "로드아웃 분석",
-    desc:  "자네의 장비 구성에 따라 팀에게 어떠한 방식으로 기여하는지 확인하도록!",
+    desc:  "자네의 장비 구성에 대한 평가를 이곳에서 분석한다. 어떤 부분이 부족한지 파악하도록!",
     area:  "radarChartSection",
   },
   {
     title: "권장 수치",
-    desc:  "적의 세력은 넓고 다양하다! 적들을 상대하는데 어느 능력이 필요한지 확인해라!",
+    desc:  "적의 세력은 다양하다! 적들을 상대하는데 어떤 능력을 필요로 하는지 확인해라!",
     area:  "tutorialReqSection",
   },
   {
     title: "교전 범위",
-    desc:  "현재 자신의 무장으로 어떤 적에게 대응이 가능한지 이곳에서 확인이 가능하다!",
+    desc:  "현재 무장의 조작성과 타격 가능 부위를 이곳에 표시한다. 구성에 따라 시너지를 발휘하는 경우도 있으니 적절한 조합을 찾아보도록!",
     area:  "tutorialRangeSection",
   },
   {
     title: "구성 요구 사항",
-    desc:  "이곳에서 장비 구성을 위해 필요한 전쟁 채권을 확인 가능하다! 계획을 철저히 하는것 또한 헬다이버의 소양이지!",
+    desc:  "이곳에서 장비 구성을 위해 필요한 전쟁 채권을 확인 가능하다!",
     area:  "reqSection",
   },
   {
     title: "로드아웃 관리 기능",
-    desc:  "이곳에서 자네가 구성한 장비 구성을 저장하고 불러올 수 있다! 제군의 민주주의를 전파하는 방식을 동료 헬다이버에게 공유하고 싶다면 이미지로 내보내는 것도 가능하다!",
+    desc:  "이곳에서 자네가 구성한 장비 구성을 저장하고 불러올 수 있다! 제군의 민주주의를 전파하는 방식을 동료 헬다이버에게 공유하는 것도 가능하다!",
     area:  "loadoutMgmtBtns",
   },
   {
@@ -1128,6 +964,7 @@ function TutorialOverlay({ step, onNext, onPrev, onClose }) {
   const { title, desc, image } = TUTORIAL_STEPS[step];
   const isLast = step === TUTORIAL_STEPS.length - 1;
   const isCenterMode = !TUTORIAL_STEPS[step].area; // 인트로/아웃트로
+  const isMobileTut  = typeof window !== "undefined" && window.innerWidth <= 700;
 
   const W = window.innerWidth, H = window.innerHeight;
   const CARD_W = 460, CARD_H = image ? 340 : 260, MARGIN = 14;
@@ -1238,6 +1075,13 @@ function TutorialOverlay({ step, onNext, onPrev, onClose }) {
 
         {/* 버튼 */}
         <div style={{ display:"flex", gap:8, justifyContent:"flex-end", marginTop:2 }}>
+          {isMobileTut && (
+            <button type="button" onClick={onClose} style={{
+              marginRight:"auto", padding:"7px 16px", borderRadius:999,
+              border:"1px solid rgba(255,255,255,.18)", background:"transparent",
+              color:"rgba(255,255,255,.55)", fontWeight:700, fontSize:12, cursor:"pointer",
+            }}>닫기</button>
+          )}
           {step > 0 && (
             <button type="button" onClick={onPrev} style={{
               padding:"7px 16px", borderRadius:999,
@@ -1253,10 +1097,12 @@ function TutorialOverlay({ step, onNext, onPrev, onClose }) {
             animation:"tutGlow 1.6s ease-in-out infinite",
           }}>{isLast ? "완료" : "다음"}</button>
         </div>
-        {/* 하단 안내 */}
-        <div style={{ fontSize:11, color:"rgba(255,255,255,.28)", textAlign:"center", marginTop:2 }}>
-          창 밖 영역을 클릭해 튜토리얼을 바로 종료할 수 있습니다.
-        </div>
+        {/* 하단 안내 (PC) — 모바일은 닫기 버튼 사용 */}
+        {!isMobileTut && (
+          <div style={{ fontSize:11, color:"rgba(255,255,255,.28)", textAlign:"center", marginTop:2 }}>
+            창 밖 영역을 클릭해 튜토리얼을 바로 종료할 수 있습니다.
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1345,8 +1191,25 @@ function FireformRow({ row, hasIdealBody }) {
 export default function App() {
   const [tutorialStep,   setTutorialStep]   = useState(-1); // -1=숨김, 0~N=진행중
   const [showBetaNotice, setShowBetaNotice] = useState(false);
-  const [showWbNotice, setShowWbNotice] = useState(() => !wbNoticeDismissed());
+  // 최초 접속 여부: 소지 채권 설정도, 이전 버전 필터 기록도 없음 → 소지 채권 선택 팝업 1회
+  const isFirstVisitRef = useRef(null);
+  if (isFirstVisitRef.current === null) isFirstVisitRef.current = ownedWbLoad() === null && !hasLegacyPickerFilters();
+  // 최초 접속자는 소지 채권 선택 팝업에서 직접 고르므로 같은 버전의 신규 채권 알림은 생략
+  const [showWbNotice, setShowWbNotice] = useState(() => !isFirstVisitRef.current && !wbNoticeDismissed());
+  const [ownedWb, setOwnedWbState] = useState(() => { const a = ownedWbLoad(); return a ? new Set(a) : null; });
+  const [wbOwnedPopup, setWbOwnedPopup] = useState(null); // null | "first" | "edit"
+  function setOwnedWb(next) { setOwnedWbState(next); ownedWbSave(next); }
+
   const [activePage,   setActivePage]   = useState("loadout"); // "loadout" | "random"
+  const [sideMenuOpen, setSideMenuOpen] = useState(false);     // 모바일 사이드 메뉴
+  // 신규 기능 안내: 로드아웃 게시판을 한 번 방문하기 전까지 New 표시 + 글로우
+  const [boardVisited, setBoardVisited] = useState(() => { try { return localStorage.getItem("board_visited_v1") === "1"; } catch { return true; } });
+  useEffect(() => {
+    if (activePage === "board" && !boardVisited) {
+      setBoardVisited(true);
+      try { localStorage.setItem("board_visited_v1", "1"); } catch {}
+    }
+  }, [activePage, boardVisited]);
   const [heroPopup,    setHeroPopup]    = useState(false);   // 무작위 페이지 전환 시 팝업
   const [heroPopupFading, setHeroPopupFading] = useState(false); // 팝업 fade-out 중
   const [jokerFlash,   setJokerFlash]   = useState(null);    // 조커 교체 후 flash 대상 슬롯 key
@@ -1710,61 +1573,68 @@ export default function App() {
 
   /* ── 순서 번호 직접 입력으로 이동은 필터 정의 이후로 이동 (필터링된 순서를 반영하기 위함) ── */
 
-  /* ── 관리 모달 필터 (지원무기 / 주무장 소분류, 드롭다운, AND 결합) ──
-   * 한쪽 필터를 선택하면 다른쪽 선택지는 그 조건을 만족하는 로드아웃에서만 뽑아 좁혀짐(상호 연동). */
+  /* ── 관리 모달 필터 (지원무기 대분류 → 지원무기 소분류 / 주무장 소분류, AND 결합) ──
+   * 각 필터의 선택지는 나머지 필터 조건을 만족하는 로드아웃에서만 뽑아 좁혀짐(상호 연동).
+   * 지원무기 대분류: 로드아웃에 해당 분류의 지원무기가 하나라도 있으면 일치. */
+  const [filterSupportClass,  setFilterSupportClass]  = useState("");   // "" | "대전차 지원무기" | "비대전차 지원무기"
   const [filterSupportWeapon, setFilterSupportWeapon] = useState("");
   const [filterWeaponType,    setFilterWeaponType]    = useState("");
 
-  function getSupportNamesOf(l) {
-    const items = (Array.isArray(l.selected?.stratagem)?l.selected.stratagem:[]).filter(Boolean)
+  function getSupportItemsOf(l) {
+    return (Array.isArray(l.selected?.stratagem)?l.selected.stratagem:[]).filter(Boolean)
       .filter(it => SUPPORT_WEAPON_SUBTYPES_ALL.has(getSubType(it)));
-    return items.map(it => s(it.name_ko||it.id)).filter(Boolean);
+  }
+  function getSupportNamesOf(l, cls="") {
+    return getSupportItemsOf(l)
+      .filter(it => !cls || getSupportClass(it)===cls)
+      .map(it => s(it.name_ko||it.id)).filter(Boolean);
   }
   function getWeaponTypeOf(l) {
     return s(l.selected?.primary?.weaponType);
   }
+  const matchClass   = (l) => !filterSupportClass  || getSupportNamesOf(l, filterSupportClass).length>0;
+  const matchSupport = (l) => !filterSupportWeapon || getSupportNamesOf(l).includes(filterSupportWeapon);
+  const matchWT      = (l) => !filterWeaponType    || getWeaponTypeOf(l)===filterWeaponType;
+
+  const manageSupportClassOptions = useMemo(() => {
+    const base = savedLoadouts.filter(matchWT);
+    return SUPPORT_CLASS_ORDER.filter(cls => base.some(l => getSupportNamesOf(l, cls).length>0));
+  }, [savedLoadouts, filterWeaponType]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const manageSupportWeaponOptions = useMemo(() => {
-    const base = filterWeaponType
-      ? savedLoadouts.filter(l => getWeaponTypeOf(l)===filterWeaponType)
-      : savedLoadouts;
+    const base = savedLoadouts.filter(l => matchWT(l) && matchClass(l));
     const set = new Set();
-    base.forEach(l => getSupportNamesOf(l).forEach(n=>set.add(n)));
+    base.forEach(l => getSupportNamesOf(l, filterSupportClass).forEach(n=>set.add(n)));
     return Array.from(set).sort((a,b)=>a.localeCompare(b,"ko"));
-  }, [savedLoadouts, filterWeaponType]);
+  }, [savedLoadouts, filterWeaponType, filterSupportClass]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const manageWeaponTypeOptions = useMemo(() => {
-    const base = filterSupportWeapon
-      ? savedLoadouts.filter(l => getSupportNamesOf(l).includes(filterSupportWeapon))
-      : savedLoadouts;
+    const base = savedLoadouts.filter(l => matchClass(l) && matchSupport(l));
     const set = new Set();
     base.forEach(l => { const wt=getWeaponTypeOf(l); if (wt) set.add(wt); });
-    return Array.from(set).sort((a,b)=>a.localeCompare(b,"ko"));
-  }, [savedLoadouts, filterSupportWeapon]);
+    return sortWeaponTypes(Array.from(set));
+  }, [savedLoadouts, filterSupportClass, filterSupportWeapon]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 상대 필터 변경으로 인해 현재 선택값이 더 이상 유효한 선택지가 아니게 되면 초기화
+  // 다른 필터 변경으로 현재 선택값이 더 이상 유효한 선택지가 아니게 되면 초기화
   useEffect(() => {
-    if (filterSupportWeapon && !manageSupportWeaponOptions.includes(filterSupportWeapon)) {
-      setFilterSupportWeapon("");
-    }
+    if (filterSupportClass && !manageSupportClassOptions.includes(filterSupportClass)) setFilterSupportClass("");
+  }, [manageSupportClassOptions]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (filterSupportWeapon && !manageSupportWeaponOptions.includes(filterSupportWeapon)) setFilterSupportWeapon("");
   }, [manageSupportWeaponOptions]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (filterWeaponType && !manageWeaponTypeOptions.includes(filterWeaponType)) {
-      setFilterWeaponType("");
-    }
+    if (filterWeaponType && !manageWeaponTypeOptions.includes(filterWeaponType)) setFilterWeaponType("");
   }, [manageWeaponTypeOptions]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const manageFilterActive = !!(filterSupportWeapon || filterWeaponType);
+  const manageFilterActive = !!(filterSupportClass || filterSupportWeapon || filterWeaponType);
+  function resetManageFilters() { setFilterSupportClass(""); setFilterSupportWeapon(""); setFilterWeaponType(""); }
+  const manageFilterCount = [filterSupportClass, filterSupportWeapon, filterWeaponType].filter(Boolean).length;
+  const [manageFilterPopup, setManageFilterPopup] = useState(false);   // 모바일 필터 팝업
 
   const filteredSavedLoadouts = useMemo(() => {
     if (!manageFilterActive) return savedLoadouts;
-    return savedLoadouts.filter(l => {
-      let matchSupport = true, matchWeaponType = true;
-      if (filterSupportWeapon) matchSupport = getSupportNamesOf(l).includes(filterSupportWeapon);
-      if (filterWeaponType)    matchWeaponType = getWeaponTypeOf(l)===filterWeaponType;
-      return matchSupport && matchWeaponType;
-    });
-  }, [savedLoadouts, manageFilterActive, filterSupportWeapon, filterWeaponType]);
+    return savedLoadouts.filter(l => matchClass(l) && matchSupport(l) && matchWT(l));
+  }, [savedLoadouts, manageFilterActive, filterSupportClass, filterSupportWeapon, filterWeaponType]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── 순서 번호 직접 입력으로 이동 (스팀 찜 목록 방식) ──
    * 필터가 걸려있어도 뱃지 번호는 항상 "저장된 로드아웃 전체 목록" 기준 실제 순서를 표시. */
@@ -1805,6 +1675,22 @@ export default function App() {
       persistList(next, activeLoadoutId);
     }
     cancelPositionEdit();
+  }
+
+  const allWbOptions = useMemo(() => getWbOptionsFromItems(items), [items]);
+  useEffect(() => {
+    if (!items.length || ownedWb !== null) return;
+    if (isFirstVisitRef.current) {
+      setOwnedWbState(new Set());       // 팝업에서 확정하기 전까지는 저장하지 않음
+      setWbOwnedPopup("first");
+    } else {
+      setOwnedWb(migrateLegacyOwnedWb(items));
+    }
+  }, [items]); // eslint-disable-line react-hooks/exhaustive-deps
+  function confirmWbOwnedPopup(set) {
+    setOwnedWb(new Set(set));
+    if (wbOwnedPopup === "first") { wbNoticeSetDismiss(); isFirstVisitRef.current = false; }
+    setWbOwnedPopup(null);
   }
 
   /* ── 파생 상태 ── */
@@ -1849,22 +1735,11 @@ export default function App() {
     }
 
     /* ── 필요 채권 요약 (헬다이버 출동! 포함) ── */
-    const wbPageMap = new Map();
-    let hasSuperStore = false;
     const allItems = [
       selected.armor, selected.primary, selected.secondary, selected.throwable,
       ...selected.stratagem,
     ].filter(Boolean);
-    for (const it of allItems) {
-      const wb = s(it?.wbrequirement);
-      if (!wb || wb==="기본") continue;
-      if (wb.includes("슈퍼")&&wb.includes("스토어")) { hasSuperStore = true; continue; }
-      const page = Number(s(it?.unlock)) || 0;
-      const prev = wbPageMap.get(wb) ?? -1;
-      if (page > prev) wbPageMap.set(wb, page);
-    }
-    const wbSummary = sortByWbOrder([...wbPageMap.entries()]).map(([wb, page]) => ({ wb, page }));
-    if (hasSuperStore) wbSummary.push({ wb: "슈퍼스토어 구매", page: 0 });
+    const wbSummary = computeWbSummary(selected);
 
     /* ════════════════════════════════════════════
        공통 상수
@@ -2842,9 +2717,13 @@ export default function App() {
   function handleContextMenu(e) {
     e.preventDefault();
     // 열린 것 순서대로 닫기: 피커 → 튜토리얼 → 저장모달 → 관리모달 → 초기화확인 → 삭제확인
+    if (sideMenuOpen)         { setSideMenuOpen(false); return; }
+    if (boardPostOpen)        { setBoardPostOpen(false); return; }
+    if (wbOwnedPopup)         { if (wbOwnedPopup !== "first") setWbOwnedPopup(null); return; }
     if (picker.open)          { setPicker(p=>({...p,open:false})); return; }
     if (tutorialStep >= 0)    { setTutorialStep(-1); return; }
     if (saveModal.open)       { setSaveModal(p=>({...p,open:false})); return; }
+    if (manageFilterPopup)    { setManageFilterPopup(false); return; }
     if (manageModal)          { setManageModal(false); return; }
     if (infoModal)            { setInfoModal(false); return; }
     if (resetConfirm)         { setResetConfirm(false); return; }
@@ -2864,6 +2743,128 @@ export default function App() {
     setEditingId(null);
   }
   function cancelEdit() { setEditingId(null); }
+
+  /* ── 화면 알림(토스트) — 잠깐 표시 후 자동으로 사라짐 ── */
+  const [toast, setToast] = useState(null);            // { text, kind:"ok"|"warn"|"err", key }
+  const toastTimerRef = useRef(null);
+  function showToast(text, kind="ok", ms=2200) {
+    clearTimeout(toastTimerRef.current);
+    setToast({ text, kind, key: Date.now() });
+    toastTimerRef.current = setTimeout(() => setToast(null), ms);
+  }
+
+  /* ── 공유 코드: 복사 ── */
+  const [copiedCodeId,  setCopiedCodeId]  = useState(null);  // "복사됨" 표시 중인 대상 id ("__current__" = 현재 구성)
+  const copiedTimerRef = useRef(null);
+  function markCopied(id) {
+    setCopiedCodeId(id);
+    clearTimeout(copiedTimerRef.current);
+    copiedTimerRef.current = setTimeout(() => setCopiedCodeId(null), 1500);
+  }
+  async function copyLoadoutCode(sel, name, markId) {
+    const code = encodeLoadoutCode(sel, name);
+    const ok = await copyText(code);
+    if (!ok) { window.prompt("아래 코드를 복사해 주세요.", code); return; }
+    markCopied(markId);
+  }
+  function handleCopyLoadoutCode(l) { copyLoadoutCode(l.selected, l.name, l.id); }
+  /* ── 게시판 연동 ── */
+  const [boardPostOpen, setBoardPostOpen] = useState(false);
+  function handleOpenBoardPost() {
+    if (!hasAnyItem(selected)) { showToast("선택된 장비가 없습니다.", "err"); return; }
+    setBoardPostOpen(true);
+  }
+  function normalizeSel(sel) {
+    const strat = (Array.isArray(sel?.stratagem) ? sel.stratagem : []).slice(0, 4);
+    while (strat.length < 4) strat.push(null);
+    return { stratagem:strat, armor:sel?.armor ?? null, primary:sel?.primary ?? null,
+      secondary:sel?.secondary ?? null, throwable:sel?.throwable ?? null };
+  }
+  function loadSelectionToBuilder(sel, name) {
+    setSelected(normalizeSel(sel));
+    setActiveLoadoutId(null);
+    setActivePage("loadout");
+    try { window.scrollTo({ top:0, behavior:"smooth" }); } catch {}
+    showToast(`"${name}" 로드아웃을 빌더로 불러왔습니다.`, "ok");
+  }
+  function saveSelectionToMine(sel, name) {
+    const entry = { id:Date.now(), name: s(name) || `공유 로드아웃 ${savedLoadouts.filter(l=>!l.isDefault).length+1}`,
+      selected: normalizeSel(sel), createdAt:new Date().toISOString() };
+    const next = [...savedLoadouts, entry];
+    setSavedLoadouts(next);
+    persistList(next, activeLoadoutId);
+    showToast(`"${entry.name}" 을(를) 저장된 로드아웃에 추가했습니다.`, "ok");
+  }
+
+  function handleCopyCurrentCode() {
+    if (!hasAnyItem(selected)) { showToast("선택된 장비가 없습니다.", "err"); return; }
+    const name = activeLoadoutId && activeLoadoutId !== "__default__" ? (activeLoadoutName ?? "") : "";
+    copyLoadoutCode(selected, name, "__current__");
+  }
+
+  /* ── 공유 코드: 클립보드에서 바로 추가 ──
+   * 클립보드 읽기가 막힌 환경(권한 거부/미지원)에서는 직접 붙여넣는 입력 칸을 대신 표시 */
+  const [manualImportOpen, setManualImportOpen] = useState(false);
+  const [importCode,       setImportCode]       = useState("");
+  const [highlightId,      setHighlightId]      = useState(null);  // 추가 직후 강조할 로드아웃 id
+  const WRONG_CODE_MSG = "알맞은 양식의 로드아웃 코드를 복사해주세요.";
+
+  function importFromText(text) {
+    if (!String(text ?? "").includes(LOADOUT_CODE_PREFIX)) { showToast(WRONG_CODE_MSG, "err"); return false; }
+    try {
+      const { name, selected:sel, missing } = decodeLoadoutCode(text, items);
+      const n = savedLoadouts.filter(l=>!l.isDefault).length;
+      const entry = {
+        id: Date.now(),
+        name: name || `공유 로드아웃 ${n+1}`,
+        selected: sel,
+        createdAt: new Date().toISOString(),
+      };
+      const next = [...savedLoadouts, entry];
+      setSavedLoadouts(next);
+      persistList(next, activeLoadoutId);
+      resetManageFilters();            // 필터 때문에 새 항목이 안 보이는 상황 방지
+      setHighlightId(entry.id);
+      if (missing > 0) showToast(`"${entry.name}" 추가됨 — 찾을 수 없는 장비 ${missing}개는 비워 두었습니다.`, "warn", 3200);
+      else             showToast(`"${entry.name}" 로드아웃을 추가했습니다.`, "ok");
+      return true;
+    } catch (e) {
+      showToast(e?.message || WRONG_CODE_MSG, "err");
+      return false;
+    }
+  }
+  async function handlePasteImport() {
+    let text = null;
+    try {
+      if (!navigator.clipboard?.readText) throw new Error("unsupported");
+      text = await navigator.clipboard.readText();
+    } catch {
+      setManualImportOpen(true);
+      showToast("클립보드를 읽을 수 없습니다. 아래 칸에 코드를 직접 붙여넣어 주세요.", "warn", 3200);
+      return;
+    }
+    importFromText(text);
+  }
+  function handleManualImport() {
+    if (!importCode.trim()) return;
+    if (importFromText(importCode)) setImportCode("");
+  }
+
+  // 추가된 로드아웃 위치로 스크롤 + 2초 강조
+  useEffect(() => {
+    if (highlightId == null || !manageModal) return;
+    const raf = requestAnimationFrame(() => {
+      const el = document.querySelector(`.manageItem[data-loadout-id="${highlightId}"]`);
+      el?.scrollIntoView({ behavior:"smooth", block:"center" });
+    });
+    const t = setTimeout(() => setHighlightId(null), 2000);
+    return () => { cancelAnimationFrame(raf); clearTimeout(t); };
+  }, [highlightId, manageModal]);
+
+  // 관리 모달을 닫으면 입력/강조 초기화
+  useEffect(() => {
+    if (!manageModal) { setImportCode(""); setManualImportOpen(false); setHighlightId(null); setManageFilterPopup(false); }
+  }, [manageModal]);
 
   const pickerItems     = useMemo(()=>itemsByType.get(picker.typeKey)??[],[itemsByType,picker.typeKey]);
   const isStratagemPicker = picker.slotKey.startsWith("stratagem:");
@@ -2892,6 +2893,10 @@ export default function App() {
                 className={`topNavTab pageTab ${activePage==="random"?"active":""}`}
                 type="button" onClick={goRandom}
               >무작위 로드아웃</button>
+              <button
+                className={`topNavTab pageTab ${activePage==="board"?"active":""} ${!boardVisited?"newGlow":""}`}
+                type="button" onClick={()=>setActivePage("board")}
+              >로드아웃 게시판{!boardVisited && <span className="newBadge">New</span>}</button>
             </span>
           </div>
           <div className="topNavTabs">
@@ -2900,11 +2905,47 @@ export default function App() {
             >운용자 정보</button>
             <button className="topNavTab tutorialBtn" type="button"
               onClick={()=>setTutorialStep(0)}
-              style={activePage==="random" ? {display:"none"} : {}}
+              style={activePage!=="loadout" ? {display:"none"} : {}}
             >튜토리얼</button>
           </div>
+          {/* 모바일: 사이드 메뉴 버튼 (페이지 이동 / 운용자 정보 / 튜토리얼) */}
+          <button className={`topNavMenuBtn ${!boardVisited?"newGlow":""}`} type="button" aria-label="메뉴 열기" onClick={()=>setSideMenuOpen(true)}>
+            {!boardVisited && <span className="newDot" aria-hidden="true" />}
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+              <path d="M4 7h16M4 12h16M4 17h16"/>
+            </svg>
+          </button>
         </div>
       </nav>
+
+      {/* ── 모바일 사이드 메뉴 ── */}
+      {sideMenuOpen && (
+        <div className="sideMenuOverlay" onClick={()=>setSideMenuOpen(false)}
+          onContextMenu={e=>{ e.preventDefault(); e.stopPropagation(); setSideMenuOpen(false); }}>
+          <aside className="sideMenuPanel" onClick={e=>e.stopPropagation()} role="dialog" aria-modal="true" aria-label="메뉴">
+            <div className="sideMenuHeader">
+              <span className="sideMenuTitle">SES 자기 결정의 전달자</span>
+              <button className="sideMenuClose" type="button" aria-label="메뉴 닫기" onClick={()=>setSideMenuOpen(false)}>&gt;&gt;</button>
+            </div>
+            <div className="sideMenuSectionLabel">페이지</div>
+            <button type="button" className={`sideMenuItem ${activePage==="loadout"?"active":""}`}
+              onClick={()=>{ setActivePage("loadout"); setSideMenuOpen(false); }}>로드아웃 빌더</button>
+            <button type="button" className={`sideMenuItem ${activePage==="random"?"active":""}`}
+              onClick={()=>{ if (activePage!=="random") goRandom(); setSideMenuOpen(false); }}>무작위 로드아웃</button>
+            <button type="button" className={`sideMenuItem ${activePage==="board"?"active":""} ${!boardVisited?"newGlow":""}`}
+              onClick={()=>{ setActivePage("board"); setSideMenuOpen(false); }}>
+              로드아웃 게시판{!boardVisited && <span className="newBadge">New</span>}
+            </button>
+            <div className="sideMenuDivider" />
+            <button type="button" className="sideMenuItem sideMenuItemInfo"
+              onClick={()=>{ setSideMenuOpen(false); setInfoModal(true); }}>운용자 정보</button>
+            {activePage==="loadout" && (
+              <button type="button" className="sideMenuItem sideMenuItemTutorial"
+                onClick={()=>{ setSideMenuOpen(false); setTutorialStep(0); }}>튜토리얼</button>
+            )}
+          </aside>
+        </div>
+      )}
 
       <div className="appWrap">
         {err && <div className="errorBox">에러: {err}</div>}
@@ -3007,7 +3048,14 @@ export default function App() {
 
                 <div className="sideActions">
                   <div className="loadoutMgmtBtns">
-                    <button className="lBtn lBtnSave"       onClick={handleSaveLoadout}                         type="button">현재 로드아웃 저장</button>
+                    <div className="lBtnSplitRow">
+                      <button className="lBtn lBtnSave" onClick={handleSaveLoadout} type="button">현재 구성 저장</button>
+                      <button
+                        className={`lBtn lBtnCode ${copiedCodeId==="__current__"?"lBtnCodeDone":""}`}
+                        onClick={handleCopyCurrentCode} type="button"
+                      >{copiedCodeId==="__current__" ? "복사됨 ✓" : "현재 구성 코드 복사"}</button>
+                    </div>
+                    <button className="lBtn lBtnBoardPost" onClick={handleOpenBoardPost} type="button">현재 구성 게시하기</button>
                     <button className="lBtn lBtnManage"     onClick={()=>setManageModal(true)}                  type="button">저장된 로드아웃 관리</button>
                     <button className="lBtn lBtnExport"     onClick={()=>exportLoadoutPng(captureRef,selected,stats.wbSummary)} type="button">현재 구성 이미지로 내보내기</button>
                   </div>
@@ -3017,6 +3065,19 @@ export default function App() {
 
             </div>{/* /layout */}
         </div>}
+
+        {/* ── 로드아웃 게시판 ── */}
+        {!isLoading && activePage==="board" && (
+          <LoadoutBoard
+            items={items}
+            savedLoadouts={savedLoadouts}
+            gasUrl={GAS_URL}
+            isMobileUI={isMobileUI}
+            onLoadToBuilder={loadSelectionToBuilder}
+            onSaveToMine={saveSelectionToMine}
+            showToast={showToast}
+          />
+        )}
 
         {/* ── 무작위 로드아웃 ── */}
         {!isLoading && activePage==="random" && (
@@ -3179,7 +3240,24 @@ export default function App() {
       </div>
 
       {/* ── 신규 채권 미리보기 오버레이 ── */}
-      {showWbNotice && <WbNoticeOverlay onClose={() => setShowWbNotice(false)} />}
+      {showWbNotice && !isLoading && ownedWb && (
+        <WbNoticeOverlay
+          onClose={() => setShowWbNotice(false)}
+          isActivated={ownedWb.has(WB_NOTICE_DATA.name)}
+          onActivate={() => { const n = new Set(ownedWb); n.add(WB_NOTICE_DATA.name); setOwnedWb(n); }}
+        />
+      )}
+
+      {/* ── 소지 전쟁 채권 선택 팝업 (최초 1회 / 모바일 필터) ── */}
+      <WbOwnedPopup
+        open={!!wbOwnedPopup && !isLoading}
+        mode={wbOwnedPopup ?? "edit"}
+        allWb={allWbOptions}
+        owned={ownedWb}
+        items={items}
+        onConfirm={confirmWbOwnedPopup}
+        onClose={() => setWbOwnedPopup(null)}
+      />
 
       {/* ── 로드아웃 분석 Beta 안내 모달 ── */}
       {showBetaNotice && (
@@ -3248,7 +3326,7 @@ export default function App() {
 
               <div className="infoBuildRow">
                 <span className="infoBuildLabel">빌드 버전</span>
-                <span className="infoBuildValue">ver 26.10.24</span>
+                <span className="infoBuildValue">ver 26.11.27</span>
               </div>
               <div className="infoBuildRow">
                 <span className="infoBuildLabel">빌드 기준 최신 업데이트</span>
@@ -3310,29 +3388,98 @@ export default function App() {
               <div className="manageModalTitle">저장된 로드아웃 관리</div>
               <button className="modalClose" onClick={()=>setManageModal(false)} type="button">닫기</button>
             </div>
-            {(manageSupportWeaponOptions.length>0 || manageWeaponTypeOptions.length>0) && (
+            <div className="manageImportRow">
+              <div className="manageImportInputRow">
+                <button className="manageImportBtn manageImportPasteBtn" type="button" onClick={handlePasteImport}>
+                  복사한 코드로 로드아웃 추가
+                </button>
+              </div>
+              {manualImportOpen && (
+                <div className="manageImportInputRow">
+                  <input
+                    className="manageImportInput"
+                    type="text"
+                    placeholder={`로드아웃 코드 붙여넣기 (${LOADOUT_CODE_PREFIX}…)`}
+                    value={importCode}
+                    onChange={e=>setImportCode(e.target.value)}
+                    onKeyDown={e=>{ if (e.key==="Enter") handleManualImport(); }}
+                    spellCheck={false} autoComplete="off" autoFocus
+                  />
+                  <button className="manageImportBtn" type="button" onClick={handleManualImport} disabled={!importCode.trim()}>추가</button>
+                </div>
+              )}
+            </div>
+            {(manageSupportClassOptions.length>0 || manageSupportWeaponOptions.length>0 || manageWeaponTypeOptions.length>0) && (
+              isMobileUI ? (
+                /* 모바일: 필터 팝업 열기 / 해제 버튼 */
+                <div className="manageFilterRow manageFilterRowMobile">
+                  <button className="manageFilterOpenBtn" type="button" onClick={()=>setManageFilterPopup(true)}>
+                    필터 적용{manageFilterCount>0 && <span className="manageFilterCount">{manageFilterCount}</span>}
+                  </button>
+                  <button className="manageFilterReset" type="button" onClick={resetManageFilters} disabled={!manageFilterActive}>필터 해제</button>
+                </div>
+              ) : (
               <div className="manageFilterRow">
                 <FilterSelect
-                  label="지원무기"
+                  label="지원무기 대분류"
+                  value={filterSupportClass}
+                  options={manageSupportClassOptions}
+                  onChange={setFilterSupportClass}
+                  allLabel="대분류 전체"
+                />
+                <FilterSelect
+                  label={filterSupportClass || "지원무기"}
                   value={filterSupportWeapon}
                   options={manageSupportWeaponOptions}
                   onChange={setFilterSupportWeapon}
-                  allLabel="지원무기 전체"
+                  allLabel="소분류"
                 />
                 <FilterSelect
                   label="주무장 소분류"
                   value={filterWeaponType}
                   options={manageWeaponTypeOptions}
                   onChange={setFilterWeaponType}
-                  allLabel="주무장 소분류 전체"
+                  allLabel="주무장 전체"
                 />
                 {manageFilterActive && (
-                  <button
-                    className="manageFilterReset"
-                    type="button"
-                    onClick={()=>{ setFilterSupportWeapon(""); setFilterWeaponType(""); }}
-                  >필터 초기화</button>
+                  <button className="manageFilterReset" type="button" onClick={resetManageFilters}>필터 초기화</button>
                 )}
+              </div>
+              )
+            )}
+
+            {/* 모바일 필터 팝업 — 선택 즉시 목록에 반영 */}
+            {manageFilterPopup && (
+              <div className="wbOwnedOverlay"
+                onClick={e=>{ e.stopPropagation(); setManageFilterPopup(false); }}
+                onContextMenu={e=>{ e.preventDefault(); e.stopPropagation(); setManageFilterPopup(false); }}>
+                <div className="wbOwnedCard manageFilterPopupCard" onClick={e=>e.stopPropagation()} role="dialog" aria-modal="true">
+                  <div className="wbOwnedHeader">
+                    <div className="wbOwnedTitle">저장된 로드아웃 필터</div>
+                    <div className="wbOwnedDesc">조건에 맞는 로드아웃 {filteredSavedLoadouts.length}개</div>
+                  </div>
+                  <div className="manageFilterPopupBody">
+                    <div className="manageFilterPopupField">
+                      <div className="filterTitle">지원무기 대분류</div>
+                      <FilterSelect label="지원무기 대분류" value={filterSupportClass} options={manageSupportClassOptions}
+                        onChange={setFilterSupportClass} allLabel="대분류 전체" />
+                    </div>
+                    <div className="manageFilterPopupField">
+                      <div className="filterTitle">지원무기 소분류</div>
+                      <FilterSelect label={filterSupportClass || "지원무기 소분류"} value={filterSupportWeapon} options={manageSupportWeaponOptions}
+                        onChange={setFilterSupportWeapon} allLabel="소분류" />
+                    </div>
+                    <div className="manageFilterPopupField">
+                      <div className="filterTitle">주무장 소분류</div>
+                      <FilterSelect label="주무장 소분류" value={filterWeaponType} options={manageWeaponTypeOptions}
+                        onChange={setFilterWeaponType} allLabel="주무장 전체" />
+                    </div>
+                  </div>
+                  <div className="wbOwnedActions">
+                    <button className="wbOwnedCancel" type="button" onClick={resetManageFilters} disabled={!manageFilterActive}>필터 해제</button>
+                    <button className="wbOwnedConfirm" type="button" onClick={()=>setManageFilterPopup(false)}>적용</button>
+                  </div>
+                </div>
               </div>
             )}
             <div className="manageModalList">
@@ -3351,7 +3498,7 @@ export default function App() {
                   <div
                     key={l.id}
                     data-loadout-id={l.id}
-                    className={`manageItem ${isActive?"manageItemActive":""} ${isDragging?"manageItemDragging":""}`}
+                    className={`manageItem ${isActive?"manageItemActive":""} ${isDragging?"manageItemDragging":""} ${highlightId===l.id?"manageItemHighlight":""}`}
                     style={{touchAction:isDragging?"none":"pan-y"}}
                     onPointerDown={e=>handleLoadoutRowPointerDown(e,l.id,l.isDefault)}
                     onContextMenu={e=>{ e.preventDefault(); e.stopPropagation(); }}
@@ -3448,14 +3595,38 @@ export default function App() {
                         </div>
                       )}
                     </div>
-                    {!isEditing&&(
+                    {!isEditing&&(isMobileUI ? (
+                      /* 모바일: 우측 소형 아이콘 버튼 (코드 복사 / 불러오기 / 삭제) */
+                      <div className="manageItemIconActions">
+                        {!l.isDefault&&(
+                          <button
+                            className={`manageIconBtn manageIconBtnCode ${copiedCodeId===l.id?"done":""}`}
+                            onClick={()=>handleCopyLoadoutCode(l)} type="button"
+                            title="코드 복사" aria-label="코드 복사"
+                          >{copiedCodeId===l.id ? <IconCheck/> : <IconCopy/>}</button>
+                        )}
+                        <button className="manageIconBtn manageIconBtnLoad" onClick={()=>handleLoadLoadout(l)} type="button"
+                          title="불러오기" aria-label="불러오기"><IconLoad/></button>
+                        {!l.isDefault&&(
+                          <button className="manageIconBtn manageIconBtnDel" onClick={()=>requestDelete(l.id)} type="button"
+                            title="삭제" aria-label="삭제"><IconTrash/></button>
+                        )}
+                      </div>
+                    ) : (
                       <div className="manageItemActions">
                         <button className="manageBtnLoad" onClick={()=>handleLoadLoadout(l)} type="button">불러오기</button>
                         {!l.isDefault&&(
-                          <button className="manageBtnDel" onClick={()=>requestDelete(l.id)} type="button">삭제</button>
+                          <div className="manageItemActionsSub">
+                            <button
+                              className={`manageBtnCode ${copiedCodeId===l.id?"manageBtnCodeDone":""}`}
+                              onClick={()=>handleCopyLoadoutCode(l)} type="button"
+                              title="공유 코드 복사"
+                            >{copiedCodeId===l.id ? "복사됨 ✓" : "코드 복사"}</button>
+                            <button className="manageBtnDel" onClick={()=>requestDelete(l.id)} type="button">삭제</button>
+                          </div>
                         )}
                       </div>
-                    )}
+                    ))}
                   </div>
                 );
               })}
@@ -3481,6 +3652,22 @@ export default function App() {
         </div>
       )}
 
+      {/* ── 현재 구성 게시 모달 (빌더) ── */}
+      <BoardPostModal
+        open={boardPostOpen}
+        source="current"
+        selected={selected}
+        defaultName={activeLoadoutId && activeLoadoutId !== "__default__" ? (activeLoadoutName ?? "") : ""}
+        gasUrl={GAS_URL}
+        onClose={()=>setBoardPostOpen(false)}
+        onPosted={()=>{ setBoardPostOpen(false); showToast("정상적으로 게시됐습니다.", "ok"); }}
+      />
+
+      {/* ── 화면 알림 ── */}
+      {toast && (
+        <div key={toast.key} className={`appToast appToast_${toast.kind}`} role="status">{toast.text}</div>
+      )}
+
       <PickerModal
         open={picker.open}
         typeKey={picker.typeKey}
@@ -3496,6 +3683,8 @@ export default function App() {
         stratagemSlots={selected.stratagem}
         activeSlotIndex={activeSlotIndex}
         onPreviewSlotClick={handlePreviewSlotClick}
+        ownedWb={ownedWb}
+        onOpenWbPopup={() => setWbOwnedPopup("edit")}
       />
     </div>
   );
