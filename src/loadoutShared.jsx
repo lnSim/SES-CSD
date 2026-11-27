@@ -20,7 +20,7 @@ export function normalizeIcon(it) {
 /* ── 무작위 결과 카드용 이미지 컴포넌트 (sheet 기반 단일 확장자) ── */
 export function RandIcon({ item, className, style={} }) {
   const sheet   = s(item?.sheet || item?.sheetName || item?.type);
-  const ext     = sheet.toLowerCase() === "stratagem" ? ".svg" : ".png";
+  const ext     = ["stratagem","booster"].includes(sheet.toLowerCase()) ? ".svg" : ".png";  // 스트라타젬·부스터는 svg
   const base    = s(item?.icon) || normalizeIcon(item);
   const primary = base.replace(/\.(png|svg|webp)$/i, ext);
   const [useDefault, setUseDefault] = useState(false); // 이미지 없음 → default.png로 대체

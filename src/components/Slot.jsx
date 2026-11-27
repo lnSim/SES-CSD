@@ -50,25 +50,6 @@ function SlotImg({ src, alt, className, style, sheet, itemId }) {
  * 공통 상수 (SelectedPanel.jsx 와 동일하게 유지)
  * ───────────────────────────────────────────────────────────── */
 
-/* 관통 등급 라벨 (2번 요청: 2=경장갑 관통, 3=일반 장갑 관통, 4=중장갑 관통) */
-const ARMOR_PEN_LABEL = {
-  "2":"경장갑 관통", "3":"일반 장갑 관통", "4":"중장갑 관통",
-  "5":"대전차1","6":"대전차2","7":"대전차3",
-  "8":"대전차4","9":"대전차5","10":"대전차6",
-};
-/* 관통 등급 색상 (SelectedPanel의 ARMOR_PEN_STYLE과 동일) */
-const ARMOR_PEN_STYLE = {
-  "2":    { bg:"#565656",  color:"#e8e8e8" },
-  "3":    { bg:"#cd8527",  color:"#fff3e0" },
-  "4":    { bg:"#cd8527",  color:"#fff3e0" },
-  "5":    { bg:"#8a080d",  color:"#ffd0d2" },
-  "6":    { bg:"#8a080d",  color:"#ffd0d2" },
-  "7":    { bg:"#6b0c0f",  color:"#ffb3b6" },
-  "8":    { bg:"#6b0c0f",  color:"#ffb3b6" },
-  "9":    { bg:"#1a1a1a",  color:"#ff9ea2" },
-  "10":   { bg:"#1a1a1a",  color:"#ff9ea2" },
-  "비살상":{ bg:"#1a3a5c", color:"#a8d4ff" },
-};
 /* 특성 태그 색상 (SelectedPanel의 TRAIT_BG / TRAIT_TEXT와 동일) */
 const TRAIT_BG = {
   "소이":   "#ffcfc9", "폭발성": "#ffc8aa", "레이저": "#ffe5a0",
@@ -109,7 +90,7 @@ const TAG_TOOLTIP = {
 
 export default function Slot({
   kind = "", def, picked, onClick, onClear,
-  clearMode = "x", isPickerActive = false,
+  isPickerActive = false,
   warnBackpack = false, hideName = false,
 }) {
   const has         = !!picked;
@@ -121,9 +102,6 @@ export default function Slot({
   const passiveTag = s(picked?.passive    ?? "");
   const traits     = picked ? [s(picked.trait1),s(picked.trait2),s(picked.trait3)].filter(Boolean) : [];
 
-  const armorPenRaw   = s(picked?.armorPen ?? "");
-  const armorPenLabel = armorPenRaw ? (ARMOR_PEN_LABEL[armorPenRaw] || armorPenRaw) : "";
-  const armorPenStyle = armorPenRaw ? (ARMOR_PEN_STYLE[armorPenRaw] || { bg:"#333", color:"#fff" }) : null;
 
   /* 주무기 첫 번째 pill = weaponType (무기 소분류) */
   const weaponType = s(picked?.weaponType ?? "");

@@ -1,15 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import "./App.css";
 
 import Slot from "./components/Slot";
-import PickerModal, { WbOwnedPopup, getWbOptionsFromItems } from "./components/PickerModal";
+import PickerModal, { WbOwnedBlockList, getWbOptionsFromItems } from "./components/PickerModal";
 import SelectedPanel from "./components/SelectedPanel";
 import LoadoutRadarChart, { calcRadarLayers } from "./LoadoutRadarChart";
 import { withAssetVersion, DEFAULT_ICON } from "./assetVersion";
 import LoadoutBoard, { BoardPostModal } from "./components/LoadoutBoard";
 import {
   normalizeIcon, RandIcon, FilterSelect,
-  SUPPORT_WEAPON_SUBTYPES_ALL, getSupportWeaponInfo, getSupportClass, SUPPORT_CLASS_ORDER, sortWeaponTypes,
+  SUPPORT_WEAPON_SUBTYPES_ALL, getSupportWeaponInfo, getSupportClass, SUPPORT_CLASS_AT, SUPPORT_CLASS_ORDER, sortWeaponTypes,
   LOADOUT_CODE_PREFIX, encodeLoadoutCode, decodeLoadoutCode, copyText,
   IconCopy, IconLoad, IconTrash, IconCheck,
   EMPTY_SLOT_LABEL, getWbBadgeStyle, computeWbSummary, hasAnyItem,
@@ -43,7 +44,7 @@ function lsSet(data)   { try { localStorage.setItem(LS_KEY, JSON.stringify(data)
  * - 유효기간 경과 시 → 다음 접속 때 새로 받음 (사소한 DB 수정은 최대 6시간 내 반영)
  * - 새로 받기 실패 시 → 만료된 캐시라도 있으면 그걸로 표시 (오류 화면 방지)
  */
-const GAS_CACHE_VERSION = "v_권위의가늠자"; // WB_NOTICE_VERSION과 동기화
+const GAS_CACHE_VERSION = "v_권위의가늠자_bs1"; // 채권 업데이트 시 WB_NOTICE_VERSION과 함께 변경 (bs1: 부스터 데이터 추가)
 const GAS_CACHE_KEY     = `gas_cache_${GAS_CACHE_VERSION}`;
 const GAS_CACHE_TTL_MS  = 6 * 60 * 60 * 1000; // 6시간
 function gasCacheRead() {
@@ -240,7 +241,6 @@ function WbNoticeOverlay({ onClose, isActivated=false, onActivate }) {
         <div className="wbNoticeScrollArea">
 
           {(() => {
-            const STRAT_KINDS = new Set(["스트라타젬","공격","지원무기","지원배낭 무기","일회용 지원무기","배낭","방어","센트리"]);
             const allItems   = WB_NOTICE_DATA.items; // 개인장비 + 스트라타젬 모두
             const renderCard = (cs, iconSrc, label, kindLabel) => (
               <div key={label} className="wbNoticeItemCard"
@@ -374,7 +374,7 @@ function loadImgOnce(src) {
     el.src = src;
   });
 }
-async function loadImgWithFallback(url, sheet, itemId) {
+async function loadImgWithFallback(url, sheet) {
   const resolved = resolveIconUrl(url, sheet);
   if (!resolved) return null;
   const img = await loadImgOnce(withAssetVersion(resolved));
@@ -843,40 +843,8 @@ async function exportLoadoutPng(captureRef, selected, wbSummary=[]) {
 }
 
 /* ── FireformRow: 화력 투사 형태 한 행 ── */
-function getFireformBadgeStyle(f) {
-  if (!f) return {};
-  if (f.startsWith("단일 | 범위형") || f.startsWith("범위형"))
-    return { background:"rgba(251,146,60,.12)", borderColor:"rgba(251,146,60,.45)",  color:"#fb923c" };
-  if (f==="탄막형" || f==="단일 | 탄막형")
-    return { background:"rgba(250,204,21,.10)",  borderColor:"rgba(250,204,21,.40)",  color:"#fde047" };
-  if (f==="단일 정밀")     return { background:"rgba(96,165,250,.10)",  borderColor:"rgba(96,165,250,.40)",  color:"#60a5fa" };
-  if (f==="범위 CC")       return { background:"rgba(167,139,250,.12)", borderColor:"rgba(167,139,250,.45)", color:"#a78bfa" };
-  if (f==="대상 저지")     return { background:"rgba(52,211,153,.10)",  borderColor:"rgba(52,211,153,.40)",  color:"#34d399" };
-  if (f==="근접")          return { background:"rgba(248,113,113,.10)", borderColor:"rgba(248,113,113,.40)", color:"#f87171" };
-  if (f==="위치 은폐")     return { background:"rgba(129,140,248,.10)", borderColor:"rgba(129,140,248,.40)", color:"#818cf8" };
-  if (f==="전투 보조")     return { background:"rgba(52,211,153,.10)",  borderColor:"rgba(52,211,153,.40)",  color:"#34d399" };
-  if (f==="단일 개체")     return { background:"rgba(96,165,250,.10)",  borderColor:"rgba(96,165,250,.40)",  color:"#60a5fa" };
-  if (f==="탄막 | 대전차") return { background:"rgba(239,68,68,.12)",   borderColor:"rgba(239,68,68,.45)",   color:"#ef4444" };
-  if (f==="범용 대전차")   return { background:"rgba(239,68,68,.12)",   borderColor:"rgba(239,68,68,.45)",   color:"#ef4444" };
-  if (f==="적 유인")       return { background:"rgba(250,204,21,.10)",  borderColor:"rgba(250,204,21,.40)",  color:"#fde047" };
-  if (f==="방어막")        return { background:"rgba(56,189,248,.10)",  borderColor:"rgba(56,189,248,.40)",  color:"#38bdf8" };
-  if (f==="전방 방어")     return { background:"rgba(99,102,241,.10)",  borderColor:"rgba(99,102,241,.40)",  color:"#818cf8" };
-  if (f==="기동력, 지형 활용") return { background:"rgba(52,211,153,.08)", borderColor:"rgba(52,211,153,.35)", color:"#6ee7b7" };
-  if (f==="부분적 중형 적 대응") return { background:"rgba(255,163,43,.10)", borderColor:"rgba(255,163,43,.40)", color:"#ffa32b" };
-  if (f==="전진형 화력투사")   return { background:"rgba(251,146,60,.10)", borderColor:"rgba(251,146,60,.40)", color:"#fdba74" };
-  if (f==="횡방향 화력투사")   return { background:"rgba(167,139,250,.10)",borderColor:"rgba(167,139,250,.40)",color:"#c4b5fd" };
-  if (f==="구역 화력투사")     return { background:"rgba(239,68,68,.10)",  borderColor:"rgba(239,68,68,.40)",  color:"#fca5a5" };
-  return { background:"rgba(148,163,184,.08)", borderColor:"rgba(148,163,184,.25)", color:"rgba(203,213,225,.85)" };
-}
 
 /* ── Ergo 배지 스타일 ── */
-function getErgoBadgeStyle(ergo) {
-  if (ergo === "높음") return { background:"rgba(134,239,172,.12)", borderColor:"rgba(134,239,172,.40)", color:"#86efac" };
-  if (ergo === "보통") return { background:"rgba(250,204,21,.10)",  borderColor:"rgba(250,204,21,.38)",  color:"#fde047" };
-  if (ergo === "낮음") return { background:"rgba(223,63,63,.12)",   borderColor:"rgba(223,63,63,.40)",   color:"#df3f3f" };
-  if (ergo === "투척") return { background:"rgba(255,255,255,.08)", borderColor:"rgba(255,255,255,.30)", color:"#ffffff" };
-  return null;
-}
 
 
 /* ─────────────────────────────────────────────
@@ -1108,87 +1076,626 @@ function TutorialOverlay({ step, onNext, onPrev, onClose }) {
   );
 }
 
-const ERGO_UPGRADE = { "낮음":"보통", "보통":"높음", "투척":"투척" };
-const ERGO_LABEL  = { "낮음":"핸들링 낮음", "보통":"핸들링 보통", "높음":"핸들링 높음", "투척":"투척" };
-const IDEAL_BLUE   = "#60a5fa";
-const IDEAL_BLUE_STYLE = {
-  background:"rgba(96,165,250,.12)", borderColor:"rgba(96,165,250,.40)", color:IDEAL_BLUE,
+
+
+
+
+/* ═══════════════════════════════════════════
+   무작위 로드아웃 — 조건 정의 + 생성 로직
+   (컴포넌트 밖 순수 함수: itemsByType 를 인자로 받음)
+═══════════════════════════════════════════ */
+// 구성 난이도 (택 1)
+const RANDOM_DIFFICULTIES = [
+  { key:"recruit",   label:"신병 능력 평가 (쉬움)",     desc:"게임이 익숙해졌다는 생각이 든다면 추천합니다. 무작위 스트라타젬과 함께 투하합니다. 지원무기 1개가 항상 포함됩니다." },
+  { key:"limit",     label:"능력 한계 시험 (표준)",     desc:"무작위 로드아웃 플레이가 익숙하다면 추천합니다. 소지한 항목에서 무작위로 장비 구성을 배정합니다. 지원무기 / 배낭이 중복되지 않습니다." },
+  { key:"helldiver", label:"헬다이버 능력 평가 (고난)", desc:"극한의 제약 플레이를 즐긴다면 추천합니다. 모든 장비 구성을 무작위로 배정합니다. 지원무기 / 배낭이 중복될 수 있습니다." },
+];
+// 챌린지 (최대 1)
+const RANDOM_CHALLENGES = [
+  { key:"olddays",  label:"'그' 시절을 기억하나?", desc:"스트라타젬 한 칸이 비활성화됩니다." },
+  { key:"classic",  label:"헬다이버즈 2 클래식",   desc:"모든 프리미엄 채권 구성품이 제외됩니다." },
+  { key:"onecolor", label:"원 컬러",               desc:"공격, 지원, 방어 중 한 분류의 스트라타젬으로만 구성됩니다." },
+];
+// 추가 제한 (최대 1) — 화면에서는 2개씩 짝지어 표시
+const RANDOM_LIMITS = [
+  { key:"eagle1",    label:"이글 무장 제한",  desc:"최대 이글 스트라타젬을 1개로 제한합니다." },
+  { key:"eagle0",    label:"이글 출격 불가",  desc:"이글 스트라타젬이 배정되지 않습니다." },
+  { key:"orbital1",  label:"궤도 포대 정비",  desc:"최대 궤도 스트라타젬을 1개로 제한합니다." },
+  { key:"orbital0",  label:"궤도 요청 불가",  desc:"궤도 스트라타젬이 배정되지 않습니다." },
+  { key:"sentry1",   label:"부속 재고 부족",  desc:"최대 센트리 스트라타젬을 1개로 제한합니다." },
+  { key:"sentry0",   label:"부속 재고 소진",  desc:"센트리 스트라타젬이 배정되지 않습니다." },
+  { key:"novehicle", label:"재정 조정",       desc:"탑승물이 배정되지 않습니다." },
+  { key:"noat",      label:"대전차 고갈",     desc:"대전차 지원무기가 배정되지 않습니다." },
+  { key:"joker",     label:"너만 없으면",     desc:"구성된 로드아웃에서 한 가지를 선택해서 무작위로 다시 뽑습니다. (1회)" },
+  { key:"poker",     label:"와일드 카드",     desc:"구성된 로드아웃에서 한 가지를 선택해 남기고 나머지는 모두 무작위로 다시 뽑습니다. (1회)" },
+];
+const RANDOM_LIMIT_RULES = {
+  eagle1:{ sub:"이글", max:1 },   eagle0:{ sub:"이글", max:0 },
+  orbital1:{ sub:"궤도", max:1 }, orbital0:{ sub:"궤도", max:0 },
+  sentry1:{ sub:"센트리", max:1 }, sentry0:{ sub:"센트리", max:0 },
+  novehicle:{ sub:"탑승물", max:0 },
 };
-const ERGO_COL_W = 48; // Ergo 배지 열 고정 너비(px)
+const DEFAULT_RANDOM_CONDS = { difficulty:"limit", challenge:null, limit:null };
+// 난이도별로 고를 수 있는 챌린지 / 추가 제한
+//  신병 능력 평가: 챌린지는 '그' 시절·클래식만, 추가 제한은 너만 없으면·와일드 카드만
+//  헬다이버 능력 평가: 최대 1개 제한(이글·궤도·센트리)과 너만 없으면·와일드 카드 불가
+//  원 컬러: 이글·궤도·센트리 개수 제한/배정 불가 추가 제한 불가
+const ONECOLOR_BLOCKED_LIMITS = ["eagle1","eagle0","orbital1","orbital0","sentry1","sentry0"];
+const isRandomCondAllowed = (field, key, difficulty, challenge = null) => {
+  if (!key || field === "difficulty") return true;
+  if (field === "limit" && challenge === "onecolor" && ONECOLOR_BLOCKED_LIMITS.includes(key)) return false;
+  if (difficulty === "recruit") {
+    if (field === "challenge") return ["olddays","classic"].includes(key);
+    if (field === "limit")     return ["joker","poker"].includes(key);
+  }
+  if (difficulty === "helldiver" && field === "limit") return !["eagle1","orbital1","sentry1","joker","poker"].includes(key);
+  return true;
+};
+const normalizeRandomConds = (c) => {
+  // 이전 저장값: 조커/포커가 챌린지에 있던 경우 → 추가 제한으로 옮김
+  const moved = ["joker","poker"].includes(c?.challenge) && !c?.limit ? c.challenge : c?.limit;
+  const difficulty = RANDOM_DIFFICULTIES.some(d => d.key === c?.difficulty) ? c.difficulty : "limit";
+  const challenge  = RANDOM_CHALLENGES.some(d => d.key === c?.challenge) ? c.challenge : null;
+  const limit      = RANDOM_LIMITS.some(d => d.key === moved) ? moved : null;
+  return {
+    difficulty,
+    challenge: isRandomCondAllowed("challenge", challenge, difficulty) ? challenge : null,
+    limit:     isRandomCondAllowed("limit", limit, difficulty, challenge) ? limit : null,
+  };
+};
+const randomCondsSummary = (c) => [
+  RANDOM_DIFFICULTIES.find(d => d.key === c.difficulty)?.label,
+  RANDOM_CHALLENGES.find(d => d.key === c.challenge)?.label,
+  RANDOM_LIMITS.find(d => d.key === c.limit)?.label,
+].filter(Boolean).join(" · ");
 
-// 라벨 색상: 주/보조/투척 노란색, 지원무기 지원색, 스트라타젬 대분류는 공격/방어 색
-const FIREFORM_LABEL_COLOR = (label) => {
-  if (["주무기","보조무기","투척무기"].includes(label)) return "#fde047";
-  if (label === "지원무기") return "#bfe1f6";
-  if (["이글","궤도"].includes(label))                 return "#fe5f47";
-  if (["센트리","거치포","배치형"].includes(label))     return "#d4edbc";
-  if (label === "탑승물") return "#93c5fd";
-  return "#bfe1f6"; // 배낭 등 나머지 지원 계열
+// 대전차 지원무기: 게시판·관리창의 "대전차 지원무기" 분류와 같은 기준 (loadoutShared의 AT_SUPPORT_NAME_KEYWORDS)
+// → 지원무기(일회용·지원배낭 무기 포함) 중 이름에 대전차 키워드가 들어간 것
+const isAtSupportWeapon = (it) => SUPPORT_WEAPON_SUBTYPES_ALL.has(getSubType(it)) && getSupportClass(it) === SUPPORT_CLASS_AT;
+// 대전차 고갈일 때 함께 빠지는 부스터: 초과 EAT 할당 (EAT-17 공유 스트라타젬)
+const AT_BOOSTER_IDS = new Set(["bs_sea"]);
+// 헬다이버즈 2 클래식: 기본 제공 항목만 (채권·캠페인 보상·슈퍼 시민권·슈퍼 스토어·해방절 보상 제외)
+// 캠페인 보상·슈퍼 시민권 보유 여부는 "보유 항목"에서 따로 관리
+const CLASSIC_WB = new Set(["","기본","기본 제공","헬다이버 출동!"]);
+const isClassicItem = (it) => CLASSIC_WB.has(s(it?.wbrequirement));
+const RANDOM_STRAT_TYPES = ["공격","지원","방어"];
+const isSuperStoreItem = (it) => { const wb = s(it?.wbrequirement); return wb.includes("슈퍼") && wb.includes("스토어"); };
+// 보유 항목에서 개별 선택하는 분류 (채권은 기존 소지 채권 팝업)
+const SPECIAL_OWN_CATS = [
+  { key:"campaign",   label:"캠페인 보상", match:(it) => s(it?.wbrequirement) === "캠페인 보상" },
+  { key:"citizen",    label:"슈퍼 시민 에디션 업그레이드", match:(it) => { const wb = s(it?.wbrequirement).replace(/\s/g, ""); return wb.includes("슈퍼시민권"); } },
+  { key:"superStore", label:"슈퍼 스토어", match:isSuperStoreItem },
+];
+const specialCatOf = (it) => SPECIAL_OWN_CATS.find(c => c.match(it))?.key ?? null;
+// 보유 항목 반영: conds.own = { wbOptions:Set(소지 선택 대상 채권), ownedWb:Set|null,
+//   special:{ campaign:Set|null(null=전부 보유), citizen:boolean, superStore:Set|null(null=보유 없음) } }
+const isOwnedForRandom = (it, own) => {
+  if (!own) return true;
+  const cat = specialCatOf(it);
+  if (cat === "citizen")    return own.special?.citizen !== false;
+  if (cat === "campaign")   { const set = own.special?.campaign;   return !set || set.has(s(it?.id)); }
+  if (cat === "superStore") { const set = own.special?.superStore; return !!set && set.has(s(it?.id)); }
+  const wb = s(it?.wbrequirement);
+  if (own.ownedWb && own.wbOptions?.has(wb)) return own.ownedWb.has(wb);
+  return true;
+};
+const RANDOM_GEAR_KEYS = [
+  { key:"armor",     type:"armor",   label:"방어구" },
+  { key:"primary",   type:"주무기",  label:"주무기" },
+  { key:"secondary", type:"보조무기", label:"보조무기" },
+  { key:"throwable", type:"투척무기", label:"투척무기" },
+];
+
+const shuffleArr = (arr) => {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+};
+const pickOne = (pool) => pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
+
+// 스트라타젬이 차지하는 칸: 지원무기(일회용·지원배낭 무기 포함) / 배낭(지원배낭 무기 포함) / 탑승물
+const stratRole = (it) => {
+  const sub = getSubType(it);
+  return {
+    weapon:   SUPPORT_WEAPON_SUBTYPES_ALL.has(sub),
+    backpack: sub === SUBTYPE_BACKPACK || sub === SUBTYPE_BACKPACK_WEAPON,
+    vehicle:  sub === "탑승물",
+  };
 };
 
-const RESP_STYLE = {
-  "빠름": { label:"빠른 호출", bg:"rgba(134,239,172,.15)", border:"rgba(134,239,172,.40)", color:"#86efac" },
-  "보통": { label:"평균 호출", bg:"rgba(253,224,71,.12)",  border:"rgba(253,224,71,.35)",  color:"#fde047" },
-  "느림": { label:"느린 호출", bg:"rgba(248,113,113,.15)", border:"rgba(248,113,113,.40)", color:"#f87171" },
-};
+// 조건으로 아예 빠지는 스트라타젬을 걸러낸 후보
+function randomStratPool(itemsByType, conds, colorType = null) {
+  let pool = (itemsByType.get("stratagem") ?? []).filter(it => isOwnedForRandom(it, conds.own));
+  if (conds.challenge === "classic") pool = pool.filter(isClassicItem);
+  const rule = RANDOM_LIMIT_RULES[conds.limit];
+  if (rule && rule.max === 0) pool = pool.filter(it => getSubType(it) !== rule.sub);
+  if (conds.limit === "noat") pool = pool.filter(it => !isAtSupportWeapon(it));
+  if (colorType) pool = pool.filter(it => s(it?.stratType) === colorType);
+  return pool;
+}
+function randomGearPool(itemsByType, type, conds) {
+  let pool = (itemsByType.get(type) ?? []).filter(it => isOwnedForRandom(it, conds.own));
+  if (conds.challenge === "classic") pool = pool.filter(isClassicItem);
+  if (conds.limit === "noat" && type === "booster") pool = pool.filter(it => !AT_BOOSTER_IDS.has(s(it?.id)));
+  return pool;
+}
 
-function FireformRow({ row, hasIdealBody }) {
-  const f      = row.form    ?? "";
-  const id     = row.id      ?? "";
-  const isCqc  = id.includes("cqc");
-  const subNotes     = Array.isArray(row.subNotes)     ? row.subNotes     : [];
-  const passiveNotes = Array.isArray(row.passiveNotes) ? row.passiveNotes : [];
-  const responseTime = row.responseTime ?? "";
+// 이미 고른 스트라타젬과 함께 넣을 수 있는지 (중복 금지 + 개수 제한 + 난이도별 중복 규칙)
+function canAddStrat(it, chosen, conds) {
+  const list = chosen.filter(Boolean);
+  if (list.some(x => s(x.id) === s(it.id))) return false;
+  const rule = RANDOM_LIMIT_RULES[conds.limit];
+  if (rule && rule.max > 0 && getSubType(it) === rule.sub
+      && list.filter(x => getSubType(x) === rule.sub).length >= rule.max) return false;
+  if (conds.difficulty !== "helldiver" && !conds.relaxRoles) {
+    const r = stratRole(it);
+    const has = (k) => list.some(x => stratRole(x)[k]);
+    if ((r.weapon && has("weapon")) || (r.backpack && has("backpack")) || (r.vehicle && has("vehicle"))) return false;
+  }
+  return true;
+}
 
-  // 이상적인 체형: Ergo 업그레이드 (투척 제외)
-  const isIdealTarget = hasIdealBody && row.ergo !== "투척";
-  const ergo      = isIdealTarget ? (ERGO_UPGRADE[row.ergo] ?? row.ergo) : (row.ergo ?? "");
-  const ergoStyle = isIdealTarget ? IDEAL_BLUE_STYLE : getErgoBadgeStyle(ergo);
-  const nameColor = isIdealTarget ? IDEAL_BLUE : "rgba(255,255,255,.75)";
+// fixed: 길이 4 배열(유지할 칸은 아이템), fillIdx: 새로 채울 칸 번호
+function fillStrats(pool, conds, fixed, fillIdx, exclude = new Set()) {
+  const out = fixed.map((x, i) => fillIdx.includes(i) ? null : x);
+  const cand = shuffleArr(pool.filter(it => !exclude.has(s(it.id))));
+  let order = [...fillIdx];
+  // 신병 능력 평가: 지원무기 1개 보장 (무작위 칸에 배치)
+  if (conds.difficulty === "recruit" && order.length && !out.some(x => x && stratRole(x).weapon)) {
+    const w = cand.find(it => stratRole(it).weapon && canAddStrat(it, out, conds));
+    if (w) {
+      const at = order[Math.floor(Math.random() * order.length)];
+      out[at] = w;
+      order = order.filter(i => i !== at);
+    }
+  }
+  for (const i of order) out[i] = cand.find(it => canAddStrat(it, out, conds)) ?? null;
+  return out;
+}
 
-  // passiveNotes(pos/pos2) → subNotes(pos2) → subNotes(pos) → subNotes(neg) 순으로 표시
-  const allPos2 = [...passiveNotes.filter(n => n.kind === "pos2"), ...subNotes.filter(n => n.kind === "pos2")];
-  const allPos  = [...passiveNotes.filter(n => n.kind === "pos"),  ...subNotes.filter(n => n.kind === "pos")];
-  const allNeg  = subNotes.filter(n => n.kind === "neg");
-  const orderedNotes = [...allPos2, ...allPos, ...allNeg];
+// 원 컬러 '지원'은 지원무기·배낭·탑승물로만 이뤄져 있어 중복 금지 규칙으로는 칸을 채울 수 없음 → 이때만 중복 허용
+const colorConds = (conds, colorType) => colorType === "지원" ? { ...conds, relaxRoles:true } : conds;
 
-  const respStyle = RESP_STYLE[responseTime] ?? null;
+// 원 컬러: 칸을 모두 채울 수 있는 분류 중에서 무작위 (신병은 지원무기가 있는 '지원'만)
+function chooseColorType(itemsByType, conds, slots) {
+  const types = conds.difficulty === "recruit" ? ["지원"] : RANDOM_STRAT_TYPES;
+  const idx = [...Array(slots).keys()];
+  const scored = shuffleArr(types).map(t => {
+    const filled = fillStrats(randomStratPool(itemsByType, conds, t), colorConds(conds, t), [null,null,null,null], idx).filter(Boolean).length;
+    return { t, filled };
+  });
+  const full = scored.filter(x => x.filled >= slots);
+  if (full.length) return full[0].t;
+  return scored.sort((a, b) => b.filled - a.filled)[0]?.t ?? null;
+}
 
-  const fStyle = getFireformBadgeStyle(f);
+function generateRandomLoadout(itemsByType, conds) {
+  const slots = conds.challenge === "olddays" ? 3 : 4;
+  const colorType = conds.challenge === "onecolor" ? chooseColorType(itemsByType, conds, slots) : null;
+  const pool = randomStratPool(itemsByType, conds, colorType);
+  const strats = fillStrats(pool, colorConds(conds, colorType), [null,null,null,null], [...Array(slots).keys()]);
+  const manualGear = conds.difficulty === "recruit";
+  const result = { strats, slots, colorType, manualGear, shortage: strats.slice(0, slots).filter(x => !x).length };
+  for (const g of RANDOM_GEAR_KEYS) result[g.key] = manualGear ? null : pickOne(randomGearPool(itemsByType, g.type, conds));
+  result.booster = pickOne(randomGearPool(itemsByType, "booster", conds));
+  return result;
+}
 
-  return (
-    <div style={{ display:"flex", alignItems:"flex-start", gap:8, minWidth:0 }}>
-      {/* 라벨 */}
-      <span style={{
-        width:56, flexShrink:0,
-        fontSize:12, color:FIREFORM_LABEL_COLOR(row.label), fontWeight:700,
-        whiteSpace:"nowrap", lineHeight:1,
-        display:"flex", alignItems:"flex-start", paddingTop:2,
-      }}>{row.label}</span>
-      {/* 명칭 + 배지 + 노트 */}
-      <div style={{ flex:1, minWidth:0, display:"flex", flexDirection:"column", gap:3 }}>
-        <span style={{ fontSize:13, color:nameColor, fontWeight:600, wordBreak:"keep-all", overflowWrap:"break-word" }}>{row.name}</span>
-        {/* 배지 행 */}
-        {(f || ergoStyle || respStyle) && (
-          <div style={{ display:"flex", gap:5, flexWrap:"wrap", marginTop:1 }}>
-            {f && <span className="statFireformBadge" style={{ ...fStyle, margin:0 }}>{f}</span>}
-            {respStyle && <span className="statFireformBadge" style={{ background:respStyle.bg, border:`1px solid ${respStyle.border}`, color:respStyle.color, margin:0 }}>{respStyle.label}</span>}
-            {!respStyle && ergoStyle && <span className="statFireformBadge" style={{ ...ergoStyle, margin:0 }}>{ERGO_LABEL[ergo] ?? ergo}</span>}
-          </div>
+// 조커/포커: keys 에 든 칸만 다시 뽑기 (가능하면 지금과 다른 것으로)
+function rerollRandomLoadout(itemsByType, conds, prev, keys) {
+  const next = { ...prev };
+  const stratIdx = [0,1,2,3].filter(i => i < prev.slots && keys.has(`strat${i}`));
+  if (stratIdx.length) {
+    const pool = randomStratPool(itemsByType, conds, prev.colorType);
+    const fc = colorConds(conds, prev.colorType);
+    const exclude = new Set(stratIdx.map(i => s(prev.strats[i]?.id)).filter(Boolean));
+    let strats = fillStrats(pool, fc, prev.strats, stratIdx, exclude);
+    const empty = stratIdx.filter(i => !strats[i]);
+    if (empty.length) strats = fillStrats(pool, fc, strats, empty);   // 다른 후보가 없으면 제외 없이 다시
+    next.strats = strats;
+    next.shortage = strats.slice(0, prev.slots).filter(x => !x).length;
+  }
+  if (!prev.manualGear) {
+    for (const g of RANDOM_GEAR_KEYS) {
+      if (!keys.has(g.key)) continue;
+      const pool = randomGearPool(itemsByType, g.type, conds);
+      const others = pool.filter(it => s(it.id) !== s(prev[g.key]?.id));
+      next[g.key] = pickOne(others.length ? others : pool);
+    }
+  }
+  return next;
+}
+// 조커/포커로 고를 수 있는 칸
+const randomPickableKeys = (result) => !result ? [] : [
+  ...[0,1,2,3].filter(i => i < result.slots).map(i => `strat${i}`),
+  ...(result.manualGear ? [] : RANDOM_GEAR_KEYS.map(g => g.key)),
+];
+
+/* ── 보유 항목 관리: 전쟁 채권 / 캠페인 보상 / 슈퍼 시민권 업그레이드 / 슈퍼 스토어 ──
+ * 전쟁 채권은 기존 ownedWarBonds_v1 에 저장 (로드아웃 빌더 선택창 + 무작위 로드아웃)
+ * 나머지는 { campaign:[id..], citizen:boolean, superStore:[id..] } 로 저장 (무작위 로드아웃, 슈퍼 스토어는 빌더 목록 정렬에도 사용)
+ * 기본값: 캠페인 보상 전부 보유 / 슈퍼 시민권 업그레이드 보유 / 슈퍼 스토어 보유 없음 */
+const OWNED_SPECIAL_KEY = "ownedSpecialItems_v1";
+function ownedSpecialLoad() {
+  const out = { campaign:null, citizen:true, superStore:null };
+  try {
+    const o = JSON.parse(localStorage.getItem(OWNED_SPECIAL_KEY) || "null") ?? {};
+    if (Array.isArray(o.campaign))   out.campaign   = new Set(o.campaign);
+    if (Array.isArray(o.superStore)) out.superStore = new Set(o.superStore);
+    if (o.citizen === false) out.citizen = false;
+  } catch {}
+  return out;
+}
+function ownedSpecialSave(obj) {
+  const o = { citizen: obj.citizen !== false };
+  if (obj.campaign)   o.campaign   = [...obj.campaign];
+  if (obj.superStore) o.superStore = [...obj.superStore];
+  try { localStorage.setItem(OWNED_SPECIAL_KEY, JSON.stringify(o)); } catch {}
+}
+const SS_WEAPON_TYPES = new Set(["주무기","보조무기","투척무기"]);
+const OWN_TABS = [
+  { key:"wb",         label:"전쟁 채권" },
+  { key:"campaign",   label:"캠페인 보상" },
+  { key:"superStore", label:"슈퍼 스토어" },
+];
+/* ── 보유 항목 동기화 코드 (PC ↔ 모바일) ──
+ * "SES-OWN-" + base64url( [버전, 슈퍼 시민권] + 분류별 [항목 수(2바이트), 보유 비트] )
+ * 분류 순서: 전쟁 채권(표시 순서) → 캠페인 보상(DB 순서) → 슈퍼 스토어(DB 순서)
+ * 새 항목은 목록 끝에 붙으므로, 예전 코드도 앞쪽 항목은 그대로 맞음 (새 항목: 채권·슈퍼 스토어는 미보유, 캠페인 보상은 보유) */
+const OWNED_CODE_PREFIX = "SES-OWN-";
+const OWNED_CODE_SECTIONS = ["wb","campaign","superStore"];
+const b64urlEncode = (bytes) => { let bin = ""; bytes.forEach(b => { bin += String.fromCharCode(b); }); return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); };
+const b64urlDecode = (str) => { const bin = atob(str.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((str.length + 3) % 4)); return Uint8Array.from(bin, c => c.charCodeAt(0)); };
+function encodeOwnedCode(draft, lists) {
+  const bytes = [1, draft.citizen === false ? 0 : 1];
+  for (const sec of OWNED_CODE_SECTIONS) {
+    const list = lists[sec] ?? [];
+    bytes.push((list.length >> 8) & 255, list.length & 255);
+    const mask = new Array(Math.ceil(list.length / 8)).fill(0);
+    list.forEach((id, i) => { if (draft[sec]?.has(id)) mask[i >> 3] |= (1 << (i & 7)); });
+    bytes.push(...mask);
+  }
+  return OWNED_CODE_PREFIX + b64urlEncode(bytes);
+}
+function decodeOwnedCode(code, lists) {
+  try {
+    const raw = s(code).replace(/\s/g, "");
+    if (!raw.toUpperCase().startsWith(OWNED_CODE_PREFIX)) return null;
+    const b = b64urlDecode(raw.slice(OWNED_CODE_PREFIX.length));
+    if (b[0] !== 1 || b.length < 2) return null;
+    const out = { citizen: b[1] !== 0 };
+    let p = 2;
+    for (const sec of OWNED_CODE_SECTIONS) {
+      if (p + 2 > b.length) return null;
+      const n = (b[p] << 8) | b[p + 1]; p += 2;
+      const len = Math.ceil(n / 8);
+      if (p + len > b.length) return null;
+      const list = lists[sec] ?? [];
+      const set = new Set();
+      list.forEach((id, i) => {
+        if (i < n) { if (b[p + (i >> 3)] & (1 << (i & 7))) set.add(id); }
+        else if (sec === "campaign") set.add(id);
+      });
+      out[sec] = set;
+      p += len;
+    }
+    return out;
+  } catch { return null; }
+}
+
+function OwnedItemsPopup({ open, mode="edit", items, allWb, ownedWb, ownedSpecial, onConfirm, onClose, onToast }) {
+  const isFirst = mode === "first";
+  const campaignItems = useMemo(() => items.filter(SPECIAL_OWN_CATS[0].match), [items]);
+  const citizenItems  = useMemo(() => items.filter(SPECIAL_OWN_CATS[1].match), [items]);
+  const ssItems       = useMemo(() => items.filter(isSuperStoreItem), [items]);
+  // 슈퍼 스토어: 방어구 등은 로테이션별(고정 로테이션 먼저), 무기는 한 묶음
+  const ssGroups = useMemo(() => {
+    const map = new Map();
+    for (const it of ssItems) {
+      if (SS_WEAPON_TYPES.has(s(it.type))) continue;
+      const key = s(it.unlock) || "기타";
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(it);
+    }
+    const FIXED = "고정 로테이션";
+    // 무기: 주무기 > 보조무기 > 투척무기 (같은 종류 안에서는 DB 순서)
+    const W_ORDER = ["주무기","보조무기","투척무기"];
+    const weapons = ssItems.filter(it => SS_WEAPON_TYPES.has(s(it.type)))
+      .map((it, i) => ({ it, i })).sort((a, b) => (W_ORDER.indexOf(s(a.it.type)) - W_ORDER.indexOf(s(b.it.type))) || (a.i - b.i)).map(x => x.it);
+    return {
+      fixed:     map.get(FIXED) ?? [],
+      rotations: [...map.keys()].filter(k => k !== FIXED).map(k => ({ title:k, list:map.get(k) })),
+      weapons,
+    };
+  }, [ssItems]);
+
+  const [tab, setTab] = useState("wb");
+  const [draft, setDraft] = useState(null);
+  const [codeInput, setCodeInput] = useState("");
+  // 모바일: 분류별 버튼 → 분류 선택 팝업
+  const [mobileSub, setMobileSub] = useState(null);
+  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.matchMedia("(max-width:600px)").matches);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width:600px)");
+    const on = () => setIsMobile(mq.matches);
+    mq.addEventListener?.("change", on);
+    return () => mq.removeEventListener?.("change", on);
+  }, []);
+  useEffect(() => {
+    if (!open) return;
+    setTab("wb");
+    setMobileSub(null);
+    setCodeInput("");
+    setDraft({
+      wb:         new Set(ownedWb ?? []),
+      campaign:   new Set(ownedSpecial?.campaign ?? campaignItems.map(it => s(it.id))),
+      citizen:    ownedSpecial?.citizen !== false,
+      superStore: new Set(ownedSpecial?.superStore ?? []),
+    });
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 창 높이 애니메이션: 내용의 실제 높이를 재서 카드 height로 지정 → CSS transition으로 부드럽게 늘고 줄어듦
+  const cardRef = useRef(null), scrollRef = useRef(null), innerRef = useRef(null);
+  const [cardH, setCardH] = useState(null);
+  useLayoutEffect(() => {
+    if (!open || !draft || isMobile) { setCardH(null); return; }
+    const measure = () => {
+      const card = cardRef.current, scroll = scrollRef.current, inner = innerRef.current;
+      if (!card || !scroll || !inner) return;
+      let fixed = 0;
+      for (const c of card.children) {
+        if (c === scroll) continue;
+        const cs = getComputedStyle(c);
+        fixed += c.offsetHeight + parseFloat(cs.marginTop) + parseFloat(cs.marginBottom);
+      }
+      const cs = getComputedStyle(card);
+      const border = parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
+      const cap = Math.min(window.innerHeight * 0.86, window.innerHeight - 32);
+      setCardH(Math.min(cap, Math.ceil(fixed + inner.offsetHeight + border)));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (innerRef.current) ro.observe(innerRef.current);
+    window.addEventListener("resize", measure);
+    return () => { ro.disconnect(); window.removeEventListener("resize", measure); };
+  }, [open, !!draft, tab, isMobile]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!open || !draft) return null;
+
+  const tabAll = tab === "wb" ? allWb : (tab === "campaign" ? campaignItems : ssItems).map(it => s(it.id));
+  const cur = draft[tab];
+  const setCur = (set) => setDraft(p => ({ ...p, [tab]: set }));
+  const toggle = (id) => { const n = new Set(cur); n.has(id) ? n.delete(id) : n.add(id); setCur(n); };
+  const countOf = (k) => k === "wb" ? allWb.filter(w => draft.wb.has(w)).length
+    : (k === "campaign" ? campaignItems : ssItems).filter(it => draft[k].has(s(it.id))).length;
+  const totalOf = (k) => k === "wb" ? allWb.length : (k === "campaign" ? campaignItems : ssItems).length;
+
+  const itemGrid = (list, cls = "") => (
+    <div className={`ssOwnedGrid ${cls}`}>
+      {list.map(it => {
+        const on = cur.has(s(it.id));
+        return (
+          <button key={it.id} type="button" className={`ssOwnedItem ssOwned_${tab} ${on ? "on" : ""}`} onClick={() => toggle(s(it.id))}>
+            <RandIcon item={it} className="ssOwnedIcon" />
+            <span className="ssOwnedName"><span className="ssOwnedNameText">{it.name_ko || it.id}</span></span>
+            <span className="ssOwnedSub">{s(it.passive) || s(it.weaponType)}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  // 분류 내용 (PC 탭 아래 / 모바일 분류 팝업 안 공용)
+  const tabContent = (
+    tab === "wb" ? (
+      <WbOwnedBlockList allWb={allWb} items={items} draft={draft.wb} onToggle={toggle} />
+    ) : (
+      <div className="ssOwnedBody">
+        {tab === "campaign" && (campaignItems.length ? itemGrid(campaignItems, "ssOwnedGridCenter") : <div className="rpHint">해당하는 항목이 없습니다.</div>)}
+        {tab === "superStore" && (
+          <>
+            {ssGroups.fixed.length > 0 && (
+              <div className="ssOwnedGroup">
+                <div className="ssOwnedGroupTitle">고정 로테이션</div>
+                {itemGrid(ssGroups.fixed, "ssOwnedGrid6")}
+              </div>
+            )}
+            {ssGroups.rotations.length > 0 && (
+              <div className="ssRotGrid">
+                {ssGroups.rotations.map(g => (
+                  <div key={g.title} className="ssOwnedGroup ssRotCell">
+                    <div className="ssOwnedGroupTitle">{g.title}</div>
+                    {itemGrid(g.list, "ssOwnedGrid1")}
+                  </div>
+                ))}
+              </div>
+            )}
+            {ssGroups.weapons.length > 0 && (
+              <div className="ssOwnedGroup">
+                <div className="ssOwnedGroupTitle">무기</div>
+                {itemGrid(ssGroups.weapons, "ssOwnedGrid6")}
+              </div>
+            )}
+          </>
         )}
-        {/* 노트 (배지 아래) */}
-        {orderedNotes.map((n,i) => (
-          <span key={i} style={{ fontSize:12, fontWeight:700, opacity:.95,
-            color: n.kind === "neg" ? "#f87171" : n.kind === "pos2" ? "#4ade80" : "#86efac" }}>
-            {n.kind === "neg" ? `- ${n.text}` : n.kind === "pos2" ? `${n.text}` : `+ ${n.text}`}
-          </span>
-        ))}
       </div>
+    )
+  );
+  const toolbar = (
+    <div className="wbOwnedToolbar">
+      <span className="wbOwnedCount">{countOf(tab)} / {totalOf(tab)}</span>
+      <div style={{ display:"flex", gap:6 }}>
+        <button className="filterMiniBtn" type="button" onClick={() => setCur(new Set(tabAll))}>전체 선택</button>
+        <button className="filterMiniBtn" type="button" onClick={() => setCur(new Set())}>전체 해제</button>
+      </div>
+    </div>
+  );
+
+  // 동기화 코드: 지금 선택 상태(저장 전 포함)를 코드로 복사 / 다른 기기의 코드를 바로 적용
+  const codeLists = { wb: allWb, campaign: campaignItems.map(it => s(it.id)), superStore: ssItems.map(it => s(it.id)) };
+  const copyOwnedCode = async () => {
+    const ok = await copyText(encodeOwnedCode(draft, codeLists));
+    onToast?.(ok ? "보유 항목 코드를 복사했습니다. 다른 기기의 보유 항목 관리에서 적용해주세요." : "코드를 복사하지 못했습니다.", ok ? "ok" : "err");
+  };
+  const applyOwnedCode = () => {
+    const d = decodeOwnedCode(codeInput, codeLists);
+    if (!d) { onToast?.("알맞은 양식의 보유 항목 코드를 입력해주세요.", "warn"); return; }
+    onConfirm(d);
+    onToast?.("보유 항목 코드를 적용했습니다.", "ok");
+  };
+  const syncRow = (
+    <div className="ssSyncRow">
+      <div className="ssSyncHead">
+        <span className="ssSyncLabel">기기 간 동기화</span>
+        <button className="filterMiniBtn" type="button" onClick={copyOwnedCode}>코드 복사</button>
+      </div>
+      <div className="manageImportInputRow">
+        <input className="manageImportInput" type="text" value={codeInput} onChange={e => setCodeInput(e.target.value)}
+          placeholder={`${OWNED_CODE_PREFIX}… 코드를 붙여넣어 주세요`} autoComplete="off" spellCheck={false} />
+        <button className="manageImportBtn" type="button" disabled={!codeInput.trim()} onClick={applyOwnedCode}>적용</button>
+      </div>
+    </div>
+  );
+
+  return createPortal(
+    <>
+    <div className="wbOwnedOverlay ssOwnedOverlay"
+      onClick={() => { if (!isFirst) onClose?.(); }}
+      onContextMenu={e => { e.preventDefault(); e.stopPropagation(); if (!isFirst) onClose?.(); }}>
+      <div className="wbOwnedCard ssOwnedCard" ref={cardRef} style={cardH ? { height:cardH } : undefined}
+        onClick={e => e.stopPropagation()} role="dialog" aria-modal="true">
+        <div className="wbOwnedHeader">
+          <div className="wbOwnedTitle">보유 항목 관리</div>
+          <div className="wbOwnedDesc">
+            보유한 항목을 선택해주세요.<br />
+            전쟁 채권은 로드아웃 빌더와 무작위 로드아웃 기능에 바로 반영됩니다.<br />
+            캠페인 보상 · 슈퍼 시민 에디션 업그레이드 여부 · 슈퍼 스토어 항목은 소지하지 않은 경우 무작위 로드아웃에 배정되지 않습니다.
+          </div>
+        </div>
+        {citizenItems.length > 0 && (
+          <button type="button" className={`ssCitizenRow ${draft.citizen ? "" : "off"}`} aria-pressed={draft.citizen}
+            onClick={() => setDraft(p => ({ ...p, citizen:!p.citizen }))}>
+            <span className="ssCitizenLabel">슈퍼 시민 에디션 업그레이드 보유</span>
+          </button>
+        )}
+        <div className="ssOwnedTabs">
+          {OWN_TABS.map(c => (
+            <button key={c.key} type="button" className={`ssOwnedTab ${!isMobile && tab === c.key ? "on" : ""}`}
+              onClick={() => { setTab(c.key); if (isMobile) setMobileSub(c.key); }}>
+              {c.label} <span className="randomCondOwnCount">{countOf(c.key)}/{totalOf(c.key)}</span>
+              {isMobile && <span className="ssOwnedTabArrow" aria-hidden="true">›</span>}
+            </button>
+          ))}
+        </div>
+        {!isMobile && toolbar}
+        {!isMobile && (
+          <div className="ssOwnedScroll" ref={scrollRef}><div className="ssOwnedInner" ref={innerRef}>{tabContent}</div></div>
+        )}
+        {syncRow}
+        <div className="wbOwnedActions">
+          {!isFirst && <button className="wbOwnedCancel" type="button" onClick={onClose}>취소</button>}
+          <button className="wbOwnedConfirm" type="button" onClick={() => onConfirm(draft)}>선택 완료</button>
+        </div>
+      </div>
+    </div>
+
+    {/* 모바일: 분류 선택 팝업 (선택 내용은 위 창에 모였다가 '선택 완료'로 저장) */}
+    {isMobile && mobileSub && (
+      <div className="wbOwnedOverlay ssSubOverlay" onClick={() => setMobileSub(null)}
+        onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setMobileSub(null); }}>
+        <div className="wbOwnedCard ssOwnedCard ssSubCard" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true">
+          <div className="wbOwnedHeader">
+            <div className="wbOwnedTitle">{OWN_TABS.find(c => c.key === mobileSub)?.label} 선택</div>
+          </div>
+          {toolbar}
+          <div className="ssOwnedScroll"><div className="ssOwnedInner">{tabContent}</div></div>
+          <div className="wbOwnedActions">
+            <button className="wbOwnedConfirm" type="button" onClick={() => setMobileSub(null)}>확인</button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>,
+    document.body
+  );
+}
+
+/* ═══════════════════════════════════════════
+   OBS 브라우저 소스용 오버레이  (주소: /?obs=SES-로드아웃코드&layout=block|bar)
+   - 링크 고정 방식: 로드아웃 코드가 주소에 들어 있어 서버 저장 없음
+   - 배경 투명 / 개인 장비는 글자, 스트라타젬은 분류 색 테두리 아이콘
+   - 오버레이는 정해진 크기(OBS_LAYOUTS.w×h)로 그려지므로 브라우저 소스 크기를 같은 값으로 맞추면 됨
+═══════════════════════════════════════════ */
+const OBS_PARAM = "obs";
+const OBS_LAYOUTS = [
+  { key:"block", label:"블록형", desc:"화면의 왼쪽 혹은 오른쪽 테두리에 배치하기 위한 레이아웃 입니다.", w:420, h:660 },
+  { key:"bar",   label:"가로형", desc:"화면 하단에 배치하기 위한 레이아웃 입니다. 명칭으로 표시해서 어떤 장비를 사용하고 있는지 바로 확인이 가능하며 화면 가림이 적습니다.", w:1800, h:220 },
+];
+const OBS_STRAT_COLORS = { "공격":"#f05a4f", "지원":"#3d9df2", "방어":"#4cc76f" };
+function ObsOverlay({ code, layout, side }) {
+  const [sel, setSel] = useState(null);
+  const [error, setError] = useState("");
+  const L = OBS_LAYOUTS.find(x => x.key === layout) ?? OBS_LAYOUTS[0];
+  useEffect(() => {
+    document.documentElement.classList.add("obsMode");
+    let alive = true;
+    const apply = (d) => {
+      if (!alive) return;
+      const items = (Array.isArray(d?.items) ? d.items : []).map(normalizeItem);
+      try { setSel(decodeLoadoutCode(code, items).selected); }
+      catch (e) { setError(e?.message || "로드아웃 코드를 읽지 못했습니다."); }
+    };
+    const cached = gasCacheGet();
+    if (cached) apply(cached);
+    else fetchGasData().then(d => { gasCacheSet(d); apply(d); })
+      .catch(() => { const stale = gasCacheGetStale(); if (stale) apply(stale); else if (alive) setError("데이터를 불러오지 못했습니다."); });
+    return () => { alive = false; document.documentElement.classList.remove("obsMode"); };
+  }, [code]);
+
+  if (error) return <div className="obsError">{error}</div>;
+  if (!sel) return null;
+  // 방어구: "패시브 (장갑 등급)"
+  const armorText = !sel.armor ? "—"
+    : s(sel.armor.passive) ? `${s(sel.armor.passive)}${s(sel.armor.armorValue) ? ` (${s(sel.armor.armorValue)})` : ""}`
+    : s(sel.armor.name_ko);
+  const gearLines = [armorText, s(sel.primary?.name_ko) || "—", s(sel.secondary?.name_ko) || "—", s(sel.throwable?.name_ko) || "—"];
+  const strats = (sel.stratagem ?? []).slice(0, 4);
+  while (strats.length < 4) strats.push(null);
+  const box = (it, i) => (
+    <div key={i} className={`obsBox ${it ? "" : "obsBoxEmpty"}`} style={it ? { borderColor: OBS_STRAT_COLORS[s(it.stratType)] ?? "rgba(255,255,255,.5)" } : undefined}>
+      {it && <RandIcon item={it} className="obsIcon" />}
+    </div>
+  );
+  return (
+    <div className={`obsOverlay obs_${L.key} ${L.key === "block" && side === "left" ? "obsSideLeft" : ""}`} style={{ width:L.w, height:L.h }}>
+      {L.key === "bar" ? (
+        <>
+          <div className="obsBoxes">{strats.map(box)}</div>
+          <div className="obsText obsBarText">{gearLines.join("  |  ")}</div>
+        </>
+      ) : (
+        <>
+          {/* 방어구 패시브(장갑 등급) / 주무기 / 보조·투척 / 스트라타젬 2×2 */}
+          <div className="obsText obsBlockText"><div className="obsLine">{armorText}</div></div>
+          <div className="obsBlockGrid">
+            {[["primary","obsGearPrimary"],["secondary","obsGearSecondary"],["throwable","obsGearThrowable"]].map(([k, cls]) => (
+              <div key={k} className={`obsGearBox ${cls} ${sel[k] ? "" : "obsBoxEmpty"}`}>{sel[k] && <RandIcon item={sel[k]} className="obsIcon" />}</div>
+            ))}
+            <div className="obsBoxes obsGrid2 obsBlockStrats">{strats.map(box)}</div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
 
 export default function App() {
+  const qs = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+  const obsCode = qs?.get(OBS_PARAM);
+  return obsCode ? <ObsOverlay code={obsCode} layout={qs.get("layout")} side={qs.get("side")} /> : <BuilderApp />;
+}
+
+function BuilderApp() {
   const [tutorialStep,   setTutorialStep]   = useState(-1); // -1=숨김, 0~N=진행중
   const [showBetaNotice, setShowBetaNotice] = useState(false);
   // 최초 접속 여부: 소지 채권 설정도, 이전 버전 필터 기록도 없음 → 소지 채권 선택 팝업 1회
@@ -1212,7 +1719,6 @@ export default function App() {
   }, [activePage, boardVisited]);
   const [heroPopup,    setHeroPopup]    = useState(false);   // 무작위 페이지 전환 시 팝업
   const [heroPopupFading, setHeroPopupFading] = useState(false); // 팝업 fade-out 중
-  const [jokerFlash,   setJokerFlash]   = useState(null);    // 조커 교체 후 flash 대상 슬롯 key
 
   const closeHeroPopup = () => {
     setHeroPopupFading(true);
@@ -1248,144 +1754,134 @@ export default function App() {
   /* PNG 캡처 대상: mainCol 전체 */
   const captureRef = useRef(null);
 
-  /* ── 무작위 로드아웃 ── */
-  // 대전차 지원무기 id 목록 (armorPen >= 6 + 부분적 대전차)
-  const AT_SUPPORT_WEAPON_IDS = new Set([
-    "st_sw_eat17","st_sw_gr8","st_sw_arc3","st_sw_mls4x","st_sw_las99",
-    "st_sw_faf14","st_sw_stax3","st_sw_eat700","st_sw_ms11","st_sw_c4",
-    "st_sw_cqc20","st_sw_eat411","st_bp_b100","st_bp_ax9",
-  ]);
-  const RANDOM_STRAT_EXCLUDE_SUBTYPES = new Set(["탑승물"]);
-  // 전채권 포함 wb 목록 (기본 + 무료 제공)
-  const FREE_WB = new Set(["기본 제공","기본","헬다이버 출동!"]);
-
+  /* ── 무작위 로드아웃 ── (조건 정의·생성 로직은 파일 위쪽 RANDOM_* / generateRandomLoadout) */
+  const [randomConds, setRandomConds] = useState(() => {
+    try { return normalizeRandomConds(JSON.parse(localStorage.getItem("random_conds_v1") || "null")); }
+    catch { return DEFAULT_RANDOM_CONDS; }
+  });
+  useEffect(() => { try { localStorage.setItem("random_conds_v1", JSON.stringify(randomConds)); } catch {} }, [randomConds]);
+  const [randomCondOpen, setRandomCondOpen] = useState(false);
+  // 결과 바로 표시하기: 룰렛 없이 기존 암전 연출(대혼돈에 대비하세요...) 후 결과 표시
+  const [randomInstant, setRandomInstant] = useState(() => { try { return localStorage.getItem("random_instant_v1") === "1"; } catch { return false; } });
+  useEffect(() => { try { localStorage.setItem("random_instant_v1", randomInstant ? "1" : "0"); } catch {} }, [randomInstant]);
+  const [ownedSpecial, setOwnedSpecialState] = useState(() => ownedSpecialLoad()); // 분류별 Set|null(전부 보유)
+  const setOwnedSpecial = (obj) => { setOwnedSpecialState(obj); ownedSpecialSave(obj); };
   const [randomResult,   setRandomResult]   = useState(null);
-  const [resultMode,     setResultMode]     = useState("default"); // 결과가 생성된 시점의 모드
+  const [resultConds,    setResultConds]    = useState(DEFAULT_RANDOM_CONDS); // 결과가 만들어진 시점의 조건
   const [randomPending,  setRandomPending]  = useState(false);
-  const [randomMode,     setRandomMode]     = useState("default"); // 선택 옵션
-  // 조커: 재선택 대상 슬롯 ("strat0"~"strat3","armor","primary","secondary","throwable")
-  const [jokerTarget,    setJokerTarget]    = useState(null);
-  const [jokerUsed,      setJokerUsed]      = useState(false); // 조커 교체 1회 사용 여부
+  // 조커(1칸) / 포커(여러 칸) 선택 상태 — "strat0"~"strat3","armor","primary","secondary","throwable"
+  const [pickTargets,    setPickTargets]    = useState(() => new Set());
+  const [cardRerollUsed, setCardRerollUsed] = useState(false);
+  // 부스터 리롤: 결과 생성마다 3회, 리롤로 버린 부스터는 다음 결과 생성 전까지 다시 나오지 않음(일시적 블랙리스트)
+  const BOOSTER_REROLL_MAX = 3;
+  const [boosterRerolls,   setBoosterRerolls]   = useState(BOOSTER_REROLL_MAX);
+  const [boosterBlacklist, setBoosterBlacklist] = useState(() => new Set());
 
-  const pickRandom = () => {
-    if (randomPending) return;
+
+  // ※ itemsByType(아래에서 선언)는 함수 안에서만 사용 — 렌더 중 바로 읽으면 선언 전 접근으로 화면 전체가 멈춤
+  /* ── 룰렛 연출: 칸마다 후보를 빠르게 돌리다가 순서대로 멈춤 ──
+   * roll = { start, stops:{ 칸 key: 멈추는 시각(ms) }, pools:{ 칸 key: 돌릴 후보[] } }
+   * 결과는 먼저 정해두고 화면에서만 돌림 (멈추는 순간 실제 결과가 보임) */
+  const ROLL_TICK_MS = 70;
+  const [roll, setRoll] = useState(null);
+  const [rollTick, setRollTick] = useState(0);
+  useEffect(() => {
+    if (!roll) return;
+    const total = Math.max(0, ...Object.values(roll.stops));
+    const iv = setInterval(() => setRollTick(n => n + 1), ROLL_TICK_MS);
+    const to = setTimeout(() => { setRoll(null); setRandomPending(false); }, total + 40);
+    return () => { clearInterval(iv); clearTimeout(to); };
+  }, [roll]);
+  const startRoll = (keys, pools, first = 450, step = 140, extra = {}) => {
+    const stops = {};
+    keys.forEach((k, i) => { stops[k] = first + i * step; });
+    // 원 컬러: 분류는 돌리지 않고 어둡게 있다가 개인 장비가 모두 정해진 뒤 잠시 뒤에 반짝이며 공개
+    //  → 스트라타젬 칸은 그때까지 어둡게 대기하다가 공개 후에 돌기 시작
+    const starts = {};
+    if (extra.color) {
+      const gearEnd = stops.throwable ?? stops.booster ?? 0;
+      const reveal = gearEnd + 750;
+      stops.color = reveal;
+      keys.filter(k => k.startsWith("strat")).forEach((k, j) => { starts[k] = reveal; stops[k] = reveal + 650 + j * step; });
+    }
     setRandomPending(true);
-    setJokerTarget(null);
-    setJokerUsed(false);
-    setTimeout(() => {
-      const shuffle = arr => [...arr].sort(() => Math.random() - 0.5);
-      const pick1 = (pool) => pool[Math.floor(Math.random() * pool.length)] ?? null;
-
-      let stratPool = (itemsByType.get("stratagem") ?? [])
-        .filter(it => !RANDOM_STRAT_EXCLUDE_SUBTYPES.has(getSubType(it)));
-
-      // ── 옵션별 필터 ──
-      // 헬다이버즈 2 클래식: 채권 구성품 제외 (기본 제공만)
-      if (randomMode === "classic") {
-        stratPool = stratPool.filter(it => FREE_WB.has(s(it?.wbrequirement)) || !it?.wbrequirement);
-      }
-      // 대전차 고갈: armorPen >= 6 지원무기 + 부분적 대전차 제외
-      if (randomMode === "noat") {
-        stratPool = stratPool.filter(it => !AT_SUPPORT_WEAPON_IDS.has(s(it?.id)));
-      }
-
-      let slots = 4;
-      // "그 시절을 기억하나?" : 슬롯 3개만 사용
-      if (randomMode === "olddays") slots = 3;
-
-      let strats;
-      if (randomMode === "chaos") {
-        // 대혼돈: 배낭 중복 허용 — 완전 무작위
-        strats = shuffle(stratPool).slice(0, slots);
-      } else if (randomMode === "obsession") {
-        // 집착: 한 stratType(공격/지원/방어)만
-        const types = ["공격","지원","방어"];
-        const chosen = types[Math.floor(Math.random() * types.length)];
-        const typed = stratPool.filter(it => s(it?.stratType) === chosen);
-        const shuffledTyped = shuffle(typed);
-        strats = shuffledTyped.slice(0, slots);
-        strats._obsessionType = chosen;
-      } else {
-        // 기본 (배낭 중복 불가)
-        const shuffled = shuffle(stratPool);
-        strats = [];
-        const usedBp = new Set();
-        for (const it of shuffled) {
-          if (strats.length >= slots) break;
-          const sub = getSubType(it);
-          const isBp = sub === "배낭" || sub === "지원배낭 무기";
-          if (isBp) {
-            if (usedBp.has(sub + "_" + s(it?.id))) continue;
-            // 배낭은 1개 제한
-            const alreadyHasBp = strats.some(x => {
-              const xs = getSubType(x);
-              return xs === "배낭" || xs === "지원배낭 무기";
-            });
-            if (alreadyHasBp) continue;
-          }
-          strats.push(it);
-        }
-        // 부족하면 남은 것으로 채움
-        if (strats.length < slots) {
-          for (const it of shuffled) {
-            if (strats.length >= slots) break;
-            if (!strats.includes(it)) strats.push(it);
-          }
-        }
-      }
-      // olddays: 나머지 1슬롯은 null
-      while (strats.length < 4) strats.push(null);
-
-      const gearPool = (type) => {
-        let pool = itemsByType.get(type) ?? [];
-        if (randomMode === "classic") {
-          pool = pool.filter(it => FREE_WB.has(s(it?.wbrequirement)) || !it?.wbrequirement);
-        }
-        return pool;
-      };
-
-      const result = {
-        strats,
-        obsessionType: strats._obsessionType ?? null,
-        armor:     pick1(gearPool("armor")),
-        primary:   pick1(gearPool("주무기")),
-        secondary: pick1(gearPool("보조무기")),
-        throwable: pick1(gearPool("투척무기")),
-      };
-
-      // 조커: 결과를 받은 뒤 하나를 재선택할 수 있도록 저장
-      setRandomResult(result);
-      setResultMode(randomMode);
-      setRandomPending(false);
-    }, 1200);
+    setRoll({ start: Date.now(), stops, starts, pools });
+  };
+  const reelPoolsFor = (conds, keys) => {
+    const pools = {};
+    for (const k of keys) {
+      if (k === "color") pools[k] = RANDOM_STRAT_TYPES;
+      else if (k === "booster") pools[k] = randomGearPool(itemsByType, "booster", conds);
+      else if (k.startsWith("strat")) pools[k] = randomStratPool(itemsByType, conds, null);
+      else pools[k] = randomGearPool(itemsByType, RANDOM_GEAR_KEYS.find(g => g.key === k)?.type, conds);
+    }
+    // 돌릴 후보는 칸마다 최대 12개만 (처음 돌릴 때 불러오는 이미지 수를 줄임)
+    for (const k of Object.keys(pools)) pools[k] = shuffleArr(pools[k]).slice(0, 12);
+    return pools;
   };
 
-  // 조커 재선택
-  const jokerReroll = (target) => {
-    if (!randomResult) return;
-    const shuffle = arr => [...arr].sort(() => Math.random() - 0.5);
-    const pick1 = (pool) => pool[Math.floor(Math.random() * pool.length)] ?? null;
-    const newResult = { ...randomResult };
-    if (target.startsWith("strat")) {
-      const idx = parseInt(target.replace("strat",""));
-      let stratPool = (itemsByType.get("stratagem") ?? [])
-        .filter(it => !RANDOM_STRAT_EXCLUDE_SUBTYPES.has(getSubType(it)));
-      if (randomMode === "noat") stratPool = stratPool.filter(it => !AT_SUPPORT_WEAPON_IDS.has(s(it?.id)));
-      const others = newResult.strats.filter((_, i) => i !== idx);
-      const avail  = shuffle(stratPool.filter(it => !others.includes(it)));
-      newResult.strats = [...newResult.strats];
-      newResult.strats[idx] = avail[0] ?? null;
-    } else {
-      const typeMap = { armor:"armor", primary:"주무기", secondary:"보조무기", throwable:"투척무기" };
-      const pool = itemsByType.get(typeMap[target]) ?? [];
-      newResult[target] = pick1(pool);
+  const pickRandom = () => {
+    if (randomPending || roll) return;
+    // 보유 채권·슈퍼 스토어 보유 항목을 생성 시점 기준으로 고정 (조커·포커·부스터 리롤도 같은 기준)
+    const conds = { ...randomConds, own:{ wbOptions:new Set(allWbOptions), ownedWb, special:ownedSpecial } };
+    setPickTargets(new Set());
+    setCardRerollUsed(false);
+    const result = generateRandomLoadout(itemsByType, conds);
+    const apply = () => {
+      setBoosterRerolls(BOOSTER_REROLL_MAX);
+      setBoosterBlacklist(new Set());
+      setRandomResult(result);
+      setResultConds(conds);
+    };
+    if (randomInstant) {
+      setRandomPending(true);
+      setTimeout(() => { apply(); setRandomPending(false); }, 1200);
+      return;
     }
-    setRandomResult(newResult);
-    setJokerTarget(null);
-    setJokerUsed(true);
-    // 교체된 슬롯 flash 효과
-    setJokerFlash(target);
-    setTimeout(() => setJokerFlash(null), 700);
+    apply();
+    // 멈추는 순서: 방어구 → 주무기 → 부스터 → 보조무기 → 투척무기 → 스트라타젬 1~4
+    const keys = [
+      ...(result.manualGear ? [] : ["armor","primary"]),
+      ...((itemsByType.get("booster") ?? []).length ? ["booster"] : []),
+      ...(result.manualGear ? [] : ["secondary","throwable"]),
+      ...[0,1,2,3].filter(i => i < result.slots).map(i => `strat${i}`),
+    ];
+    startRoll(keys, reelPoolsFor(conds, keys), 450, 140, { color: conds.challenge === "onecolor" });
+  };
+
+  // 부스터 리롤 (현재 부스터는 블랙리스트로 → 남은 후보에서 다시 뽑기)
+  const getBoosterCandidates = () => randomResult
+    ? randomGearPool(itemsByType, "booster", resultConds).filter(it => !boosterBlacklist.has(it.id) && it.id !== randomResult.booster?.id)
+    : [];
+  const rerollBooster = () => {
+    const boosterCandidates = getBoosterCandidates();
+    if (roll || !randomResult || boosterRerolls <= 0 || boosterCandidates.length === 0) return;
+    const cur = randomResult.booster;
+    const next = boosterCandidates[Math.floor(Math.random() * boosterCandidates.length)];
+    if (cur) setBoosterBlacklist(prev => new Set(prev).add(cur.id));
+    setRandomResult(prev => ({ ...prev, booster: next }));
+    setBoosterRerolls(n => n - 1);
+    if (!randomInstant) startRoll(["booster"], { booster: boosterCandidates }, 600);
+  };
+
+  // 조커/포커
+  const cardMode = randomResult && !cardRerollUsed && ["joker","poker"].includes(resultConds.limit) ? resultConds.limit : null;
+  const togglePickTarget = (key) => {
+    if (roll || !cardMode || !randomPickableKeys(randomResult).includes(key)) return;
+    setPickTargets(prev => {
+      return prev.has(key) ? new Set() : new Set([key]);   // 조커·포커 모두 한 칸만 선택
+    });
+  };
+  const applyCardReroll = () => {
+    if (roll || !cardMode) return;
+    const keys = cardMode === "joker"
+      ? [...pickTargets]
+      : pickTargets.size ? randomPickableKeys(randomResult).filter(k => !pickTargets.has(k)) : [];   // 포커: 고른 한 칸만 유지
+    if (keys.length === 0) return;
+    setRandomResult(rerollRandomLoadout(itemsByType, resultConds, randomResult, new Set(keys)));
+    setCardRerollUsed(true);
+    setPickTargets(new Set());
+    if (!randomInstant) startRoll(keys, reelPoolsFor(resultConds, keys), 450, 120);
   };
 
   /* ── 아이템 로드 & 기본 프리셋 자동 적용 ── */
@@ -1418,7 +1914,6 @@ export default function App() {
       };
 
       /* defSel에 실제로 아이템이 있는지 검사 */
-      const defHasItems = defSel.armor || defSel.primary || defSel.stratagem.some(Boolean);
 
       const defaultPreset = {
         id:"__default__", name:"기본 제공 로드아웃",
@@ -1687,8 +2182,9 @@ export default function App() {
       setOwnedWb(migrateLegacyOwnedWb(items));
     }
   }, [items]); // eslint-disable-line react-hooks/exhaustive-deps
-  function confirmWbOwnedPopup(set) {
-    setOwnedWb(new Set(set));
+  function confirmWbOwnedPopup(draft) {
+    setOwnedWb(new Set(draft.wb));
+    setOwnedSpecial({ campaign:new Set(draft.campaign), citizen:!!draft.citizen, superStore:new Set(draft.superStore) });
     if (wbOwnedPopup === "first") { wbNoticeSetDismiss(); isFirstVisitRef.current = false; }
     setWbOwnedPopup(null);
   }
@@ -2347,31 +2843,16 @@ export default function App() {
     const hasTrait = (it, keyword) =>
       [s(it?.trait1),s(it?.trait2),s(it?.trait3)].some(t => t.includes(keyword));
 
-    // 구성 시너지 fireform 태그 (지원무기 포함 전체)
-    const allFireformLabels = [
-      ...fireformGear.map(r => r.form),
-      ...fireformStrat.map(r => r.form),
-    ];
-    const hasFormLabel = (lbl) => allFireformLabels.some(f => s(f).includes(lbl));
 
     // subType 헬퍼
     const isBackpackWeapon  = (it) => getSubType(it) === "지원배낭 무기";
     const isDisposable      = (it) => getSubType(it) === "일회용 지원무기";
-    const isSupportWeapon   = (it) => SUPPORT_WEAPON_SUBTYPES.has(getSubType(it));
-    const isSupportInStrat  = (it) => isSupportWeapon(it) &&
-      selected.stratagem.some(s2 => s2 && s(s2?.id)===s(it?.id));
 
     // 지원무기 아이템 목록 (스트라타젬에서)
     const supportItems = selected.stratagem.filter(it =>
       it && SUPPORT_WEAPON_SUBTYPES.has(getSubType(it))
     );
 
-    // 패시브 노트 계산 함수 (gear/strat 공용)
-    // 사격 가능한 무기 form 태그 집합 (스트라타젬 열에서 사격 관련 패시브 표시 여부 판단)
-    const SHOOTING_FORMS = new Set([
-      "단일 대상","범위형","단일 | 범위형","탄막형","단일 | 탄막형",
-      "저지형","정밀형","근접","전진형 화력투사","횡방향 화력투사","구역 화력투사",
-    ]);
 
     // ── 반동 감소 블랙리스트 / 화이트리스트 ──
     // subType 기반 블랙리스트 (일회용 지원무기, 배낭, 탑승물)
@@ -2409,9 +2890,6 @@ export default function App() {
       const isSecondary = rowLabel === "보조무기";
       const isThrowable = rowLabel === "투척무기";
       const isSupportRow= rowLabel === "지원무기";
-      // 스트라타젬 열: form 태그가 실제 사격 가능한 무기인 경우만 사격 패시브 적용
-      const isStratRow  = !isPrimary && !isSecondary && !isThrowable && !isSupportRow;
-      const isShootingStrat = isStratRow && SHOOTING_FORMS.has(s(rowForm));
 
       // ── 강화 → 반동 감소 (플라즈마 특성 보유 항목만 / 슬롯 무관 / 블랙리스트 제외)
       if (armorPassive === "강화") {
@@ -2768,6 +3246,24 @@ export default function App() {
     markCopied(markId);
   }
   function handleCopyLoadoutCode(l) { copyLoadoutCode(l.selected, l.name, l.id); }
+  // OBS 오버레이 링크: 현재 구성을 코드로 넣은 주소 (로드아웃 이름은 넣지 않아 링크를 짧게)
+  // OBS 오버레이: 형식 선택 팝업 → 링크 복사 (선택한 형식은 다음에도 기본으로)
+  const [obsPopup, setObsPopup] = useState(false);
+  const [obsLayout, setObsLayout] = useState(() => { try { return localStorage.getItem("obs_layout_v1") || "block"; } catch { return "block"; } });
+  const [obsSide, setObsSide] = useState(() => { try { return localStorage.getItem("obs_side_v1") === "left" ? "left" : "right"; } catch { return "right"; } });
+  function handleCopyObsLink() {
+    if (!hasAnyItem(selected)) { showToast("선택된 장비가 없습니다.", "err"); return; }
+    setObsPopup(true);
+  }
+  async function copyObsLink() {
+    try { localStorage.setItem("obs_layout_v1", obsLayout); localStorage.setItem("obs_side_v1", obsSide); } catch {}
+    const url = `${window.location.origin}/?${OBS_PARAM}=${encodeLoadoutCode(selected, "")}&layout=${obsLayout}${obsLayout === "block" ? `&side=${obsSide}` : ""}`;
+    const L = OBS_LAYOUTS.find(x => x.key === obsLayout) ?? OBS_LAYOUTS[0];
+    setObsPopup(false);
+    const ok = await copyText(url);
+    if (!ok) { window.prompt("아래 링크를 복사해 주세요.", url); return; }
+    showToast(`OBS 오버레이 링크를 복사했습니다. 브라우저 소스 URL에 붙여넣고 크기를 ${L.w} × ${L.h}로 맞춰주세요.`, "ok", 4500);
+  }
   /* ── 게시판 연동 ── */
   const [boardPostOpen, setBoardPostOpen] = useState(false);
   function handleOpenBoardPost() {
@@ -2900,6 +3396,9 @@ export default function App() {
             </span>
           </div>
           <div className="topNavTabs">
+            <button className="topNavTab infoBtn ownBtn" type="button"
+              onClick={()=>setWbOwnedPopup("edit")}
+            >보유 항목 관리</button>
             <button className="topNavTab infoBtn" type="button"
               onClick={()=>setInfoModal(true)}
             >운용자 정보</button>
@@ -2938,6 +3437,8 @@ export default function App() {
             </button>
             <div className="sideMenuDivider" />
             <button type="button" className="sideMenuItem sideMenuItemInfo"
+              onClick={()=>{ setSideMenuOpen(false); setWbOwnedPopup("edit"); }}>보유 항목 관리</button>
+            <button type="button" className="sideMenuItem sideMenuItemInfo"
               onClick={()=>{ setSideMenuOpen(false); setInfoModal(true); }}>운용자 정보</button>
             {activePage==="loadout" && (
               <button type="button" className="sideMenuItem sideMenuItemTutorial"
@@ -2975,7 +3476,6 @@ export default function App() {
                         warnBackpack={warnBackpack}
                         onClick={()=>openPickerFor(`stratagem:${i}`,"stratagem",item?.id)}
                         onClear={()=>clearSlot(`stratagem:${i}`)}
-                        clearMode="x"
                       />
                     );
                   })}
@@ -2985,17 +3485,17 @@ export default function App() {
                 <div className="gearLayout">
                   <Slot kind="armor" def={{titleKo:"방어구"}} picked={selected.armor}
                     onClick={()=>openPickerFor("armor","armor",selected.armor?.id)}
-                    onClear={()=>clearSlot("armor")} clearMode="text" />
+                    onClear={()=>clearSlot("armor")} />
                   <Slot kind="primary" def={{titleKo:"주무기"}} picked={selected.primary}
                     onClick={()=>openPickerFor("primary","primary",selected.primary?.id)}
-                    onClear={()=>clearSlot("primary")} clearMode="text" />
+                    onClear={()=>clearSlot("primary")} />
                   <div className="gearSideStack">
                     <Slot kind="secondary" def={{titleKo:"보조무기"}} picked={selected.secondary}
                       onClick={()=>openPickerFor("secondary","secondary",selected.secondary?.id)}
-                      onClear={()=>clearSlot("secondary")} clearMode="text" hideName={true} />
+                      onClear={()=>clearSlot("secondary")} hideName={true} />
                     <Slot kind="throwable" def={{titleKo:"투척무기"}} picked={selected.throwable}
                       onClick={()=>openPickerFor("throwable","throwable",selected.throwable?.id)}
-                      onClear={()=>clearSlot("throwable")} clearMode="text" hideName={true} />
+                      onClear={()=>clearSlot("throwable")} hideName={true} />
                   </div>
                 </div>
 
@@ -3055,7 +3555,10 @@ export default function App() {
                         onClick={handleCopyCurrentCode} type="button"
                       >{copiedCodeId==="__current__" ? "복사됨 ✓" : "현재 구성 코드 복사"}</button>
                     </div>
-                    <button className="lBtn lBtnBoardPost" onClick={handleOpenBoardPost} type="button">현재 구성 게시하기</button>
+                    <div className="lBtnSplitRow lBtnSplitRowObs">
+                      <button className="lBtn lBtnBoardPost" onClick={handleOpenBoardPost} type="button">현재 구성 게시하기</button>
+                      <button className="lBtn lBtnBoardPost obsLinkBtn" onClick={handleCopyObsLink} type="button">OBS 오버레이 링크 복사</button>
+                    </div>
                     <button className="lBtn lBtnManage"     onClick={()=>setManageModal(true)}                  type="button">저장된 로드아웃 관리</button>
                     <button className="lBtn lBtnExport"     onClick={()=>exportLoadoutPng(captureRef,selected,stats.wbSummary)} type="button">현재 구성 이미지로 내보내기</button>
                   </div>
@@ -3099,140 +3602,258 @@ export default function App() {
               </div>
             )}
 
-            {/* 무작위 선택 범위 옵션 */}
-            <div className="randomModeSection">
-              {[
-                { key:"default",  label:"능력 한계 시험",           desc:"기본 옵션. 배낭이 중복되지 않는 선에서 무작위 스트라타젬이 선택됩니다." },
-                { key:"chaos",    label:"대혼돈",                   desc:"배낭 스트라타젬이 중복될 수 있습니다." },
-                { key:"classic",  label:"헬다이버즈 2 클래식",      desc:"채권 구성품이 포함되지 않습니다." },
-                { key:"obsession",label:"집착",                     desc:"한 분류의 스트라타젬(공격/지원/방어)만으로 로드아웃이 구성됩니다." },
-                { key:"olddays",  label:"\"그 시절\"을 기억하나?",  desc:"스트라타젬 슬롯 한 칸을 배제하고 로드아웃을 구성합니다." },
-                { key:"joker",    label:"조커 뽑기",                desc:"무작위 로드아웃을 배정받고, 원하는 슬롯을 직접 골라 재배정합니다." },
-                { key:"noat",     label:"대전차 고갈",              desc:"대전차 지원무기가 배제된 상태로 로드아웃을 구성합니다." },
-              ].map(({ key, label, desc }) => {
-                const active = randomMode === key;
+            {(() => {
+              const R = randomResult;
+              const rc = resultConds;
+              const boosterAll = itemsByType.get("booster") ?? [];
+              // 룰렛: 돌아가는 중인 칸은 후보를 빠르게 바꿔 보여주고, 멈춘 칸은 실제 결과 + 착지 효과
+              const rollNow = Date.now();
+              const waiting = (k) => !!roll && (roll.starts?.[k] ?? 0) > rollNow - roll.start;   // 아직 돌기 전 (어둡게 대기)
+              const rolling = (k) => !!roll && k in roll.stops && rollNow - roll.start < roll.stops[k] && !waiting(k);
+              const landed  = (k) => !!roll && k in roll.stops && rollNow - roll.start >= roll.stops[k];
+              const reel = (k) => {
+                const p = roll?.pools?.[k] ?? [];
+                if (!p.length) return null;
+                const h = (Math.imul(rollTick + 7, 2654435761) ^ (k.charCodeAt(0) * 131 + k.charCodeAt(k.length - 1) * 17)) >>> 0;
+                return p[h % p.length];
+              };
+              const shown = (k) => waiting(k) ? null : rolling(k) ? reel(k) : ((k.startsWith("strat") ? R?.strats?.[+k.slice(5)] : R?.[k]) ?? null);
+              const flashing = landed;
+              const pickable = new Set(cardMode && !roll ? randomPickableKeys(R) : []);
+              const pickCls = (k) => `${pickable.has(k) ? "randomCardClickable" : ""} ${pickTargets.has(k) ? "randomCardSelected" : ""} ${rolling(k) ? "rollSpin" : ""} ${waiting(k) ? "rollWait" : ""} ${landed(k) ? "rollLand" : ""}`;
+
+              const renderGear = (key, posCls) => {
+                const item = shown(key);
+                const manual = !!R?.manualGear;
                 return (
-                  <button
-                    key={key}
-                    type="button"
-                    className={`randomModeBtn ${active ? "active" : ""}`}
-                    onClick={() => { setRandomMode(key); setJokerTarget(null); }}
-                  >
-                    <span className="randomModeBtnLabel">{label}</span>
-                    <span className="randomModeBtnDesc">{desc}</span>
-                  </button>
+                  <div key={key} className={`randomGearCard rgCard ${posCls} ${pickCls(key)} ${manual ? "randomSlotDisabled" : ""}`}
+                    onClick={() => togglePickTarget(key)}>
+                    <div className="rgImg">
+                      {item ? <RandIcon item={item} className="rgIcon" /> : <div className="rgIconEmpty">{manual ? "직접 선택" : ""}</div>}
+                    </div>
+                    <div className="randomGearName">{manual ? "직접 선택" : (item?.name_ko || "—")}</div>
+                  </div>
                 );
-              })}
-            </div>
+              };
+              const renderStrat = (i) => {
+                const k = `strat${i}`;
+                const it = shown(k);
+                const off = !!R && i >= R.slots;
+                return (
+                  <div key={k} className={`randomStratCard rsCard ${pickCls(k)} ${off ? "randomSlotDisabled" : ""}`}
+                    onClick={() => togglePickTarget(k)}>
+                    {off ? (
+                      <><div className="randomSlotX">✕</div><div className="randomStratName" style={{color:"rgba(255,255,255,.3)"}}>비활성 슬롯</div></>
+                    ) : it ? (
+                      <>
+                        <RandIcon item={it} className="randomStratIcon" />
+                        <div className="randomStratName">{it.name_ko || it.id}</div>
+                        <div className="randomStratSub">{getSubType(it)}</div>
+                      </>
+                    ) : (
+                      <><div className="randomStratIconEmpty" /><div className="randomStratSub">{R && !waiting(k) ? "배정 불가" : ""}</div></>
+                    )}
+                  </div>
+                );
+              };
+              // 오른쪽 목록 한 줄 — 조커/포커 때는 눌러서 칸을 고를 수 있음 (모바일은 이 목록만 보임)
+              const listRow = (k, label, text, muted) => (
+                <button type="button" key={k} disabled={!pickable.has(k)} onClick={() => togglePickTarget(k)}
+                  className={`rpRow ${pickable.has(k) ? "rpRowClickable" : ""} ${pickTargets.has(k) ? "rpRowSelected" : ""} ${flashing(k) ? "rpRowFlash" : ""} ${rolling(k) || waiting(k) ? "rpRowSpin" : ""}`}>
+                  <span className="rpRowLabel">{label}</span>
+                  <span className={`rpRowName ${muted ? "rpRowMuted" : ""}`}>{text}</span>
+                </button>
+              );
+              // 안내 문구 (PC: 장비 칸 위 / 모바일: 목록 패널 안)
+              const noticesEl = (
+                <>
+                    {!R && <div className="rpHint">조건을 설정하고 무작위 로드아웃 생성을 눌러주세요.</div>}
 
-            {/* 연출 오버레이 */}
-            {randomPending && (
-              <div className="randomPendingOverlay">
-                <div className="randomPendingText">대혼돈에 대비하세요...</div>
-              </div>
-            )}
+                    {R && R.shortage > 0 && (
+                      <div className="rpWarn">조건에 맞는 스트라타젬이 부족해 {R.shortage}칸이 비었습니다.</div>
+                    )}
 
-            {/* 무작위 버튼 */}
-            <div className="randomBtnWrap">
-              <button className="randomBtn" type="button" onClick={pickRandom} disabled={randomPending}>
-                {randomPending ? "배정 중..." : "무작위 로드아웃 배정"}
-              </button>
-            </div>
-
-            {/* 결과 */}
-            {randomResult && !randomPending && (
-              <div className="randomResult">
-                <div className="randomResultTitle">아래의 준비를 요청합니다.</div>
-
-                {/* 집착 — 선택된 분류 표시 (결과 생성 시점이 obsession일 때만) */}
-                {resultMode === "obsession" && randomResult.obsessionType && (()=>{
-                  const OBS_COLORS = {"공격":["#fe5f47","rgba(254,95,71,.15)","rgba(254,95,71,.40)"],"지원":["#bfe1f6","rgba(191,225,246,.15)","rgba(191,225,246,.40)"],"방어":["#d4edbc","rgba(212,237,188,.15)","rgba(212,237,188,.40)"]};
-                  const [tc, bg, bc] = OBS_COLORS[randomResult.obsessionType] ?? ["#fff","rgba(255,255,255,.10)","rgba(255,255,255,.30)"];
+                    {/* 조커 / 포커 */}
+                    {R && ["joker","poker"].includes(rc.limit) && (
+                      cardRerollUsed ? (
+                        <div className="randomJokerHint used">✓ 다시 뽑기를 사용했습니다.</div>
+                      ) : (
+                        <div className="rpCardRule">
+                          <div className="randomJokerHint">
+                            {rc.limit === "joker"
+                              ? "다시 뽑을 칸 하나를 선택하세요. (1회)"
+                              : "남길 칸 하나를 선택하세요. 나머지는 모두 다시 뽑습니다. (1회)"}
+                          </div>
+                          <button type="button" className="randomCardRerollBtn rpCardRerollBtn"
+                            onClick={applyCardReroll}
+                            disabled={pickTargets.size === 0 || !!roll}>
+                            {rc.limit === "joker" ? "선택한 칸 다시 뽑기" : "선택한 칸만 남기고 다시 뽑기"}
+                          </button>
+                        </div>
+                      )
+                    )}
+                </>
+              );
+              // 원 컬러 — 선택된 분류 (스트라타젬 바로 위에 표시)
+              const colorBadgeEl = R && rc.challenge === "onecolor" && R.colorType ? (()=>{
+                  const colorHidden = !!roll && "color" in roll.stops && rollNow - roll.start < roll.stops.color;   // 공개 전까지 어둡게 가림
+                  const OBS_COLORS = {"공격":["#fe5f47","rgba(254,95,71,.30)","rgba(254,95,71,.65)"],"지원":["#bfe1f6","rgba(191,225,246,.28)","rgba(191,225,246,.65)"],"방어":["#d4edbc","rgba(212,237,188,.28)","rgba(212,237,188,.65)"]};
+                  const [tc, bg, bc] = colorHidden
+                    ? ["rgba(255,255,255,.35)","rgba(30,30,30,.92)","rgba(255,255,255,.14)"]
+                    : (OBS_COLORS[R.colorType] ?? ["#fff","rgba(255,255,255,.10)","rgba(255,255,255,.30)"]);
                   return (
-                    <div className="randomObsessionBadge" style={{color:tc, background:bg, borderColor:bc}}>
-                      선택된 분류 : <strong>{randomResult.obsessionType}</strong>
+                    <div className={`randomObsessionBadge rpColorBadge ${colorHidden ? "rpColorHidden" : ""} ${landed("color") ? "rpColorReveal" : ""}`} style={{color:tc, background:bg, borderColor:bc}}>
+                      <strong>{colorHidden ? "???" : R.colorType}</strong>
                     </div>
                   );
-                })()}
+                })() : null;
+              const hasNotices = !R || R.shortage > 0 || ["joker","poker"].includes(rc.limit);
+              // 부스터 내용 (PC 칸 / 모바일 패널 공용)
+              const boosterInner = (v) => (
+                <>
+                  {v === "rp"
+                    ? (shown("booster") ? <RandIcon item={shown("booster")} className="rpBoosterIcon" /> : <div className="rpBoosterIcon rpBoosterIconEmpty" />)
+                    : <div className="rgImg">{shown("booster") ? <RandIcon item={shown("booster")} className="rgIcon" /> : <div className="rgIconEmpty" />}</div>}
+                  <div className="rpBoosterName">{shown("booster")?.name_ko || (v === "rp" ? "부스터" : "—")}</div>
+                  {v === "rp" && !rolling("booster") && R?.booster?.desc && <div className="rpBoosterDesc">{R.booster.desc}</div>}
+                  <button type="button" className="randomBoosterRerollBtn rpBoosterReroll"
+                    onClick={e => { e.stopPropagation(); rerollBooster(); }}
+                    disabled={!R || !!roll || boosterRerolls <= 0 || getBoosterCandidates().length === 0}
+                    title={R?.booster?.desc ? `${R.booster.desc}\n\n분대원과 부스터가 겹칠 때 사용하세요` : "분대원과 부스터가 겹칠 때 사용하세요"}>
+                    리롤 (중복 시 사용해주세요)
+                    <span className="randomBoosterCount">{boosterRerolls}/{BOOSTER_REROLL_MAX}</span>
+                  </button>
+                  {boosterBlacklist.size > 0 && (
+                    <div className="randomBoosterExcluded">
+                      이번 결과에서 제외: {[...boosterBlacklist].map(id => boosterAll.find(b => b.id === id)?.name_ko ?? id).join(", ")}
+                    </div>
+                  )}
+                </>
+              );
 
-                {/* 조커 — 사용 안내 (결과 생성 시점이 joker일 때만) */}
-                {resultMode === "joker" && (
-                  <div className={`randomJokerHint ${jokerUsed ? "used" : ""}`}>
-                    {jokerUsed
-                      ? "✓ 교체 완료 — 이번 로드아웃의 슬롯 교체를 1회 사용했습니다."
-                      : "슬롯을 클릭해 하나를 선택한 뒤 교체하기를 누르세요. (1회 한정)"}
+              return (
+                <>
+                  {/* 상단: 조건 설정 / 생성 */}
+                  <div className="randomTopBar">
+                    <button type="button" className="randomCondBtn" onClick={() => setRandomCondOpen(true)}>
+                      <span className="randomCondBtnTitle">랜덤 로드아웃 조건 설정</span>
+                      <span className="randomCondBtnSummary">{randomCondsSummary(randomConds)}</span>
+                    </button>
+                    <button className="randomBtn" type="button" onClick={pickRandom} disabled={randomPending}>
+                      {randomPending ? "배정 중..." : "무작위 로드아웃 생성"}
+                    </button>
                   </div>
-                )}
 
-                <div className="randomSection">
-                  <div className="randomSectionLabel">스트라타젬</div>
-                  <div className="randomStratRow">
-                    {randomResult.strats.map((it, i) => {
-                      const slotKey = `strat${i}`;
-                      const isDisabled = !it && resultMode === "olddays";
-                      const isEmpty = !it && !isDisabled;
-                      const isJokerActive = resultMode === "joker" && !jokerUsed;
-                      const isJokerSelected = resultMode === "joker" && jokerTarget === slotKey;
-                      const isFlashing = jokerFlash === slotKey;
-                      return (
-                        <div
-                          key={i}
-                          className={`randomStratCard ${isDisabled ? "randomSlotDisabled" : ""} ${isJokerSelected ? "randomCardSelected" : ""} ${isJokerActive && it ? "randomCardClickable" : ""} ${isFlashing ? "randomCardFlash" : ""}`}
-                          onClick={() => isJokerActive && it && setJokerTarget(jokerTarget === slotKey ? null : slotKey)}
-                        >
-                          {isDisabled ? (
-                            <><div className="randomSlotX">✕</div><div className="randomStratName" style={{color:"rgba(255,255,255,.3)"}}>비활성 슬롯</div></>
-                          ) : isEmpty ? (
-                            <div className="randomStratIconEmpty" />
-                          ) : (
-                            <>
-                              <RandIcon item={it} className="randomStratIcon" />
-                              <div className="randomStratName">{it?.name_ko || it?.id || "—"}</div>
-                              <div className="randomStratSub">{getSubType(it)||""}</div>
-                            </>
-                          )}
-                          {isJokerSelected && !jokerUsed && (
-                            <button type="button" className="randomCardRerollBtn" onClick={e=>{e.stopPropagation(); jokerReroll(slotKey);}}>교체하기</button>
-                          )}
+
+                  {/* 결과 바로 표시하기: 기존 암전 연출 */}
+                  {randomPending && !roll && (
+                    <div className="randomPendingOverlay">
+                      <div className="randomPendingText">대혼돈에 대비하세요...</div>
+                    </div>
+                  )}
+
+                  <div className="randomStage">
+                    {/* PC: 장비·부스터·스트라타젬 칸 (모바일에서는 숨김) */}
+                    <div className="randomBoard">
+                      <div className="randomResultTitle randomBoardTitle">{roll ? "대혼돈에 대비하세요..." : "아래의 준비를 요청합니다."}</div>
+                      {hasNotices && <div className="randomBoardNotices">{noticesEl}</div>}
+                      <div className="randomGearGrid">
+                        {renderGear("armor", "rgArmor")}
+                        {renderGear("primary", "rgPrimary")}
+                        {boosterAll.length > 0 && (
+                          <div className={`randomGearCard rgCard rgBooster ${rolling("booster") ? "rollSpin" : ""} ${landed("booster") ? "rollLand" : ""}`}>
+                            {boosterInner("rg")}
+                          </div>
+                        )}
+                        {renderGear("secondary", "rgSide")}
+                        {renderGear("throwable", "rgSide")}
+                      </div>
+                      {colorBadgeEl}
+                      <div className="randomStratRow">
+                        {[0,1,2,3].map(renderStrat)}
+                      </div>
+                    </div>
+
+                    {/* 모바일 전용: 부스터 + 전체 구성 목록 */}
+                    <aside className="randomPanel">
+                      <div className="randomResultTitle">{roll ? "대혼돈에 대비하세요..." : "아래의 준비를 요청합니다."}</div>
+
+                      {boosterAll.length > 0 && (
+                        <div className={`rpBooster ${rolling("booster") ? "rollSpin" : ""} ${landed("booster") ? "rollLand" : ""}`}>
+                          {boosterInner("rp")}
                         </div>
-                      );
-                    })}
-                  </div>
-                </div>
+                      )}
 
-                <div className="randomSection">
-                  <div className="randomSectionLabel">개인 장비</div>
-                  <div className="randomGearRow">
+                      {noticesEl}
+
+                      <div className="rpSection">
+                        <div className="rpSectionLabel">개인 장비</div>
+                        {RANDOM_GEAR_KEYS.map(g => listRow(g.key, g.label,
+                          !R ? "—" : R.manualGear ? "직접 선택" : (shown(g.key)?.name_ko || "—"),
+                          !R || R.manualGear))}
+                      </div>
+                      <div className="rpSection">
+                        <div className="rpSectionLabel">스트라타젬</div>
+                        {colorBadgeEl}
+                        {[0,1,2,3].map(i => listRow(`strat${i}`, `#${i+1}`,
+                          !R ? "—" : i >= R.slots ? "비활성 슬롯" : waiting(`strat${i}`) ? "???" : (shown(`strat${i}`)?.name_ko || "배정 불가"),
+                          !R || i >= R.slots || !R.strats[i]))}
+                      </div>
+                    </aside>
+                  </div>
+                </>
+              );
+            })()}
+
+            {/* 조건 설정 팝업 (body로 띄워 상단 메뉴에 가리지 않게) */}
+            {randomCondOpen && createPortal(
+              <div className="wbOwnedOverlay randomCondOverlay" onClick={() => setRandomCondOpen(false)}>
+                <div className="wbOwnedCard randomCondCard" onClick={e => e.stopPropagation()}>
+                  <div className="wbOwnedHeader randomCondHeader">
+                    <div className="randomCondHeaderText">
+                      <div className="wbOwnedTitle">랜덤 로드아웃 조건 설정</div>
+                      <div className="wbOwnedDesc">설정한 조건은 다음 무작위 로드아웃 생성부터 적용됩니다.</div>
+                    </div>
+                    <label className="randomCondInstant">
+                      <input type="checkbox" checked={randomInstant} onChange={e => setRandomInstant(e.target.checked)} />
+                      <span>결과 바로 표시하기</span>
+                    </label>
+                  </div>
+                  <div className="randomCondBody">
                     {[
-                      { label:"방어구",   key:"armor",     item:randomResult.armor },
-                      { label:"주무기",   key:"primary",   item:randomResult.primary },
-                      { label:"보조무기", key:"secondary", item:randomResult.secondary },
-                      { label:"투척무기", key:"throwable", item:randomResult.throwable },
-                    ].map(({ label, key, item }) => {
-                      const isJokerActive = resultMode === "joker" && !jokerUsed;
-                      const isJokerSelected = resultMode === "joker" && jokerTarget === key;
-                      const isFlashing = jokerFlash === key;
-                      return (
-                        <div
-                          key={label}
-                          className={`randomGearCard ${isJokerSelected ? "randomCardSelected" : ""} ${isJokerActive ? "randomCardClickable" : ""} ${isFlashing ? "randomCardFlash" : ""}`}
-                          onClick={() => isJokerActive && setJokerTarget(jokerTarget === key ? null : key)}
-                        >
-                          <div className="randomGearLabel">{label}</div>
-                          {item
-                            ? <RandIcon item={item} className="randomGearIcon" />
-                            : <div className="randomGearIconEmpty" />
-                          }
-                          <div className="randomGearName">{item?.name_ko || item?.id || "—"}</div>
-                          {isJokerSelected && !jokerUsed && (
-                            <button type="button" className="randomCardRerollBtn" onClick={e=>{e.stopPropagation(); jokerReroll(key);}}>교체하기</button>
-                          )}
+                      { field:"difficulty", title:"구성 난이도 설정", rule:"",                                     list:RANDOM_DIFFICULTIES, optional:false, cls:"" },
+                      { field:"challenge",  title:"챌린지 설정",      rule:"한가지를 선택하세요. (다시 선택하면 해제)", list:RANDOM_CHALLENGES,   optional:true,  cls:"" },
+                      { field:"limit",      title:"추가 제한",        rule:"한가지를 선택하세요. (다시 선택하면 해제)", list:RANDOM_LIMITS,       optional:true,  cls:"randomCondGridPair" },
+                    ].map(({ field, title, rule, list, optional, cls }) => (
+                      <div key={field} className="randomCondGroup">
+                        <div className="randomCondGroupHead">
+                          <span className="randomCondGroupTitle">{title}</span>
+                          {rule && <span className="randomCondGroupRule">{rule}</span>}
                         </div>
-                      );
-                    })}
+                        <div className={`randomCondGrid ${cls}`}>
+                          {list.map(({ key, label, desc }) => {
+                            const active = randomConds[field] === key;
+                            const allowed = isRandomCondAllowed(field, key, randomConds.difficulty, randomConds.challenge);
+                            return (
+                              <button key={key} type="button" className={`randomModeBtn ${active ? "active" : ""}`} disabled={!allowed}
+                                title={allowed ? undefined : "현재 선택한 조건에서는 선택할 수 없습니다."}
+                                onClick={() => setRandomConds(prev => normalizeRandomConds({ ...prev, [field]: active && optional ? null : key }))}>
+                                <span className="randomModeBtnLabel">{label}</span>
+                                <span className="randomModeBtnDesc">{desc}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="wbOwnedActions">
+                    <button type="button" className="wbOwnedCancel" onClick={() => setRandomConds(DEFAULT_RANDOM_CONDS)}>초기화</button>
+                    <button type="button" className="wbOwnedConfirm" onClick={() => setRandomCondOpen(false)}>확인</button>
                   </div>
                 </div>
-              </div>
+              </div>,
+              document.body
             )}
           </div>
         )}
@@ -3248,15 +3869,74 @@ export default function App() {
         />
       )}
 
-      {/* ── 소지 전쟁 채권 선택 팝업 (최초 1회 / 모바일 필터) ── */}
-      <WbOwnedPopup
+      {/* ── OBS 오버레이 형식 선택 ── */}
+      {obsPopup && createPortal(
+        <div className="wbOwnedOverlay ssOwnedOverlay" onClick={() => setObsPopup(false)}
+          onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setObsPopup(false); }}>
+          <div className="wbOwnedCard obsPopupCard" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true">
+            <div className="wbOwnedHeader">
+              <div className="wbOwnedTitle">OBS 오버레이 링크 복사</div>
+              <div className="wbOwnedDesc">방송 화면 구성에 맞는 형식을 고른 뒤 링크를 복사해주세요. OBS 브라우저 소스의 너비·높이를 권장 크기로 맞추면 됩니다. 로드아웃을 바꾸면 링크를 다시 복사해야 합니다.</div>
+            </div>
+            <div className="obsPickList">
+              {OBS_LAYOUTS.map(L => (
+                <div key={L.key} role="button" tabIndex={0} className={`obsPick ${obsLayout === L.key ? "on" : ""}`}
+                  onClick={() => setObsLayout(L.key)}
+                  onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setObsLayout(L.key); } }}>
+                  <div className={`obsPickPreview obsPv_${L.key} ${L.key === "block" && obsSide === "left" ? "pvLeft" : ""}`} aria-hidden="true">
+                    {L.key === "block" ? (
+                      <span className="pvCol">
+                        <i className="pvLine" />
+                        <span className="pvGrid">
+                          <b className="pvGear pvWide" /><b className="pvGear" /><b className="pvGear" />
+                          <b className="pvR" /><b className="pvB" /><b className="pvB" /><b className="pvG" />
+                        </span>
+                      </span>
+                    ) : (
+                      <span className="pvCol pvCenter">
+                        <span className="pvRow"><b className="pvR" /><b className="pvB" /><b className="pvB" /><b className="pvG" /></span>
+                        <i className="pvLine pvLineWide" />
+                      </span>
+                    )}
+                  </div>
+                  <div className="obsPickInfo">
+                    <span className="obsPickHead">
+                      <span className="obsPickName">{L.label}</span>
+                      <span className="obsPickSize">권장 소스 크기 {L.w} × {L.h}</span>
+                    </span>
+                    <span className="obsPickDesc">{L.desc}</span>
+                    {L.key === "block" && (
+                      <div className="obsSideBtns">
+                        {[["left","왼쪽에 배치"],["right","오른쪽에 배치"]].map(([k, label]) => (
+                          <button key={k} type="button" className={`obsSideBtn ${obsLayout === "block" && obsSide === k ? "on" : ""}`}
+                            onClick={e => { e.stopPropagation(); setObsSide(k); setObsLayout("block"); }}>{label}</button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="wbOwnedActions">
+              <button className="wbOwnedCancel" type="button" onClick={() => setObsPopup(false)}>취소</button>
+              <button className="wbOwnedConfirm" type="button" onClick={copyObsLink}>링크 복사</button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ── 보유 항목 관리 (최초 접속 1회 / PC 상단 메뉴 / 모바일 사이드 메뉴) ── */}
+      <OwnedItemsPopup
         open={!!wbOwnedPopup && !isLoading}
         mode={wbOwnedPopup ?? "edit"}
-        allWb={allWbOptions}
-        owned={ownedWb}
         items={items}
+        allWb={allWbOptions}
+        ownedWb={ownedWb}
+        ownedSpecial={ownedSpecial}
         onConfirm={confirmWbOwnedPopup}
         onClose={() => setWbOwnedPopup(null)}
+        onToast={showToast}
       />
 
       {/* ── 로드아웃 분석 Beta 안내 모달 ── */}
@@ -3326,11 +4006,11 @@ export default function App() {
 
               <div className="infoBuildRow">
                 <span className="infoBuildLabel">빌드 버전</span>
-                <span className="infoBuildValue">ver 26.11.27</span>
+                <span className="infoBuildValue">ver 26.11.28</span>
               </div>
               <div className="infoBuildRow">
                 <span className="infoBuildLabel">빌드 기준 최신 업데이트</span>
-                <span className="infoBuildValue">ver 01.007.201 " Devoid of Liberty " <span className="infoSub">(자유의 공백)</span></span>
+                <span className="infoBuildValue">ver 01.007.203 " Devoid of Liberty " <span className="infoSub">(자유의 공백)</span></span>
               </div>
 
             </div>
@@ -3684,7 +4364,7 @@ export default function App() {
         activeSlotIndex={activeSlotIndex}
         onPreviewSlotClick={handlePreviewSlotClick}
         ownedWb={ownedWb}
-        onOpenWbPopup={() => setWbOwnedPopup("edit")}
+        ownedSuperStore={ownedSpecial.superStore}
       />
     </div>
   );

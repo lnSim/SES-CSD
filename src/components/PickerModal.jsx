@@ -163,8 +163,9 @@ const SUBTYPE_BACKPACK_WEAPON = "지원배낭 무기";
 
 /* ── 엑소슈트 판별 (4번 요청) ── */
 const isExoSuit = (it) => String(it?.id ?? "").includes("st_vh_exo");
-/* ── M-102/M-103 고속 정찰 차량 — 엑소슈트와 동일하게 하나만 선택 가능 ── */
-const isScoutCar = (it) => ["st_vh_m102","st_vh_m103"].includes(String(it?.id ?? ""));
+/* ── M-10x FRV 차량(M-102 사수 / M-103 보급 / M-104 소각 …) — 엑소슈트와 동일하게 하나만 선택 가능 ──
+ * st_vh_m 접두사로 판별 → 이후 추가되는 M 계열 차량도 자동 적용 */
+const isScoutCar = (it) => String(it?.id ?? "").startsWith("st_vh_m");
 /* ── TD-220 바스티온 / TD-110 마엘스트롬 전차 — 엑소슈트와 동일하게 하나만 선택 가능 ── */
 const TANK_IDS = ["st_vh_td220","st_vh_td110"];
 const isTank = (it) => TANK_IDS.includes(String(it?.id ?? ""));
@@ -284,7 +285,7 @@ function ItemIcon({ item, style={} }) {
   );
 }
 
-/* 소지 전쟁 채권(ownedWb)은 App에서 전역으로 관리 — 여기서는 나머지 필터만 슬롯별로 저장 */
+/* 소지 전쟁 채권(ownedWb)은 App의 보유 항목 관리에서 전역으로 관리 — 여기서는 나머지 필터만 슬롯별로 저장 */
 function makeInitFilters(storageKey) {
   const saved = lsGet(storageKey);
   if (saved) {
@@ -295,11 +296,9 @@ function makeInitFilters(storageKey) {
       traits:               new Set(Array.isArray(saved.traits)     ? saved.traits     : []),
       weaponType:           new Set(Array.isArray(saved.weaponType) ? saved.weaponType : []),
       stratSubType:         new Set(Array.isArray(saved.stratSubType) ? saved.stratSubType : []),
-      includeSuperStore:    saved.includeSuperStore === false ? false : true,
-      includeSuperCitizen:  !!saved.includeSuperCitizen,
     };
   }
-  return { armorValue:new Set(), passive:new Set(), armorPen:new Set(), traits:new Set(), weaponType:new Set(), stratSubType:new Set(), includeSuperStore:true, includeSuperCitizen:false };
+  return { armorValue:new Set(), passive:new Set(), armorPen:new Set(), traits:new Set(), weaponType:new Set(), stratSubType:new Set() };
 }
 
 /* ── 아이템 목록에서 "소지 선택 대상" 전쟁 채권 목록 산출 (기본/캠페인/해방절/슈퍼스토어/슈퍼시민권 제외) ── */
@@ -309,8 +308,6 @@ export function getWbOptionsFromItems(items) {
   return sortWbList(filtered);
 }
 
-/* ── 소지 전쟁 채권 선택 팝업 (최초 접속 1회 + 모바일 필터에서 호출) ──
- * mode "first": 바깥 클릭으로 닫히지 않음, 취소 버튼 없음 */
 /* ── 채권 블럭 구성품: 분류별로 줄 단위 표시 ──
  * 주무기 > 보조무기 > 투척 > 방어구(패시브) > 스트라타젬(지원무기 > 배낭 > 탑승물 > 방어 > 공격) */
 const WB_STRAT_SUPPORT_WEAPON_SUBS = new Set(["지원무기","지원배낭 무기","일회용 지원무기"]);
@@ -320,6 +317,7 @@ function getWbComponentGroup(it) {
   if (tp === "보조무기") return "보조무기";
   if (tp === "투척무기") return "투척";
   if (tp === "armor")    return "방어구";
+  if (tp === "booster")  return "부스터";
   if (tp === "stratagem") {
     const sub = getSubType(it);
     if (WB_STRAT_SUPPORT_WEAPON_SUBS.has(sub)) return "지원무기";
@@ -329,7 +327,7 @@ function getWbComponentGroup(it) {
   }
   return "기타";
 }
-const WB_COMPONENT_GROUP_ORDER = ["주무기","보조무기","투척","방어구","지원무기","배낭","탑승물","방어","공격","기타"];
+const WB_COMPONENT_GROUP_ORDER = ["주무기","보조무기","투척","방어구","지원무기","배낭","탑승물","방어","공격","부스터","기타"];
 
 /* 비활성(미소지) 채권 블럭: 짙은 회색, 채권 강조색 없음 */
 const WB_BLOCK_INACTIVE_STYLE = {
@@ -337,8 +335,9 @@ const WB_BLOCK_INACTIVE_STYLE = {
   borderColor:"rgba(255,255,255,.10)", textShadow:"none", opacity:1,
 };
 
-export function WbOwnedPopup({ open, mode="edit", allWb, owned, items=[], onConfirm, onClose }) {
-  const [draft, setDraft] = useState(() => new Set());
+/* ── 전쟁 채권 블럭 목록 (보유 항목 관리 창에서 사용) — 블럭마다 구성품을 분류별 줄로 표시 ── */
+export function WbOwnedBlockList({ allWb, items=[], draft, onToggle }) {
+  const toggle = onToggle;
   // Map<채권, [{ group, names[] }]> — 그룹은 표시 순서대로
   const componentsByWb = useMemo(() => {
     const tmp = new Map();
@@ -358,74 +357,49 @@ export function WbOwnedPopup({ open, mode="edit", allWb, owned, items=[], onConf
     }
     return out;
   }, [items]);
-  useEffect(() => { if (open) setDraft(new Set(owned ?? [])); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
-  if (!open) return null;
-  const isFirst = mode === "first";
-  const toggle = (wb) => setDraft(p => { const n=new Set(p); n.has(wb)?n.delete(wb):n.add(wb); return n; });
-  const count = allWb.filter(w => draft.has(w)).length;
   return (
-    <div className="wbOwnedOverlay"
-      onClick={e => { e.stopPropagation(); if (!isFirst) onClose?.(); }}
-      onContextMenu={e => { e.preventDefault(); e.stopPropagation(); if (!isFirst) onClose?.(); }}>
-      <div className="wbOwnedCard" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true">
-        <div className="wbOwnedHeader">
-          <div className="wbOwnedTitle">현재 소지한 전쟁 채권을 선택해주세요.</div>
-          {isFirst && (
-            <div className="wbOwnedDesc">선택한 채권의 장비만 선택창에 표시됩니다. 이후 필터에서 언제든 변경할 수 있습니다.</div>
-          )}
-        </div>
-        <div className="wbOwnedToolbar">
-          <span className="wbOwnedCount">{count} / {allWb.length}</span>
-          <div style={{ display:"flex", gap:6 }}>
-            <button className="filterMiniBtn" type="button" onClick={() => setDraft(new Set(allWb))}>전체 선택</button>
-            <button className="filterMiniBtn" type="button" onClick={() => setDraft(new Set())}>전체 해제</button>
-          </div>
-        </div>
-        <div className="wbOwnedList">
-          {allWb.map(wb => {
-            const checked = draft.has(wb);
-            const st = checked ? getWbFilterStyle(wb, true) : WB_BLOCK_INACTIVE_STYLE;
-            const comps = componentsByWb.get(wb) ?? [];
-            return (
-              <button key={wb} type="button" className={`wbOwnedBlock ${checked ? "on" : ""}`}
-                style={{ color:st.color, background:st.background, borderColor:st.borderColor, textShadow:st.textShadow ?? "none", opacity:st.opacity }}
-                onClick={() => toggle(wb)} aria-pressed={checked}
-              >
-                <span className="wbOwnedBlockName">{wb}</span>
-                {comps.length > 0 && (
-                  <span className="wbOwnedBlockItems">
-                    {comps.map(({ group, names }) => (
-                      <span key={group} className="wbOwnedBlockLine">
-                        <span className="wbOwnedBlockGroup">{group}</span>
-                        <span className="wbOwnedBlockNames">
-                          {names.map(n => <span key={n}>{n}</span>)}
-                        </span>
+      <div className="wbOwnedList">
+        {allWb.map(wb => {
+          const checked = draft.has(wb);
+          const st = checked ? getWbFilterStyle(wb, true) : WB_BLOCK_INACTIVE_STYLE;
+          const comps = componentsByWb.get(wb) ?? [];
+          return (
+            <button key={wb} type="button" className={`wbOwnedBlock ${checked ? "on" : ""}`}
+              style={{ color:st.color, background:st.background, borderColor:st.borderColor, textShadow:st.textShadow ?? "none", opacity:st.opacity }}
+              onClick={() => toggle(wb)} aria-pressed={checked}
+            >
+              <span className="wbOwnedBlockName">{wb}</span>
+              {comps.length > 0 && (
+                <span className="wbOwnedBlockItems">
+                  {comps.map(({ group, names }) => (
+                    <span key={group} className="wbOwnedBlockLine">
+                      <span className="wbOwnedBlockGroup">{group}</span>
+                      <span className="wbOwnedBlockNames">
+                        {names.map(n => <span key={n}>{n}</span>)}
                       </span>
-                    ))}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-        <div className="wbOwnedActions">
-          {!isFirst && <button className="wbOwnedCancel" type="button" onClick={onClose}>취소</button>}
-          <button className="wbOwnedConfirm" type="button" onClick={() => onConfirm(draft)}>선택 완료</button>
-        </div>
+                    </span>
+                  ))}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
-    </div>
   );
 }
 
 export default function PickerModal({
-  open, typeKey="", slotKind="", isWeapon=false,
+  open, slotKind="", isWeapon=false,
   title, items, pickedId,
   onPick, onClose,
   selectedStratagemIds, activeStratagemPickedId,
   stratagemSlots, activeSlotIndex, onPreviewSlotClick,
-  ownedWb, onOpenWbPopup,
+  ownedWb, ownedSuperStore,
 }) {
   const owned = ownedWb ?? new Set();
+  // 슈퍼 스토어 보유 항목 (보유 항목 관리에서 설정) — 목록 위쪽으로 + "+보유함" 표시
+  const ssOwned = ownedSuperStore ?? new Set();
+  const isSsOwned = (it) => isSuperStore(it) && ssOwned.has(String(it?.id));
   const [passivePopupOpen, setPassivePopupOpen] = useState(false);
   const [passiveQuery,     setPassiveQuery]     = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
@@ -436,13 +410,11 @@ export default function PickerModal({
   const storageKey      = `pickerFilters_v7:${slotKind||"unknown"}`;
 
   const wbOptions = useMemo(() => getWbOptionsFromItems(items), [items]);
-  const ownedCountInSlot = useMemo(() => wbOptions.filter(w => owned.has(w)).length, [wbOptions, owned]);
 
   const [filters, setFilters] = useState(() => ({
     armorValue:new Set(), passive:new Set(),
     armorPen:new Set(), traits:new Set(), weaponType:new Set(),
     stratSubType:new Set(),
-    includeSuperStore:true, includeSuperCitizen:false,
   }));
   const initializedForKey = useRef("");
 
@@ -465,16 +437,12 @@ export default function PickerModal({
       passive:Array.from(filters.passive),  armorPen:Array.from(filters.armorPen),
       traits:Array.from(filters.traits),    weaponType:Array.from(filters.weaponType),
       stratSubType:Array.from(filters.stratSubType),
-      includeSuperStore:filters.includeSuperStore, includeSuperCitizen:filters.includeSuperCitizen,
     });
   }, [filters, open, storageKey]);
 
-  /* 소지 채권: 전역 상태(App) 변경 — 모든 선택창에 공통 적용 */
-  // 필터 초기화는 소지 채권은 건드리지 않음 (소지 여부는 필터가 아닌 보유 정보)
-  const resetAll        = ()    => setFilters({armorValue:new Set(),passive:new Set(),armorPen:new Set(),traits:new Set(),weaponType:new Set(),stratSubType:new Set(),includeSuperStore:true,includeSuperCitizen:false});
+  // 필터 초기화는 소지 채권은 건드리지 않음 (소지 여부는 보유 항목 관리에서 설정)
+  const resetAll        = ()    => setFilters({armorValue:new Set(),passive:new Set(),armorPen:new Set(),traits:new Set(),weaponType:new Set(),stratSubType:new Set()});
   const togSet          = (k,v) => setFilters(p => { const s2=new Set(p[k]); const next=new Set(); if(!s2.has(v)) next.add(v); return {...p,[k]:next}; });
-  const togSuper        = ()    => setFilters(p => ({...p, includeSuperStore:!p.includeSuperStore}));
-  const togSuperCitizen = ()    => setFilters(p => ({...p, includeSuperCitizen:!p.includeSuperCitizen}));
 
   /* ── 엑소슈트 선택 현황 (4번 요청) ── */
   const hasExoSelected = useMemo(() => {
@@ -617,7 +585,6 @@ export default function PickerModal({
        2순위 DB 시트 순서 (기본 해금순 → 채권 출시순 — 신규 채권은 DB에 추가한 순서대로 자동 반영)
        탑승물 예외: 차량(M-10x) > 엑소슈트(EXO-xx) > 전차(TD-xxx) 후 DB 순서 */
   const SUPPORT_SUB_ORDER = ["지원무기","배낭 지원무기","일회용 지원무기","배낭","탑승물"];
-  const BACKPACK_LINKED_IDS = ["sw_m1000","sw_c4","sw_gl28"]; // 배낭 연동 지원무기 ID 목록
   /* 지원 subType별 세분화 섹션 키 (지원__지원무기 형태로 map에 저장) */
   const SUPPORT_SUB_SECTION_KEYS = SUPPORT_SUB_ORDER.map(sub => `지원__${sub}`);
   const isSupportSubKey = (tp) => tp.startsWith("지원__");
@@ -665,7 +632,6 @@ export default function PickerModal({
       });
     }
     // 비지원 그룹 내부 정렬 (기존 유지: 기본 순서)
-    const nonSupportOrder = STRAT_TYPE_ORDER.filter(tp => tp !== "지원" && map.has(tp));
     const supportSubOrder = SUPPORT_SUB_SECTION_KEYS.filter(k => map.has(k));
     const etcOrder = [...map.keys()].filter(tp => !STRAT_TYPE_ORDER.includes(tp) && !isSupportSubKey(tp));
     // 공격 > 지원(서브 순서) > 방어 > 기타
@@ -688,8 +654,10 @@ export default function PickerModal({
     }
     let order = [...map.keys()];
     if (isWeapon) order = sortWeaponTypeOrder(order);
+    // 보유한 슈퍼 스토어 항목을 각 묶음의 맨 위로 (나머지 순서는 유지) — 방어구 선택창만, 무기 선택창은 기존 순서
+    if (!isWeapon) for (const [k, list] of map) map.set(k, [...list.filter(it => isSsOwned(it)), ...list.filter(it => !isSsOwned(it))]);
     return { order, map };
-  }, [filteredItems, isStratagemMode, isWeapon]);
+  }, [filteredItems, isStratagemMode, isWeapon, ssOwned]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* 패시브 → 설명(passiveInfo) — 모바일 패시브 선택 팝업용 */
   const passiveInfoMap = useMemo(() => {
@@ -706,8 +674,7 @@ export default function PickerModal({
   const selectedPassive = [...filters.passive][0] ?? "";
 
   const isFilterActive =
-    ownedCountInSlot < wbOptions.length
-    || (isArmorMode && (filters.armorValue.size>0 || filters.passive.size>0))
+    (isArmorMode && (filters.armorValue.size>0 || filters.passive.size>0))
     || (isWeapon   && (filters.armorPen.size>0   || filters.traits.size>0 || filters.weaponType.size>0))
     || (isStratagemMode && filters.stratSubType.size>0);
 
@@ -761,12 +728,6 @@ export default function PickerModal({
         {/* 필터 패널 */}
         {filterOpen && (
           <div className="filterPanel">
-            <div className="filterGroup">
-              <div className="filterHead">
-                <div className="filterTitle">전쟁 채권 (소지) — {ownedCountInSlot}/{wbOptions.length}</div>
-                <button className="filterMiniBtn filterPopupBtn" onClick={() => onOpenWbPopup?.()} type="button">소지 채권 선택</button>
-              </div>
-            </div>
             {isStratagemMode && (
               <>
                 <FilterGroup
@@ -959,11 +920,12 @@ export default function PickerModal({
                       const active = pickedId!=null && String(it.id)===String(pickedId);
                       return (
                         <button key={it.id}
-                          className={`pickCard ${active?"active":""} ${isSuperStore(it)?"superItem":""} ${isSuperCitizen(it)?"superCitizenItem":""} ${GLOW_ITEM_IDS.has(String(it.id))?"glowItem":""} ${isLiberation(it)?"liberationItem":""}`}
+                          className={`pickCard ${active?"active":""} ${isSuperStore(it)?"superItem":""} ${isSsOwned(it)?"ssOwnedPick":""} ${isSuperCitizen(it)?"superCitizenItem":""} ${GLOW_ITEM_IDS.has(String(it.id))?"glowItem":""} ${isLiberation(it)?"liberationItem":""}`}
                           onClick={()=>onPick(it)} type="button"
                         >
                           <div className="pickThumb">
                             <ItemIcon item={it} style={{ width:"100%", height:"100%", objectFit:"contain", objectPosition:"center" }} />
+                            {isSsOwned(it) && <span className="pickOwnedTag">+보유함</span>}
                           </div>
                           <div className="pickText">
                             <div className="pickName">{s(it.name_ko)||it.id}</div>

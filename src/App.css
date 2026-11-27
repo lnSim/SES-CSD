@@ -66,9 +66,6 @@ body {
   padding:0 0 48px;                /* 좌우 패딩은 .layout 이 담당 */
 }
 .errorBox { border:1px solid rgba(255,50,50,.5); background:rgba(255,0,0,.08); padding:14px 16px; border-radius:12px; margin:12px 18px 0; display:flex; flex-direction:column; gap:6px; }
-.errorBoxTitle { font-weight:700; color:#fca5a5; font-size:14px; }
-.errorBoxDesc  { font-size:13px; color:rgba(255,200,200,.85); line-height:1.5; }
-.errorBoxDetail{ font-size:11px; color:rgba(255,150,150,.55); margin-top:2px; }
 
 .topNav {
   display:flex; align-items:center;
@@ -682,12 +679,6 @@ body {
   row-gap:8px;
 }
 .statTraitList  { display:flex; flex-wrap:wrap; gap:7px; }
-.statTraitBadge {
-  display:inline-block; padding:4px 11px; border-radius:999px;
-  font-size:13px; font-weight:700;
-  background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.14);
-  color:rgba(255,255,255,.85);
-}
 /* 채권 배지 — 색상은 인라인 style로 개별 지정 */
 .statWbBadge {
   font-size:13px; font-weight:700;
@@ -695,42 +686,8 @@ body {
   border:1px solid transparent;
 }
 /* 역할 배지 — 색상은 인라인 style */
-.statRoleBadge {
-  display:inline-block; padding:5px 13px; border-radius:999px;
-  font-size:13px; font-weight:700; border:1px solid transparent;
-}
 /* 화력 투사 배지 */
-.statFireformBadge {
-  display:inline-block; padding:3px 10px; border-radius:999px;
-  font-size:12px; font-weight:700; border:1px solid transparent;
-  flex-shrink:0; white-space:nowrap;
-}
 /* 화력 투사 2열 그리드 */
-.fireformGrid {
-  display:grid;
-  grid-template-columns: 1fr auto 1fr;
-  gap:0 14px;
-  margin-top:12px;
-  align-items:start;
-}
-@media(max-width:600px) {
-  .fireformGrid {
-    grid-template-columns: 1fr;
-  }
-  .fireformDivider {
-    width:100% !important; height:1px !important;
-    margin:8px 0 !important;
-  }
-}
-.fireformCol { display:flex; flex-direction:column; gap:8px; min-width:0; }
-.fireformColTitle {
-  font-size:11px; font-weight:700; color:rgba(255,255,255,.40);
-  margin-bottom:2px; letter-spacing:.02em;
-}
-.fireformDivider {
-  width:1px; background:rgba(255,255,255,.10);
-  align-self:stretch; margin:0 2px;
-}
 .statEmpty { font-size:13px; color:rgba(255,255,255,.30); }
 
 /* ─────────────────────────────────────────────
@@ -772,29 +729,11 @@ body {
 .selEmpty         { font-size:12px; color:rgba(255,255,255,.28); padding-top:1px; }
 .selectedDivider  { height:1px; background:rgba(255,255,255,.08); margin:10px 0; }
 /* 하위 호환 */
-.selBadge        { display:inline-block; padding:2px 7px; border-radius:999px; font-size:11px; font-weight:700; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.14); color:rgba(255,255,255,.75); white-space:nowrap; }
-.selBadgePassive { border-color:rgba(240,196,0,.40); color:var(--yellow); }
-.selBadgePen     { border:none; font-weight:700; white-space:nowrap; }
-.selBadgeTrait   { white-space:nowrap; }
 .selLabel        { color:rgba(255,255,255,.55); font-weight:700; font-size:12px; white-space:nowrap; }
-.selGroup        { display:grid; gap:8px; }
 
 /* ─────────────────────────────────────────────
    준비 중 페이지
    ───────────────────────────────────────────── */
-.pagePlaceholder {
-  display:flex; flex-direction:column; align-items:center; justify-content:center;
-  padding:80px 24px;
-  gap:14px; text-align:center;
-}
-.pagePlaceholderIcon  { font-size:56px; }
-.pagePlaceholderTitle { font-size:clamp(22px,3vw,32px); font-weight:800; color:var(--yellow); }
-.pagePlaceholderDesc  { font-size:15px; color:rgba(255,255,255,.55); line-height:1.6; }
-.pagePlaceholderBadge {
-  display:inline-block; padding:6px 18px; border-radius:999px;
-  border:1px solid rgba(255,255,255,.20); background:rgba(255,255,255,.06);
-  color:rgba(255,255,255,.50); font-weight:700; font-size:13px;
-}
 
 /* ===== 스트라타젬 행 =====
    stratRow, gearLayout, statsPanel 모두 mainCol 동일 폭 사용
@@ -881,16 +820,6 @@ body {
   display:flex; align-items:center; gap:6px; flex-shrink:0;
 }
 /* 장갑 등급 태그 (inline — absolute 불필요) */
-.slotBadgeInline {
-  position:static !important;
-  display:inline-block;
-  background:rgba(0,0,0,.65);
-  border:1px solid rgba(255,255,255,.28);
-  color:#fff;
-  font-size:clamp(10px,0.9vw,12px); font-weight:700;
-  padding:3px 10px; border-radius:999px;
-  white-space:nowrap;
-}
 /* 방어구 이미지 영역: flex:1 */
 .slotBodyArmor {
   flex:1; min-height:0;
@@ -1109,28 +1038,10 @@ body {
 .filterChip   { display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.06); color:rgba(255,255,255,.9); font-weight:700; font-size:12px; cursor:pointer; user-select:none; }
 .filterChip input { accent-color:var(--yellow); }
 .filterChip.on    { border-color:rgba(240,196,0,.55); background:rgba(240,196,0,.12); color:#fff; }
-/* 전쟁 채권 전용 배지 버튼 — 색상은 인라인 style */
-.filterWbChip {
-  display:inline-flex; align-items:center;
-  padding:6px 15px; border-radius:999px;
-  border:1px solid transparent;
-  font-weight:700; font-size:13px;
-  cursor:pointer; user-select:none;
-  transition:opacity .15s, box-shadow .15s;
-  line-height:1.3;
-}
-.filterWbChip:hover { box-shadow:0 0 0 2px rgba(255,255,255,.18); opacity:1 !important; }
 .filterEmpty  { color:rgba(255,255,255,.45); font-size:12px; }
 .filterFooter { padding-top:10px; border-top:1px solid rgba(255,255,255,.08); display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
 .filterMiniBtn { border-radius:10px; border:1px solid rgba(255,255,255,.14); background:rgba(0,0,0,.25); color:rgba(255,255,255,.85); padding:5px 10px; cursor:pointer; font-weight:700; font-size:12px; }
 .filterMiniBtn:hover { border-color:rgba(240,196,0,.45); box-shadow:0 0 0 2px rgba(240,196,0,.10); }
-.filterSuperToggle { display:inline-flex; align-items:center; padding:8px 14px; border-radius:999px; border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.06); color:rgba(255,255,255,.85); cursor:pointer; font-weight:700; font-size:13px; transition:border-color .15s,box-shadow .15s,background .15s,color .15s; white-space:nowrap; }
-.filterSuperToggle:hover { border-color:rgba(0,246,255,.45); background:rgba(0,246,255,.06); }
-.filterSuperToggle.on    { border-color:rgba(0,246,255,.65); color:#67e8f9; background:rgba(0,246,255,.10); box-shadow:0 0 0 2px rgba(0,246,255,.18),0 0 18px rgba(0,246,255,.22); }
-/* 슈퍼 시민권 에디션 토글 — 노란색 */
-.filterSuperCitizenToggle { display:inline-flex; align-items:center; padding:8px 14px; border-radius:999px; border:1px solid rgba(240,196,0,.45); background:rgba(240,196,0,.08); color:var(--yellow); cursor:pointer; font-weight:700; font-size:13px; transition:border-color .15s,box-shadow .15s,background .15s,color .15s; white-space:nowrap; }
-.filterSuperCitizenToggle:hover { border-color:rgba(240,196,0,.70); background:rgba(240,196,0,.14); box-shadow:0 0 0 2px rgba(240,196,0,.15),0 0 16px rgba(240,196,0,.20); }
-.filterSuperCitizenToggle.on    { border-color:rgba(240,196,0,.90); background:rgba(240,196,0,.16); color:#ffe44d; box-shadow:0 0 0 2px rgba(240,196,0,.25),0 0 22px rgba(240,196,0,.35); }
 .filterResetBtn { display:inline-flex; align-items:center; padding:8px 14px; border-radius:999px; border:1px solid rgba(255,80,80,.50); background:rgba(255,50,50,.10); color:rgba(255,180,180,.95); cursor:pointer; font-weight:700; font-size:13px; transition:border-color .15s,box-shadow .15s,background .15s,color .15s; white-space:nowrap; }
 .filterResetBtn:hover { border-color:rgba(255,80,80,.80); background:rgba(255,50,50,.18); color:#fca5a5; box-shadow:0 0 0 2px rgba(255,80,80,.22),0 0 18px rgba(255,80,80,.28); }
 
@@ -1271,7 +1182,6 @@ body {
 .infoValue {
   font-size:13px; font-weight:700; color:rgba(255,255,255,.90);
 }
-.infoPending { color:rgba(255,255,255,.35) !important; font-style:italic; }
 .infoLink {
   font-size:11px; color:rgba(96,165,250,.80);
   word-break:break-all; text-decoration:none;
@@ -1482,10 +1392,10 @@ body:has(.modalOverlay) {
 }
 
 .pageRandom {
-  padding:32px 20px 64px;
-  max-width:1000px;
+  padding:20px 20px 48px;
+  max-width:960px;
   margin:0 auto;
-  display:flex; flex-direction:column; gap:32px;
+  display:flex; flex-direction:column; gap:14px;
 }
 
 /* 브라쉬 장군 팝업 */
@@ -1541,11 +1451,6 @@ body:has(.modalOverlay) {
 }
 
 /* 무작위 선택 범위 옵션 */
-.randomModeSection {
-  display:grid;
-  grid-template-columns:repeat(4, 1fr);
-  gap:10px;
-}
 .randomModeBtn {
   display:flex; flex-direction:column; align-items:center; gap:6px;
   padding:12px 10px;
@@ -1581,7 +1486,6 @@ body:has(.modalOverlay) {
 .randomModeBtn.active .randomModeBtnDesc { color:rgba(255,220,80,.75); }
 
 /* 무작위 버튼 */
-.randomBtnWrap { display:flex; justify-content:center; }
 .randomBtn {
   padding:14px 48px;
   font-size:16px; font-weight:700; letter-spacing:.04em;
@@ -1634,12 +1538,6 @@ body:has(.modalOverlay) {
   to   { text-shadow:0 0 14px rgba(240,196,0,.90), 0 0 32px rgba(240,196,0,.55), 0 0 56px rgba(240,196,0,.25); }
 }
 
-.randomSection { display:flex; flex-direction:column; gap:12px; }
-.randomSectionLabel {
-  font-size:13px; font-weight:600;
-  color:rgba(255,255,255,.50); letter-spacing:.06em; text-transform:uppercase;
-}
-
 /* 집착 배지 */
 .randomObsessionBadge {
   text-align:center;
@@ -1661,9 +1559,6 @@ body:has(.modalOverlay) {
   box-shadow:0 0 0 2px rgba(240,196,0,.20);
 }
 /* 조커 교체 후 flash */
-.randomCardFlash {
-  animation:cardFlash .7s ease-out forwards;
-}
 @keyframes cardFlash {
   0%   { box-shadow:0 0 0 3px rgba(255,255,255,.95), 0 0 24px rgba(255,255,255,.70); background:rgba(255,255,255,.22) !important; }
   100% { box-shadow:none; background:rgba(18,18,18,.90) !important; }
@@ -1708,9 +1603,6 @@ body:has(.modalOverlay) {
 .randomSlotX { font-size:32px; font-weight:900; color:rgba(255,80,80,.60); line-height:1; }
 
 /* 장비 카드 */
-.randomGearRow {
-  display:grid; grid-template-columns:repeat(4,1fr); gap:14px;
-}
 .randomGearCard {
   background:rgba(18,18,18,.90);
   border:1px solid rgba(255,255,255,.15);
@@ -1721,9 +1613,6 @@ body:has(.modalOverlay) {
   transition:border-color .15s;
 }
 .randomGearCard:hover { border-color:rgba(240,196,0,.35); }
-.randomGearLabel { font-size:11px; font-weight:600; color:rgba(255,255,255,.45); letter-spacing:.05em; }
-.randomGearIcon  { width:90px; height:90px; object-fit:contain; }
-.randomGearIconEmpty { width:90px; height:90px; border-radius:8px; background:rgba(255,255,255,.06); }
 .randomGearName  { font-size:13px; font-weight:600; color:#fff; line-height:1.35; }
 
 /* 조커 힌트 */
@@ -1741,13 +1630,10 @@ body:has(.modalOverlay) {
 }
 
 /* 모바일 */
-@media (max-width:700px) {
-  .randomModeSection { grid-template-columns:repeat(2, 1fr); }
-}
 @media (max-width:600px) {
   .randomHeroPopup { flex-direction:column; text-align:center; padding:24px 20px; }
   .randomBrashImg { width:80px; height:80px; }
-  .randomStratRow, .randomGearRow { grid-template-columns:repeat(2,1fr); }
+  .randomStratRow { grid-template-columns:repeat(2,1fr); }
   .randomBtn { padding:12px 32px; font-size:15px; }
   .randomPendingText { font-size:20px; }
   .topNavPageTabs { display:none; }
@@ -1786,7 +1672,6 @@ body:has(.modalOverlay) {
   scrollbar-width: thin;
   scrollbar-color: rgba(240,196,0,.35) rgba(255,255,255,.04);
 }
-
 
 /* ===== 신규 채권 미리보기 오버레이 ===== */
 .wbNoticeOverlay {
@@ -2370,19 +2255,9 @@ body:has(.modalOverlay) {
 .bdPostBtn:hover { background:rgba(240,196,0,.28); }
 
 .bdFactionTabs { display:flex; gap:6px; flex-wrap:wrap; }
-.bdFactionTab {
-  display:flex; align-items:center; height:42px; padding:0 18px; border-radius:10px; cursor:pointer;
-  border:1px solid rgba(255,255,255,.14); background:rgba(30,30,30,.88); color:rgba(255,255,255,.75);
-  font-size:14px; font-weight:700; font-family:inherit;
-}
-.bdFactionTab .factionBadge_md { font-size:14px; }
-.bdFactionTab .factionBadge_md .factionBadgeIcon { width:20px; height:20px; }
-.bdFactionTab .factionBadge { border:none; background:transparent; padding:0; }
-.bdFactionTab.on { border-color:rgba(240,196,0,.70); background:rgba(240,196,0,.12); color:var(--yellow); box-shadow:0 0 0 1px rgba(240,196,0,.25); }
 @media(max-width:600px) {
   .bdFactionTabs { flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; }
   .bdFactionTabs::-webkit-scrollbar { display:none; }
-  .bdFactionTab { flex-shrink:0; height:34px; padding:0 10px; }
 }
 .bdFilterRow { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .bdCount { margin-left:auto; font-size:12px; font-weight:700; color:rgba(255,255,255,.45); }
@@ -2450,13 +2325,6 @@ body:has(.modalOverlay) {
 .bdHeroExtra { color:#49adc9; }
 
 /* 펼친 카드 */
-.bdCardOpen { flex-direction:column; cursor:default; border-color:rgba(240,196,0,.55); background:rgba(24,22,14,.95); }
-.bdCardOpen:hover { border-color:rgba(240,196,0,.70); }
-.bdCardOpenHead {
-  display:flex; align-items:center; gap:8px; min-width:0; width:100%;
-  background:none; border:none; padding:0; cursor:pointer; color:inherit; font-family:inherit; text-align:left;
-}
-.bdCardOpenHead .bdMetaText { margin-left:2px; }
 .bdOpenBody { display:flex; align-items:stretch; gap:14px; flex-wrap:wrap; }
 .bdOpenGroup { display:flex; flex-direction:column; gap:5px; }
 .bdOpenLabel { font-size:11px; font-weight:700; color:rgba(255,255,255,.45); }
@@ -2490,7 +2358,6 @@ body:has(.modalOverlay) {
   .bdHero_lg .bdHeroBox { width:84px; height:84px; }
   .bdOpenDivider { display:none; }
   .bdAct { height:30px; padding:0 10px; }
-  .bdCardOpenHead { flex-wrap:wrap; }
 }
 
 /* 페이지 */
@@ -2515,10 +2382,6 @@ body:has(.modalOverlay) {
 .bdSelect { height:40px; cursor:pointer; }
 .bdSelect option { background:#1a1a1a; color:#fff; }
 .bdFactionPick { display:flex; flex-wrap:wrap; gap:6px; }
-.bdFactionPickBtn {
-  padding:4px; border-radius:999px; border:1px solid transparent; background:transparent; cursor:pointer; opacity:.55;
-}
-.bdFactionPickBtn.on { opacity:1; border-color:rgba(255,255,255,.35); background:rgba(255,255,255,.06); }
 .bdPostPreview {
   display:flex; align-items:center; gap:6px; flex-wrap:wrap;
   padding:10px; border-radius:12px; border:1px solid rgba(255,255,255,.10); background:rgba(0,0,0,.25);
@@ -2534,7 +2397,6 @@ body:has(.modalOverlay) {
   font-size:12px; font-weight:700; font-family:inherit; white-space:nowrap;
 }
 .bdCondFactions { display:flex; flex-wrap:wrap; gap:6px; }
-.bdCondFactions .bdFactionTab { height:36px; padding:0 12px; font-size:13px; }
 
 /* ── 게시판: 상세 팝업 ── */
 .bdDetailCard { width:min(680px,100%); border-color:rgba(240,196,0,.50); --u:66px; --g:8px; }
@@ -2722,3 +2584,474 @@ body:has(.modalOverlay) {
 
 /* 삭제 비밀번호 칸: 글자 가림 (type=password를 쓰지 않아 크롬 비밀번호 저장·유출 경고가 뜨지 않음) */
 .bdSecret { -webkit-text-security:disc; text-security:disc; font-family:inherit; letter-spacing:.08em; }
+
+/* ── 무작위 로드아웃: 부스터 ── */
+.randomBoosterRerollBtn {
+  display:flex; align-items:center; gap:8px; flex-shrink:0;
+  height:38px; padding:0 14px; border-radius:9px; cursor:pointer; font-family:inherit;
+  border:1px solid rgba(240,196,0,.55); background:rgba(240,196,0,.12); color:var(--yellow);
+  font-size:13px; font-weight:700; white-space:nowrap;
+}
+.randomBoosterRerollBtn:hover:not(:disabled) { background:rgba(240,196,0,.22); }
+.randomBoosterRerollBtn:disabled { opacity:.40; cursor:default; }
+.randomBoosterCount {
+  min-width:30px; padding:1px 6px; border-radius:999px; text-align:center;
+  background:rgba(0,0,0,.45); font-size:11px; font-weight:800; font-variant-numeric:tabular-nums;
+}
+.randomBoosterExcluded { font-size:11px; color:rgba(255,255,255,.40); }
+@media (max-width:600px) {
+  .randomBoosterRerollBtn { width:100%; justify-content:center; }
+}
+
+/* ═══ 무작위 로드아웃: 조건부 레이아웃 ═══
+ * [조건 설정][생성]
+ * [방어구 | 주무기(가로 2칸)      ] [오른쪽 패널: 부스터 + 전체 목록]
+ * [방어구 | 보조무기 | 투척무기   ]
+ * [스트라타젬 ×4                  ]
+ * 모바일: 오른쪽 패널만 표시 */
+.randomTopBar { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; }
+.randomCondBtn {
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; min-width:0;
+  padding:10px 14px; border-radius:10px; cursor:pointer; font-family:inherit;
+  background:rgba(40,40,40,.90); border:1px solid rgba(240,196,0,.55); color:var(--yellow);
+  transition:border-color .15s, background .15s, box-shadow .15s;
+}
+.randomCondBtn:hover { background:rgba(50,45,20,.92); border-color:rgba(240,196,0,.85); box-shadow:0 0 0 2px rgba(240,196,0,.15); }
+.randomCondBtnTitle { font-size:15px; font-weight:800; }
+.randomCondBtnSummary {
+  max-width:100%; font-size:11px; font-weight:600; color:rgba(255,220,80,.75);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.randomTopBar .randomBtn { width:100%; padding:10px 16px; }
+
+/* PC: 칸 배치만 / 모바일(≤700px): 목록 패널만 */
+.randomStage { display:block; }
+.randomPanel { display:none !important; }
+.randomBoard { display:flex; flex-direction:column; gap:12px; min-width:0; }
+.randomGearGrid {
+  display:grid; grid-template-columns:repeat(3, minmax(0,1fr));
+  grid-template-rows:repeat(2, clamp(140px, 21vh, 200px)); gap:12px;
+}
+.rgArmor   { grid-row:1 / span 2; }
+.rgPrimary { grid-column:2 / span 2; }
+.rgCard { min-width:0; min-height:0; padding:10px; gap:6px; }
+.rgImg { flex:1; min-height:0; width:100%; display:flex; align-items:center; justify-content:center; }
+.rgIcon { width:100%; height:100%; object-fit:contain; display:block; }
+.rgIconEmpty {
+  width:100%; height:100%; border-radius:8px; background:rgba(255,255,255,.06);
+  display:flex; align-items:center; justify-content:center;
+  font-size:12px; font-weight:700; color:rgba(255,255,255,.35);
+}
+.rgCard .randomGearName { width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.randomBoard .randomStratRow { grid-template-columns:repeat(4, minmax(0,1fr)); gap:12px; }
+.rsCard { min-width:0; padding:12px 8px 10px; }
+.rsCard .randomStratName { width:100%; word-break:keep-all; }
+
+.randomPanel {
+  display:flex; flex-direction:column; gap:10px; min-width:0;
+  background:linear-gradient(180deg,rgba(18,18,18,.93),rgba(10,10,10,.93));
+  border:1px solid rgba(255,255,255,.14); border-radius:14px; padding:14px;
+}
+.randomPanel .randomResultTitle { font-size:15px; padding-bottom:8px; }
+.rpBooster {
+  display:flex; flex-direction:column; align-items:center; gap:5px; text-align:center;
+  padding:10px; border-radius:12px; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.03);
+}
+.rpBoosterIcon { width:68px; height:68px; object-fit:contain; }
+.rpBoosterIconEmpty { border-radius:10px; background:rgba(255,255,255,.06); }
+.rpBoosterName { font-size:14px; font-weight:800; color:#fff; }
+.rpBoosterDesc {
+  font-size:11px; color:rgba(255,255,255,.50); line-height:1.45; word-break:keep-all;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+}
+.rpBoosterReroll { width:100%; justify-content:center; height:34px; padding:0 10px; font-size:12px; margin-top:2px; }
+.rpHint { font-size:12px; color:rgba(255,255,255,.45); text-align:center; line-height:1.5; }
+.rpWarn {
+  font-size:12px; font-weight:700; color:#fde047; text-align:center; line-height:1.5;
+  padding:7px 10px; border-radius:8px; border:1px solid rgba(253,224,71,.35); background:rgba(253,224,71,.08);
+}
+.rpCardRule { display:flex; flex-direction:column; gap:6px; }
+.rpCardRerollBtn { margin-top:0; padding:8px 12px; font-size:13px; }
+.rpCardRerollBtn:disabled { opacity:.40; cursor:default; box-shadow:none; }
+.randomPanel .randomObsessionBadge { padding:6px 10px; }
+.randomPanel .randomJokerHint { font-size:12px; padding:7px 10px; }
+
+.rpSection { display:flex; flex-direction:column; gap:2px; }
+.rpSectionLabel { font-size:11px; font-weight:700; color:rgba(255,255,255,.40); letter-spacing:.05em; margin:2px 0 2px; }
+.rpRow {
+  display:grid; grid-template-columns:56px minmax(0,1fr); gap:6px; align-items:baseline;
+  width:100%; text-align:left; padding:4px 6px; border-radius:7px; font-family:inherit;
+  border:1px solid transparent; background:transparent; color:inherit;
+}
+.rpRow:disabled { cursor:default; }
+.rpRowLabel { font-size:12px; font-weight:700; color:rgba(255,255,255,.45); white-space:nowrap; }
+.rpRowName  { font-size:13px; font-weight:700; color:#fff; line-height:1.3; word-break:keep-all; }
+.rpRowMuted { color:rgba(255,255,255,.35); }
+.rpRowClickable { cursor:pointer; border-color:rgba(255,255,255,.10); background:rgba(255,255,255,.03); }
+.rpRowClickable:hover { border-color:rgba(240,196,0,.45); }
+.rpRowSelected { border-color:rgba(240,196,0,.85); background:rgba(240,196,0,.14); }
+.rpRowSelected .rpRowLabel { color:var(--yellow); }
+.rpRowFlash { animation:rpRowFlash .7s ease-out; }
+@keyframes rpRowFlash {
+  0%   { background:rgba(255,255,255,.25); box-shadow:0 0 0 2px rgba(255,255,255,.85); }
+  100% { background:transparent; box-shadow:none; }
+}
+
+/* 조건 설정 팝업 */
+.randomCondCard { width:min(860px,100%); }
+.randomCondBody { display:flex; flex-direction:column; gap:16px; padding:14px 18px 16px; overflow-y:auto; min-height:0; }
+.randomCondGroup { display:flex; flex-direction:column; gap:8px; }
+.randomCondGroupHead { display:flex; align-items:baseline; gap:8px; }
+.randomCondGroupTitle { font-size:14px; font-weight:800; color:var(--yellow); }
+.randomCondGroupRule { font-size:11px; font-weight:600; color:rgba(255,255,255,.45); }
+.randomCondGrid { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:8px; }
+.randomCondGridPair { grid-template-columns:repeat(2, minmax(0,1fr)); }
+.randomCondGrid .randomModeBtn { padding:10px; }
+
+@media (max-width:700px) {
+  .pageRandom { padding:14px 12px 40px; gap:12px; }
+  .randomPanel { display:flex !important; }
+  .randomBoard { display:none; }
+  .randomCondGrid { grid-template-columns:minmax(0,1fr); }
+  .randomCondGridPair { grid-template-columns:repeat(2, minmax(0,1fr)); }
+  .randomCondGrid .randomModeBtn { padding:9px 8px; }
+  .randomCondBody { padding:12px 14px; }
+}
+@media (max-width:420px) {
+  .randomTopBar { grid-template-columns:minmax(0,1fr); gap:8px; }
+}
+
+/* ── PC 칸 배치: [방어구][주무기 ×2] / [부스터][보조무기][투척무기] / [스트라타젬 ×4] ── */
+.randomGearGrid { grid-template-rows:repeat(2, clamp(150px, 23vh, 220px)); }
+.rgArmor { grid-row:auto; }
+.rgBooster { justify-content:center; }
+.rgBooster .rgImg { max-height:96px; }
+.rgBooster .rpBoosterName { width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.rgBooster .rpBoosterReroll { height:30px; font-size:11px; gap:6px; padding:0 8px; margin-top:0; }
+.rgBooster .randomBoosterExcluded { width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:center; }
+.randomBoardNotices { display:flex; flex-direction:column; gap:8px; }
+.randomBoardNotices .rpCardRule { flex-direction:row; align-items:stretch; }
+.randomBoardNotices .rpCardRule .randomJokerHint { flex:1; display:flex; align-items:center; justify-content:center; }
+.randomBoardNotices .rpCardRerollBtn { width:auto; padding:8px 18px; }
+
+/* PC: 상단 문구 */
+.randomBoardTitle { font-size:16px; padding-bottom:8px; }
+
+/* 조건 설정 팝업: 보유 항목 버튼 — 보유 채권 팝업(10030)이 위에 뜨도록 한 단계 아래 */
+.randomCondOverlay { z-index:10020; }
+.randomCondOwnCount {
+  min-width:38px; padding:1px 7px; border-radius:999px; text-align:center;
+  background:rgba(0,0,0,.45); font-size:11px; font-weight:800; font-variant-numeric:tabular-nums;
+}
+
+/* 슈퍼 스토어 보유 항목 선택 팝업 */
+.ssOwnedOverlay { z-index:10025; }   /* 조건 설정(10020) 위, 소지 채권 팝업(10030) 아래 */
+.ssOwnedCard { width:min(900px,100%); }
+.ssOwnedBody {
+  display:flex; flex-direction:column; gap:14px; padding:4px 18px 14px; overflow-y:auto; min-height:0;
+  scrollbar-width:thin; scrollbar-color:rgba(240,196,0,.35) transparent;
+}
+.ssOwnedGroup { display:flex; flex-direction:column; gap:8px; }
+.ssOwnedGroupTitle { font-size:13px; font-weight:800; color:rgba(255,255,255,.70); }
+.ssOwnedGrid { display:grid; grid-template-columns:repeat(auto-fill, minmax(112px, 1fr)); gap:8px; }
+.ssOwnedItem {
+  display:flex; flex-direction:column; align-items:center; gap:4px; min-width:0;
+  padding:8px 6px; border-radius:10px; cursor:pointer; font-family:inherit; text-align:center;
+  border:1px solid rgba(255,255,255,.10); background:rgba(255,255,255,.03); color:rgba(255,255,255,.85);
+  opacity:.45; filter:grayscale(.7); transition:opacity .12s, filter .12s, border-color .12s, background .12s;
+}
+.ssOwnedItem:hover { opacity:.75; }
+.ssOwnedItem.on { opacity:1; filter:none; border-color:rgba(0,246,255,.60); background:rgba(0,246,255,.08); }
+.ssOwnedIcon { width:72px; height:72px; object-fit:contain; }
+.ssOwnedName { font-size:11px; font-weight:700; line-height:1.3; word-break:keep-all; }
+.ssOwnedSub  { font-size:10px; font-weight:600; color:rgba(255,255,255,.45); line-height:1.3; word-break:keep-all; }
+@media (max-width:600px) {
+  .ssOwnedGrid { grid-template-columns:repeat(3, minmax(0,1fr)); }
+  .ssOwnedIcon { width:56px; height:56px; }
+}
+
+/* 보유 항목: 조건 설정 창의 단일 버튼 */
+/* 보유 항목 팝업: 채권 줄 + 분류 탭 */
+.ssOwnedTabs { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:6px; padding:12px 18px 0; }
+.ssOwnedTab {
+  display:flex; align-items:center; justify-content:center; gap:6px; min-width:0; height:38px; padding:0 8px;
+  border-radius:10px; cursor:pointer; font-family:inherit; font-size:13px; font-weight:800; white-space:nowrap;
+  border:1px solid rgba(255,255,255,.14); background:rgba(30,30,30,.88); color:rgba(255,255,255,.70);
+}
+.ssOwnedTab.on { border-color:rgba(240,196,0,.70); background:rgba(240,196,0,.12); color:var(--yellow); }
+.ssOwnedItem.ssOwned_campaign.on { border-color:rgba(253,224,71,.70); background:rgba(253,224,71,.08); }
+@media (max-width:520px) {
+  .ssOwnedTabs { grid-template-columns:minmax(0,1fr); }
+}
+
+/* 보유 항목 관리: 슈퍼 시민권 업그레이드 체크 */
+.ssCitizenRow {
+  display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:12px 18px 0; padding:10px 12px;
+  border-radius:10px; border:1px solid rgba(254,232,0,.40); background:rgba(254,232,0,.06); cursor:pointer;
+}
+.ssCitizenRow input { width:16px; height:16px; accent-color:#fee800; cursor:pointer; margin:0; }
+.ssCitizenLabel { font-size:13px; font-weight:800; color:#fee800; }
+.ssOwnedCard .wbOwnedList { padding-top:4px; }
+
+/* 로드아웃 빌더 선택창: 보유한 슈퍼 스토어 항목 */
+.pickCard { position:relative; }
+.pickCard.ssOwnedPick { padding-bottom:24px; }
+.pickOwnedTag {
+  position:absolute; left:50%; bottom:6px; transform:translateX(-50%);
+  font-size:12px; font-weight:800; color:#4ade80; white-space:nowrap; pointer-events:none;
+  text-shadow:0 0 8px rgba(74,222,128,.45);
+}
+/* 슈퍼 시민권 업그레이드 체크 해제: 회색 */
+.ssCitizenRow { transition:border-color .12s, background .12s; }
+.ssCitizenRow.off { border-color:rgba(255,255,255,.12); background:rgba(255,255,255,.03); }
+.ssCitizenRow.off .ssCitizenLabel { color:rgba(255,255,255,.40); }
+.ssCitizenRow.off input { accent-color:#6b6b6b; }
+/* 슈퍼 시민권 업그레이드: 체크박스 없이 줄을 눌러 켜고 끔 */
+button.ssCitizenRow { width:calc(100% - 36px); font-family:inherit; text-align:left; }
+
+/* ── 보유 항목 관리: 박스 크기 통일 + 배치 ── */
+.ssOwnedItem { justify-content:flex-start; }
+.ssOwnedName {
+  width:100%; height:2.6em; line-height:1.3;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+}
+.ssOwnedSub { width:100%; height:1.3em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ssOwnedGrid6 { grid-template-columns:repeat(6, minmax(0,1fr)); }
+/* 별도 로테이션: 로테이션 묶음을 한 줄에 4개 */
+.ssRotGrid { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:14px 8px; }
+.ssRotCell { min-width:0; }
+.ssRotCell .ssOwnedGroupTitle { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ssOwnedGrid1 { grid-template-columns:minmax(0,1fr); }
+/* 캠페인 보상: 가운데 정렬 (박스 폭은 6열 기준과 동일) */
+.ssOwnedGridCenter { display:flex; flex-wrap:wrap; justify-content:center; }
+.ssOwnedGridCenter > .ssOwnedItem { width:calc((100% - 40px) / 6); }
+@media (max-width:600px) {
+  .ssOwnedGrid6 { grid-template-columns:repeat(3, minmax(0,1fr)); }
+  .ssRotGrid { grid-template-columns:repeat(2, minmax(0,1fr)); }
+  .ssOwnedGridCenter > .ssOwnedItem { width:calc((100% - 16px) / 3); }
+}
+
+/* 로드아웃 빌더: "+보유함"을 이미지 위(하단 중앙)에 표시 */
+.pickCard.ssOwnedPick { padding-bottom:12px; }
+.pickThumb { position:relative; }
+.pickOwnedTag {
+  bottom:4px; padding:1px 7px; border-radius:999px;
+  background:rgba(0,0,0,.62); text-shadow:0 0 6px rgba(74,222,128,.55);
+}
+
+/* 조건 설정: 현재 난이도에서 고를 수 없는 항목 */
+.randomModeBtn:disabled, .randomModeBtn:disabled:hover {
+  cursor:not-allowed; opacity:.32; filter:grayscale(1);
+  background:rgba(40,40,40,.90); border-color:rgba(255,255,255,.14); box-shadow:none;
+}
+
+/* ── 무작위 로드아웃: 룰렛 연출 ── */
+/* 돌아가는 칸: 어둡게 → 멈추면 원래 밝기로 서서히 복귀 */
+.rgCard, .rsCard, .rpBooster, .rpRow { transition:filter .35s ease, opacity .35s ease; }
+.rollSpin { filter:brightness(.42) saturate(.6); }
+.rollSpin .rgIcon, .rollSpin .randomStratIcon, .rollSpin .rpBoosterIcon {
+  animation:rollReel .14s linear infinite; filter:blur(.6px);
+}
+.rpRowSpin { filter:brightness(.45); }
+@keyframes rollReel {
+  0%   { transform:translateY(-6%); }
+  50%  { transform:translateY(6%); }
+  100% { transform:translateY(-6%); }
+}
+.rollLand { animation:rollLand .45s cubic-bezier(.22,1.4,.36,1); }
+@keyframes rollLand {
+  0%   { transform:scale(.94); box-shadow:0 0 0 3px rgba(240,196,0,.95), 0 0 26px rgba(240,196,0,.55); }
+  100% { transform:scale(1);   box-shadow:none; }
+}
+.rpRowSpin .rpRowName { opacity:.55; }
+.rpRow.rollLand, .rpRowFlash { animation:rpRowFlash .7s ease-out; }
+@media (prefers-reduced-motion:reduce) {
+  .rollSpin .rgIcon, .rollSpin .randomStratIcon, .rollSpin .rpBoosterIcon { animation:none; filter:none; }
+}
+
+/* ── 보유 항목 관리: 창 높이 애니메이션 + 박스 내용 가운데 ── */
+.ssOwnedCard { transition:height .3s cubic-bezier(.22,1,.36,1); }
+.ssOwnedScroll {
+  flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain;
+  scrollbar-width:thin; scrollbar-color:rgba(240,196,0,.35) transparent;
+}
+.ssOwnedInner .wbOwnedList, .ssOwnedInner .ssOwnedBody { overflow:visible; min-height:auto; }
+.ssOwnedItem { justify-content:center; }
+.ssOwnedIcon { display:block; margin:0 auto; }
+.ssOwnedName, .ssOwnedSub { text-align:center; }
+/* 이름: 두 줄 높이 칸 안에서 위아래 가운데 (한 줄 이름도 가운데) */
+.ssOwnedName { display:flex; align-items:center; justify-content:center; -webkit-line-clamp:unset; }
+.ssOwnedNameText { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+@media (prefers-reduced-motion:reduce) { .ssOwnedCard { transition:none; } }
+
+/* 원 컬러 분류 배지: 룰렛이 끝날 때 기본 등장 애니메이션(randomFadeIn)이 다시 재생되며 깜빡이던 문제 → 기본 애니메이션 제거 */
+.randomObsessionBadge.rpColorBadge { animation:none; }
+.randomObsessionBadge.rpColorBadge.rollLand { animation:rollLand .45s cubic-bezier(.22,1.4,.36,1); }
+.rpColorBadge strong { font-size:15px; letter-spacing:.04em; }
+/* 원 컬러 분류: 공개 전 어두운 상태 → 공개되면 색이 서서히 밝아짐 */
+.rpColorBadge { transition:color .35s ease, background-color .35s ease, border-color .35s ease, filter .35s ease; }
+.rpColorHidden { filter:brightness(.7); }
+/* 원 컬러: 공개 전 더 어둡게 → 반짝이며 공개 / 스트라타젬은 공개 전까지 어둡게 대기 */
+.rpColorHidden { filter:brightness(.45); }
+.randomObsessionBadge.rpColorBadge.rpColorReveal { animation:colorReveal .8s ease-out; }
+@keyframes colorReveal {
+  0%   { filter:brightness(2.4); box-shadow:0 0 0 3px rgba(255,255,255,.95), 0 0 34px rgba(255,255,255,.75); transform:scale(1.05); }
+  25%  { filter:brightness(1.2); box-shadow:0 0 0 2px rgba(255,255,255,.35), 0 0 12px rgba(255,255,255,.25); }
+  45%  { filter:brightness(1.9); box-shadow:0 0 0 3px rgba(255,255,255,.85), 0 0 28px rgba(255,255,255,.6); transform:scale(1.03); }
+  100% { filter:brightness(1);   box-shadow:none; transform:scale(1); }
+}
+.rollWait { filter:brightness(.3) saturate(.4); }
+
+/* 원 컬러 분류 배지: 스트라타젬 바로 위 */
+.randomBoard .rpColorBadge { padding:7px 12px; }
+.rpSection .rpColorBadge { margin:2px 0 4px; padding:6px 10px; }
+
+/* 조건 설정: 결과 바로 표시하기 */
+.randomCondInstant {
+  display:flex; align-items:center; gap:8px; flex-wrap:wrap; cursor:pointer;
+  padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.04);
+}
+.randomCondInstant input { width:16px; height:16px; margin:0; accent-color:var(--yellow); cursor:pointer; }
+.randomCondInstant span { font-size:13px; font-weight:800; color:rgba(255,255,255,.88); }
+.randomCondInstant em { font-style:normal; font-size:11px; font-weight:600; color:rgba(255,255,255,.45); }
+.randomCondInstant:has(input:checked) { border-color:rgba(240,196,0,.55); background:rgba(240,196,0,.08); }
+.randomCondInstant:has(input:checked) span { color:var(--yellow); }
+/* 조건 설정 헤더: 오른쪽에 "결과 바로 표시하기" */
+.randomCondHeader { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.randomCondHeaderText { min-width:0; }
+.randomCondHeader .randomCondInstant { flex-shrink:0; flex-wrap:nowrap; padding:8px 12px; }
+@media (max-width:520px) {
+  .randomCondHeader { flex-direction:column; align-items:stretch; }
+}
+
+/* ── 보유 항목 관리: 동기화 코드 ── */
+.ssSyncRow { display:flex; flex-direction:column; gap:6px; padding:10px 18px 12px; border-top:1px solid rgba(255,255,255,.08); flex-shrink:0; }
+.ssSyncHead { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.ssSyncLabel { font-size:12px; font-weight:800; color:rgba(255,255,255,.70); }
+/* 모바일: 분류 버튼 → 분류 선택 팝업 */
+.ssOwnedTabArrow { margin-left:auto; font-size:18px; line-height:1; opacity:.6; }
+@media (max-width:600px) {
+  .ssOwnedTab { justify-content:flex-start; height:44px; padding:0 14px; }
+  .ssOwnedTabs { padding-bottom:12px; }
+}
+.ssSubOverlay { z-index:10027; }   /* 보유 항목 관리(10025) 위 */
+.ssSubCard { max-height:calc(100dvh - 24px); }
+
+/* ═══ OBS 오버레이 (/?obs=코드&layout=block|bar) — 배경 투명, 정해진 크기로 그림 ═══ */
+html.obsMode, html.obsMode body { background:transparent !important; background-image:none !important; overflow:hidden; margin:0; }
+html.obsMode #root { min-height:0; }
+.obsOverlay { box-sizing:border-box; padding:16px; display:flex; font-family:'Noto Sans KR','Inter',sans-serif; color:#fff; overflow:hidden; }
+.obsText { font-weight:800; line-height:1.25; white-space:nowrap;
+  text-shadow:0 0 3px #000, 0 0 3px #000, 0 2px 5px rgba(0,0,0,.9), 0 0 14px rgba(0,0,0,.6); }
+.obsBoxes { display:flex; gap:16px; flex-shrink:0; }
+.obsBox {
+  display:flex; align-items:center; justify-content:center; box-sizing:border-box;
+  border:4px solid rgba(255,255,255,.5); border-radius:16px; background:rgba(28,28,28,.72);
+  box-shadow:0 0 10px rgba(0,0,0,.6);
+}
+.obsBoxEmpty { border-color:rgba(255,255,255,.18); background:rgba(28,28,28,.40); }
+.obsIcon { width:100%; height:100%; object-fit:contain; display:block; padding:10px; box-sizing:border-box; }
+/* 블록형 420×660 (세로, 오른쪽 정렬):
+ *   [   방어구 패시브 (장갑 등급)]
+ *            (간격)
+ *             [      주무기       ]
+ *             [보조무기] [투척무기]
+ *             [스트라타젬 2×2     ]          */
+.obs_block { display:flex; flex-direction:column; align-items:flex-end; justify-content:flex-start; gap:26px; }
+.obs_block .obsBlockText {
+  width:100%; height:90px; flex-shrink:0;
+  display:flex; flex-direction:column; justify-content:flex-end; align-items:flex-end; font-size:36px;
+}
+.obsBlockGrid { display:grid; grid-template-columns:116px 116px; grid-template-rows:116px 116px 116px 116px; gap:12px; }
+.obsGearBox {
+  display:flex; align-items:center; justify-content:center; box-sizing:border-box; width:100%; height:100%;
+  border:4px solid rgba(255,255,255,.35); border-radius:16px; background:rgba(28,28,28,.72); box-shadow:0 0 10px rgba(0,0,0,.6);
+}
+.obsGearBox .obsIcon { filter:drop-shadow(0 0 3px rgba(0,0,0,.8)); }
+.obsGearPrimary    { grid-column:1 / span 2; grid-row:1; }
+.obsGearSecondary  { grid-column:1; grid-row:2; }
+.obsGearThrowable  { grid-column:2; grid-row:2; }
+.obsBlockStrats    { grid-column:1 / span 2; grid-row:3 / span 2; }
+.obsGrid2 { display:grid; grid-template-columns:repeat(2, 116px); gap:12px; }
+.obs_block .obsBox { width:116px; height:116px; }
+/* 가로형 1800×220: 스트라타젬 4칸 + 아래 장비 1줄 (가운데 정렬) */
+.obs_bar { flex-direction:column; align-items:center; justify-content:center; gap:14px; }
+.obsBarText { max-width:100%; overflow:hidden; text-overflow:ellipsis; font-size:38px; }
+.obs_bar .obsBox { width:120px; height:120px; }
+.obs_bar .obsBoxes { gap:20px; }
+.obsError { display:inline-block; margin:8px; padding:6px 10px; border-radius:8px; background:rgba(0,0,0,.75); color:#fca5a5; font-size:13px; font-weight:700; }
+
+/* 빌더: 오버레이 형식 선택 팝업 */
+.obsPopupCard { width:min(560px,100%); }
+.obsPickList { display:flex; flex-direction:column; gap:8px; padding:12px 18px 14px; overflow-y:auto; min-height:0; }
+.obsPick {
+  display:flex; align-items:center; gap:14px; text-align:left; padding:12px; border-radius:12px; cursor:pointer; font-family:inherit;
+  border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.04); color:rgba(255,255,255,.85);
+}
+.obsPick:hover { border-color:rgba(240,196,0,.45); }
+.obsPick.on { border-color:rgba(240,196,0,.80); background:rgba(240,196,0,.10); }
+.obsPickInfo { display:flex; flex-direction:column; gap:3px; min-width:0; }
+.obsPickName { font-size:15px; font-weight:800; }
+.obsPick.on .obsPickName { color:var(--yellow); }
+.obsPickSize { font-size:12px; font-weight:800; color:#86efac; font-variant-numeric:tabular-nums; }
+.obsPickDesc { font-size:12px; color:rgba(255,255,255,.55); line-height:1.45; word-break:keep-all; }
+/* 미리보기 그림 (오버레이 배치를 축소해 표시) */
+.obsPickPreview { flex-shrink:0; display:flex; align-items:center; justify-content:flex-end; width:120px; height:70px; border-radius:8px; background:#2b3a2b linear-gradient(135deg,#2c3a2a,#1d241c); padding:6px 8px; box-sizing:border-box; }
+.obsPickPreview.pvLeft { justify-content:flex-start; }
+.obsPickPreview b { display:block; box-sizing:border-box; border-radius:2px; background:rgba(0,0,0,.4); }
+.pvCol { display:flex; flex-direction:column; align-items:flex-end; gap:4px; }
+.pvLeft .pvCol { align-items:flex-start; }
+.pvLine { display:block; width:34px; height:3px; border-radius:2px; background:rgba(255,255,255,.85); }
+/* 블록형: 글자 / 주무기(2칸) / 보조·투척 / 스트라타젬 2×2 */
+.pvGrid { display:grid; grid-template-columns:repeat(2, 11px); grid-auto-rows:11px; gap:2px; }
+.pvGrid b { border:1.5px solid; }
+.pvGear { border-color:rgba(255,255,255,.55) !important; }
+.pvWide { grid-column:1 / span 2; }
+/* 가로형: 스트라타젬 4칸 / 글자 — 미리보기 가운데 */
+.obsPv_bar { justify-content:center; }
+.pvCenter { align-items:center; }
+.pvRow { display:flex; gap:3px; }
+.pvRow b { width:13px; height:13px; border:2px solid; }
+.pvLineWide { width:84px; }
+.pvR { border-color:#f05a4f !important; } .pvB { border-color:#3d9df2 !important; } .pvG { border-color:#4cc76f !important; }
+/* 블록형 좌/우 배치 선택 */
+.obsSideRow { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:4px 2px 0; }
+.obsSideLabel { font-size:13px; font-weight:800; color:rgba(255,255,255,.75); }
+.obsSideBtns { display:flex; gap:6px; }
+.obsSideBtn {
+  height:34px; padding:0 14px; border-radius:9px; cursor:pointer; font-family:inherit; font-size:13px; font-weight:700;
+  border:1px solid rgba(255,255,255,.16); background:rgba(30,30,30,.88); color:rgba(255,255,255,.70);
+}
+.obsSideBtn.on { border-color:rgba(240,196,0,.75); background:rgba(240,196,0,.12); color:var(--yellow); }
+/* 오버레이 블록형: 왼쪽 배치 */
+.obs_block.obsSideLeft { align-items:flex-start; }
+.obsSideLeft .obsBlockText { align-items:flex-start; }
+.obs_block.obsSideLeft .obsLine { text-align:left; }
+
+/* OBS 오버레이 링크 복사: PC에서만 표시 (모바일·태블릿 등 터치 기기에서는 숨기고 게시하기 버튼을 한 줄 전체로) */
+@media (max-width:700px), (hover:none) and (pointer:coarse) {
+  .obsLinkBtn { display:none !important; }
+  .lBtnSplitRowObs { grid-template-columns:1fr; }
+}
+/* 블록형: 방어구 패시브 글자는 길면 두 줄까지 (오른쪽 정렬) */
+.obs_block .obsLine { white-space:normal; text-align:right; word-break:keep-all; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+
+/* 블록형 카드 안의 좌/우 배치 버튼 */
+.obsPick:focus-visible { outline:2px solid rgba(240,196,0,.8); outline-offset:2px; }
+.obsPickInfo .obsSideBtns { margin-top:6px; }
+.obsPickInfo .obsSideBtn { height:30px; padding:0 12px; font-size:12px; }
+.obsPickHead { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+
+/* 블록형: 무기는 상자 없이 이미지만 — 흰 외곽선 + 그림자 */
+.obsGearBox, .obsGearBox.obsBoxEmpty { border:none; background:transparent; box-shadow:none; border-radius:0; }
+.obsGearBox .obsIcon {
+  padding:6px;
+  filter:
+    drop-shadow(1.5px 0 0 #fff) drop-shadow(-1.5px 0 0 #fff)
+    drop-shadow(0 1.5px 0 #fff) drop-shadow(0 -1.5px 0 #fff)
+    drop-shadow(0 4px 6px rgba(0,0,0,.85));
+}
+/* 블록형: 주무기 이미지를 조금 아래로 / 스트라타젬 상자 배경 더 불투명하게 */
+.obsGearPrimary .obsIcon { transform:translateY(16px); }
+.obsBox { background:rgba(22,22,22,.88); }
+.obsBoxEmpty { background:rgba(22,22,22,.55); }
